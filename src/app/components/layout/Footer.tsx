@@ -210,7 +210,7 @@ export default function MainFooter({ settings, isMobile }: { settings: GlobalSet
 
   return (
     <footer className="bg-gray-900 dark:bg-black text-gray-300 border-t border-brand-primary/30">
-      <div className="max-w-[1920px] mx-auto px-6 py-10 md:py-16">
+      <div className="max-w-480 mx-auto px-6 py-10 md:py-16">
         
         {/* Main Grid: Mobile Accordion or Desktop Columns */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-10">

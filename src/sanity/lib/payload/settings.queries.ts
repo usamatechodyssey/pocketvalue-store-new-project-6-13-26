@@ -1,3 +1,4 @@
+//// src/sanity/lib/payload/settings.queries.ts
 import { getPayload } from 'payload'
 import configPromise from '@payload-config'
 

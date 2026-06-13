@@ -1,3 +1,4 @@
+//// src/sanity/lib/payload/.queries.ts
 import { getPayload, Where } from "payload"; // ✅ Where import kiya
 import configPromise from "@payload-config";
 import { mapPayloadProductToSanity } from "./plp/productMapper";
@@ -10,8 +11,8 @@ export const getPayloadHomepageData = async () => {
     slug: "homepage",
     depth: 2,
   });
-
-  if (!homepage || !homepage.pageSections) return { pageSections: [] };
+  if (!homepage || !homepage.pageSections)
+    return { pageSections: [], seo: null };
 
   const resolvedSections = await Promise.all(
     homepage.pageSections.map(async (block: any) => {
@@ -147,26 +148,32 @@ export const getPayloadHomepageData = async () => {
         );
         return baseBlock;
       }
- // === 4. CATEGORY SHOWCASE ===
+      // === 4. CATEGORY SHOWCASE ===
       if (block.blockType === "categoryShowcase") {
-        baseBlock.categories = block.categories?.map((c: any, index: number) => ({ // ✅ FIX: Added 'index' for stable fallback
-          // Ensure _id is always a string. Use Payload's ID or a stable fallback.
-          _id: c.id ? String(c.id) : `category-showcase-id-${index}`, 
-          name: c.name,
-          slug: c.slug,
-          image: c.image?.url, // Payload ke media object se direct url len
-        }));
+        baseBlock.categories = block.categories?.map(
+          (c: any, index: number) => ({
+            // ✅ FIX: Added 'index' for stable fallback
+            // Ensure _id is always a string. Use Payload's ID or a stable fallback.
+            _id: c.id ? String(c.id) : `category-showcase-id-${index}`,
+            name: c.name,
+            slug: c.slug,
+            image: c.image?.url, // Payload ke media object se direct url len
+          }),
+        );
         return baseBlock;
       }
 
       // === 5. CATEGORY GRID ===
       if (block.blockType === "categoryGrid") {
-        baseBlock.items = block.items?.map((item: any, itemIndex: number) => ({ // ✅ FIX: Added 'itemIndex' for stable fallback
+        baseBlock.items = block.items?.map((item: any, itemIndex: number) => ({
+          // ✅ FIX: Added 'itemIndex' for stable fallback
           discountText: item.discountText,
           category: item.category // Yeh category relationship hai
             ? {
                 // Ensure _id is always a string for nested category objects too
-                _id: item.category.id ? String(item.category.id) : `category-grid-id-${itemIndex}`, 
+                _id: item.category.id
+                  ? String(item.category.id)
+                  : `category-grid-id-${itemIndex}`,
                 name: item.category.name,
                 slug: item.category.slug,
                 image: item.category.image?.url, // Payload ke media object se direct url len
@@ -194,37 +201,42 @@ export const getPayloadHomepageData = async () => {
         };
         return baseBlock;
       }
-// src/sanity/lib/payload/homepage.queries.ts
+      // src/sanity/lib/payload/homepage.queries.ts
 
-// ... (existing imports and code)
+      // ... (existing imports and code)
 
       // === 7. BRAND SECTION ===
       if (block.blockType === "brandSection") {
-        baseBlock.manualBrands = block.manualBrands?.map((b: any, index: number) => { // ✅ Added 'index' for stable fallback
-          // ✅ FIX 1 (Future-Proof): Ensure _id is always a unique and STABLE string.
-          // Use Payload's ID if available, otherwise a stable index-based key.
-          const brandId = b.id ? String(b.id) : `brand-fallback-id-${index}`; 
+        baseBlock.manualBrands = block.manualBrands
+          ?.map((b: any, index: number) => {
+            // ✅ Added 'index' for stable fallback
+            // ✅ FIX 1 (Future-Proof): Ensure _id is always a unique and STABLE string.
+            // Use Payload's ID if available, otherwise a stable index-based key.
+            const brandId = b.id ? String(b.id) : `brand-fallback-id-${index}`;
 
-          return {
-            _id: brandId,
-            name: b.name,
-            slug: b.slug,
-            // 🔥 FIX 2: Logo ko SanityImageObject format mein map karein.
-            // Payload media relationship se 'id' aur 'url' milte hain.
-            // Ensure `_ref` is always a string.
-            logo: b.logo?.id && b.logo?.url ? { 
-                _type: 'image',
-                asset: { 
-                    _ref: String(b.logo.id), // ✅ Ensure _ref is a string
-                    _type: 'reference' 
-                },
-                url: b.logo.url 
-            } : undefined,
-          };
-        }).filter(Boolean); 
+            return {
+              _id: brandId,
+              name: b.name,
+              slug: b.slug,
+              // 🔥 FIX 2: Logo ko SanityImageObject format mein map karein.
+              // Payload media relationship se 'id' aur 'url' milte hain.
+              // Ensure `_ref` is always a string.
+              logo:
+                b.logo?.id && b.logo?.url
+                  ? {
+                      _type: "image",
+                      asset: {
+                        _ref: String(b.logo.id), // ✅ Ensure _ref is a string
+                        _type: "reference",
+                      },
+                      url: b.logo.url,
+                    }
+                  : undefined,
+            };
+          })
+          .filter(Boolean);
         return baseBlock;
       }
-    
 
       // === 8. LAYOUT SECTION (Infinite Grid) ===
       if (block.blockType === "layoutSection") {
@@ -249,5 +261,5 @@ export const getPayloadHomepageData = async () => {
     }),
   );
 
-  return { pageSections: resolvedSections };
+  return { pageSections: resolvedSections, seo: (homepage as any).seo || null };
 };

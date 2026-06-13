@@ -165,7 +165,7 @@ export default function MobileCategoryList({ categories }: { categories: SanityC
             className="flex flex-col items-center gap-2 group snap-center"
           >
             {/* === IMAGE CIRCLE === */}
-            <div className="relative w-[72px] h-[72px] rounded-full overflow-hidden border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 shadow-sm group-active:scale-95 transition-transform duration-200">
+            <div className="relative w-18 h-18 rounded-full overflow-hidden border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 shadow-sm group-active:scale-95 transition-transform duration-200">
               {category.image ? (
                 <Image
                   src={urlFor(category.image).width(150).height(150).url()}
@@ -183,7 +183,7 @@ export default function MobileCategoryList({ categories }: { categories: SanityC
             </div>
 
             {/* === TEXT === */}
-            <span className="text-[11px] font-medium text-center text-gray-700 dark:text-gray-300 w-[72px] leading-tight truncate">
+            <span className="text-[11px] font-medium text-center text-gray-700 dark:text-gray-300 w-18 leading-tight truncate">
               {category.name}
             </span>
           </Link>

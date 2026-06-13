@@ -1,4 +1,3 @@
-
 "use client";
 
 import Link from "next/link";
@@ -8,16 +7,41 @@ import { Menu } from "lucide-react";
 export interface NavLink {
   label: string;
   url: string;
-  position: 'left' | 'right';
+  position: "left" | "right";
   isHighlight: boolean;
 }
 
 const DEFAULT_LINKS: NavLink[] = [
-  { label: "Deals & Offers", url: "/deals", position: "left", isHighlight: true },
-  { label: "Gift Cards", url: "/gift-cards", position: "left", isHighlight: false },
-  { label: "Sell on PocketValue", url: "/sell", position: "left", isHighlight: false },
-  { label: "Track Order", url: "/account/orders", position: "right", isHighlight: false },
-  { label: "Help & Support", url: "/faq", position: "right", isHighlight: false },
+  {
+    label: "Deals & Offers",
+    url: "/deals",
+    position: "left",
+    isHighlight: true,
+  },
+  {
+    label: "Gift Cards",
+    url: "/gift-cards",
+    position: "left",
+    isHighlight: false,
+  },
+  {
+    label: "Sell on PocketValue",
+    url: "/sell",
+    position: "left",
+    isHighlight: false,
+  },
+  {
+    label: "Track Order",
+    url: "/account/orders",
+    position: "right",
+    isHighlight: false,
+  },
+  {
+    label: "Help & Support",
+    url: "/faq",
+    position: "right",
+    isHighlight: false,
+  },
 ];
 
 interface SecondaryNavBarProps {
@@ -27,10 +51,14 @@ interface SecondaryNavBarProps {
   onCategoryClick?: () => void;
 }
 
-export default function SecondaryNavBar({ isVisible, links, onCategoryClick }: SecondaryNavBarProps) {
-  const activeLinks = (links && links.length > 0) ? links : DEFAULT_LINKS;
-  const leftLinks = activeLinks.filter(link => link.position === 'left');
-  const rightLinks = activeLinks.filter(link => link.position === 'right');
+export default function SecondaryNavBar({
+  isVisible,
+  links,
+  onCategoryClick,
+}: SecondaryNavBarProps) {
+  const activeLinks = links && links.length > 0 ? links : DEFAULT_LINKS;
+  const leftLinks = activeLinks.filter((link) => link.position === "left");
+  const rightLinks = activeLinks.filter((link) => link.position === "right");
 
   return (
     <nav
@@ -38,11 +66,9 @@ export default function SecondaryNavBar({ isVisible, links, onCategoryClick }: S
         isVisible ? "h-10 opacity-100" : "h-0 opacity-0"
       }`}
     >
-      <div className="w-full h-full flex items-center justify-between px-4 lg:px-12 max-w-[1920px] mx-auto">
-        
+      <div className="w-full h-full flex items-center justify-between px-4 lg:px-12 max-w-480 mx-auto">
         {/* LEFT SIDE */}
         <div className="flex items-center gap-6">
-          
           {/* 🔥 NEW CATEGORY BUTTON (Leftmost) */}
           <button
             onClick={onCategoryClick}
@@ -57,9 +83,10 @@ export default function SecondaryNavBar({ isVisible, links, onCategoryClick }: S
               key={`${link.label}-${index}`}
               href={link.url}
               className={`text-[13px] font-medium tracking-wide transition-all duration-200 
-                ${link.isHighlight 
-                  ? "text-brand-primary hover:text-brand-primary-hover font-semibold" 
-                  : "text-gray-600 dark:text-gray-400 hover:text-brand-primary dark:hover:text-brand-primary"
+                ${
+                  link.isHighlight
+                    ? "text-brand-primary hover:text-brand-primary-hover font-semibold"
+                    : "text-gray-600 dark:text-gray-400 hover:text-brand-primary dark:hover:text-brand-primary"
                 }`}
             >
               {link.label}
@@ -74,10 +101,11 @@ export default function SecondaryNavBar({ isVisible, links, onCategoryClick }: S
               key={`${link.label}-${index}`}
               href={link.url}
               className={`text-[13px] font-medium tracking-wide transition-colors duration-200
-                 ${link.isHighlight 
-                  ? "text-brand-primary hover:text-brand-primary-hover font-semibold" 
-                  : "text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
-                }`}
+                 ${
+                   link.isHighlight
+                     ? "text-brand-primary hover:text-brand-primary-hover font-semibold"
+                     : "text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+                 }`}
             >
               {link.label}
             </Link>

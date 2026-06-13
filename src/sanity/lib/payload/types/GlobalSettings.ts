@@ -1,6 +1,6 @@
 export interface GlobalSettings {
   siteName?: string;
-  siteLogo?: any; // SanityImageObject ya URL string ho sakta hai
+  siteLogo?: any;
   storeContactEmail?: string;
   storePhoneNumber?: string;
   storeAddress?: string;
@@ -13,15 +13,13 @@ export interface GlobalSettings {
   secondaryNavLinks?: {
     label: string;
     url: string;
-    position: 'left' | 'right';
+    position: "left" | "right";
     isHighlight: boolean;
   }[];
-  // 🔥 FIX: inventorySettings add kiya
   inventorySettings?: {
     lowStockThreshold?: number;
     alertRecipientEmail?: string;
   };
-  // 🔥 FIX: searchSettings add kiya
   searchSettings?: {
     trendingKeywords?: string[];
     popularCategories?: {
@@ -29,7 +27,7 @@ export interface GlobalSettings {
       name: string;
       slug: string;
       image?: string;
-      parent?: any; // SanityCategory type ke mutabiq
+      parent?: any;
       subCategories?: any[];
     }[];
   };

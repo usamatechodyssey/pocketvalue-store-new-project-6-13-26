@@ -1,3 +1,4 @@
+/// src/sanity/lib/payload/content.queries.ts
 import { getPayload } from 'payload'
 import configPromise from '@payload-config'
 import { lexicalToPortableText } from './types/lexicalHelper';

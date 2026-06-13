@@ -1,5 +1,6 @@
 // --- Reusable Interfaces ---
 export interface SanityImageObject {
+  url: any;
   _type: 'image';
   asset: { _ref: string; _type: 'reference'; };
 }

@@ -328,7 +328,7 @@ export default function BottomNav({ onCategoriesClick, onSearchClick, onProfileC
   return (
     <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl border-t border-gray-200 dark:border-gray-800 z-50 pb-[env(safe-area-inset-bottom)] shadow-[0_-5px_20px_rgba(0,0,0,0.03)]">
       
-      <div className="grid grid-cols-5 h-[60px] items-end">
+      <div className="grid grid-cols-5 h-15 items-end">
         
         {/* 1. HOME */}
         <Link 

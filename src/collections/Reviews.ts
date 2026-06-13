@@ -3,42 +3,40 @@
 // export const Reviews: CollectionConfig = {
 //   slug: 'reviews',
 //   admin: {
-//     useAsTitle: 'comment', // Admin panel mein comment title ke taur par dikhega
+//     useAsTitle: 'comment',
 //     defaultColumns: ['product', 'user', 'rating', 'isApproved'],
 //   },
 //   access: {
-//     // 🔥 Sabse Aham: Sirf approved reviews frontend par show hon
 //     read: ({ req: { user } }) => {
-//       // Agar user logged in hai to sab reviews dekh sakta hai (Admin/Moderator)
 //       if (user) return true;
-//       // Agar user logged in nahi to sirf approved reviews dikhenge
 //       return {
 //         isApproved: {
 //           equals: true,
 //         },
 //       };
 //     },
-//     // Create, Update, Delete ke rules hum baad mein set karenge
 //   },
 //   fields: [
 //     {
-//       name: 'user', // ✅ User ko Payload Users collection se reference karein
+//       name: 'user',
 //       type: 'relationship',
 //       relationTo: 'users',
 //       required: true,
+//       // 🛑 YAHAN SE 'admin: { readOnly: true, position: 'sidebar' },' HATA DO
 //       admin: {
-//         readOnly: true, // Review user hamesha automatically submit hoga
-//         position: 'sidebar',
+//         position: 'sidebar', // Sirf position rehne den
+//         description: 'Jis user ne review diya hai.',
 //       },
 //     },
 //     {
-//       name: 'product', // ✅ Product ko Payload Products collection se reference karein
+//       name: 'product',
 //       type: 'relationship',
 //       relationTo: 'products',
 //       required: true,
+//       // 🛑 YAHAN SE 'admin: { readOnly: true, position: 'sidebar' },' HATA DO
 //       admin: {
-//         readOnly: true, // Review product hamesha automatically submit hoga
-//         position: 'sidebar',
+//         position: 'sidebar', // Sirf position rehne den
+//         description: 'Jis product ke liye review hai.',
 //       },
 //     },
 //     {
@@ -50,22 +48,22 @@
 //     },
 //     {
 //       name: 'comment',
-//       type: 'textarea', // Sanity 'text' ki jagah Payload 'textarea'
+//       type: 'textarea',
 //       required: true,
 //       minLength: 10,
 //       maxLength: 1000,
 //     },
 //     {
 //       name: 'reviewImage',
-//       type: 'upload', // Image field ko Media collection se link karein
+//       type: 'upload',
 //       relationTo: 'media',
 //       label: 'Review Image (Optional)',
 //     },
 //     {
 //       name: 'isApproved',
-//       type: 'checkbox', // Sanity 'boolean' ki jagah Payload 'checkbox'
+//       type: 'checkbox',
 //       label: 'Approved for Display?',
-//       defaultValue: true, // Default true taake har review foran dikhe
+//       defaultValue: true,
 //       admin: {
 //         position: 'sidebar',
 //         description: 'Frontend par show karne ke liye approval zaroori hai.',
@@ -73,13 +71,59 @@
 //     },
 //   ],
 // }
-import type { CollectionConfig } from 'payload'
+// src/payload/collections/Reviews.ts
+
+import type { CollectionConfig } from "payload";
+
+// 🔥 HELPER FUNCTION: Rating aur Count calculate karne ke liye
+const updateProductRating = async (
+  payload: any,
+  productId: string | number,
+) => {
+  try {
+    // 1. Us product ke saare "Approved" reviews nikal lo
+    const reviews = await payload.find({
+      collection: "reviews",
+      where: {
+        product: { equals: productId },
+        isApproved: { equals: true },
+      },
+      limit: 5000, // Safe limit
+      depth: 0, // Relational data expand karne ki zaroorat nahi
+    });
+
+    const reviewCount = reviews.totalDocs;
+
+    // 2. Average Rating calculate karo
+    const totalRating = reviews.docs.reduce(
+      (acc: number, review: any) => acc + review.rating,
+      0,
+    );
+    const averageRating = reviewCount > 0 ? totalRating / reviewCount : 0;
+
+    // 3. Product collection mein ja kar is naye data ko save kar do
+    await payload.update({
+      collection: "products",
+      id: productId,
+      data: {
+        rating: Number(averageRating.toFixed(1)), // Decimal ko 1 point tak mehdood kiya (e.g. 4.5)
+        reviewCount: reviewCount,
+      },
+    });
+
+    console.log(
+      `✅ Rating updated for Product ${productId}: ${averageRating.toFixed(1)} Stars (${reviewCount} Reviews)`,
+    );
+  } catch (error) {
+    console.error("❌ Failed to update product rating:", error);
+  }
+};
 
 export const Reviews: CollectionConfig = {
-  slug: 'reviews',
+  slug: "reviews",
   admin: {
-    useAsTitle: 'comment',
-    defaultColumns: ['product', 'user', 'rating', 'isApproved'],
+    useAsTitle: "comment",
+    defaultColumns: ["product", "user", "rating", "isApproved"],
   },
   access: {
     read: ({ req: { user } }) => {
@@ -91,58 +135,82 @@ export const Reviews: CollectionConfig = {
       };
     },
   },
+  // =================================================================
+  // 🔥 ENTERPRISE HOOKS: Auto-calculate Ratings on Write
+  // =================================================================
+  hooks: {
+    afterChange: [
+      async ({ doc, req, operation }) => {
+        // Create ya Update hone par hook chalega
+        const productId =
+          typeof doc.product === "object" ? doc.product.id : doc.product;
+        if (productId) {
+          await updateProductRating(req.payload, productId);
+        }
+      },
+    ],
+    afterDelete: [
+      async ({ doc, req }) => {
+        // Review Delete hone par hook chalega
+        const productId =
+          typeof doc.product === "object" ? doc.product.id : doc.product;
+        if (productId) {
+          await updateProductRating(req.payload, productId);
+        }
+      },
+    ],
+  },
+  // =================================================================
   fields: [
     {
-      name: 'user', 
-      type: 'relationship',
-      relationTo: 'users',
+      name: "user",
+      type: "relationship",
+      relationTo: "users",
       required: true,
-      // 🛑 YAHAN SE 'admin: { readOnly: true, position: 'sidebar' },' HATA DO
       admin: {
-        position: 'sidebar', // Sirf position rehne den
-        description: 'Jis user ne review diya hai.',
+        position: "sidebar",
+        description: "Jis user ne review diya hai.",
       },
     },
     {
-      name: 'product', 
-      type: 'relationship',
-      relationTo: 'products',
+      name: "product",
+      type: "relationship",
+      relationTo: "products",
       required: true,
-      // 🛑 YAHAN SE 'admin: { readOnly: true, position: 'sidebar' },' HATA DO
       admin: {
-        position: 'sidebar', // Sirf position rehne den
-        description: 'Jis product ke liye review hai.',
+        position: "sidebar",
+        description: "Jis product ke liye review hai.",
       },
     },
     {
-      name: 'rating',
-      type: 'number',
+      name: "rating",
+      type: "number",
       required: true,
       min: 1,
       max: 5,
     },
     {
-      name: 'comment',
-      type: 'textarea',
+      name: "comment",
+      type: "textarea",
       required: true,
       minLength: 10,
       maxLength: 1000,
     },
     {
-      name: 'reviewImage',
-      type: 'upload',
-      relationTo: 'media',
-      label: 'Review Image (Optional)',
+      name: "reviewImage",
+      type: "upload",
+      relationTo: "media",
+      label: "Review Image (Optional)",
     },
     {
-      name: 'isApproved',
-      type: 'checkbox',
-      label: 'Approved for Display?',
+      name: "isApproved",
+      type: "checkbox",
+      label: "Approved for Display?",
       defaultValue: true,
       admin: {
-        position: 'sidebar',
-        description: 'Frontend par show karne ke liye approval zaroori hai.',
+        position: "sidebar",
+        description: "Frontend par show karne ke liye approval zaroori hai.",
       },
     },
   ],
-}
+};

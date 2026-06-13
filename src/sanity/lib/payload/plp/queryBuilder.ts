@@ -1,4 +1,4 @@
-
+//// src/sanity/lib/payload/plp/querybuilder.ts
 import { Where } from 'payload';
 
 export const buildProductQuery = (options: any): Where => {

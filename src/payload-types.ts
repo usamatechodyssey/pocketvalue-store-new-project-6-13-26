@@ -312,7 +312,14 @@ export interface Product {
     };
     [k: string]: unknown;
   } | null;
+  /**
+   * Auto-calculated based on approved reviews.
+   */
   rating?: number | null;
+  /**
+   * Total number of approved reviews.
+   */
+  reviewCount?: number | null;
   activeCampaigns?: (string | Campaign)[] | null;
   isBestSeller?: boolean | null;
   isNewArrival?: boolean | null;
@@ -798,6 +805,7 @@ export interface ProductsSelect<T extends boolean = true> {
       };
   shippingAndReturns?: T;
   rating?: T;
+  reviewCount?: T;
   activeCampaigns?: T;
   isBestSeller?: T;
   isNewArrival?: T;
@@ -1132,6 +1140,20 @@ export interface Faq {
 export interface Homepage {
   id: string;
   title?: string | null;
+  seo?: {
+    /**
+     * Browser tab aur search results mein nazar aane wala title (50-60 chars).
+     */
+    metaTitle?: string | null;
+    /**
+     * Search results ke liye summary (150-160 chars).
+     */
+    metaDescription?: string | null;
+    /**
+     * Jab ye page Facebook ya WhatsApp par share hoga, to ye image dikhegi.
+     */
+    ogImage?: (string | null) | Media;
+  };
   /**
    * Build your homepage by adding and dragging these blocks.
    */
@@ -1391,6 +1413,13 @@ export interface FaqSelect<T extends boolean = true> {
  */
 export interface HomepageSelect<T extends boolean = true> {
   title?: T;
+  seo?:
+    | T
+    | {
+        metaTitle?: T;
+        metaDescription?: T;
+        ogImage?: T;
+      };
   pageSections?:
     | T
     | {

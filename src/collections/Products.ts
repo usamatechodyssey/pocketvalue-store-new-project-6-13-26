@@ -1,5 +1,6 @@
 // import type { CollectionConfig } from "payload";
 // import { SEO } from "../fields/SEO";
+// import { revalidatePath } from "next/cache"; // ✅ Next.js Cache invalidation ke liye
 
 // export const Products: CollectionConfig = {
 //   slug: "products",
@@ -10,10 +11,50 @@
 //   access: {
 //     read: () => true,
 //   },
+//   // =================================================================
+//   // 🔥 ENTERPRISE SEO HOOKS: Real-time Data Sync
+//   // =================================================================
+//   hooks: {
+//     afterChange: [
+//       ({ doc, req }) => {
+//         // 1. Product Detail Page ko refresh karo
+//         revalidatePath(`/product/${doc.slug}`);
+
+//         // 2. Homepage refresh karo (Naya product ya price change dikhane ke liye)
+//         revalidatePath("/");
+
+//         // 3. Sitemap refresh karo taake Google ko nayi update mile
+//         revalidatePath("/sitemap.xml");
+
+//         // 4. Google Shopping Feed refresh karo
+//         revalidatePath("/api/google-shopping");
+
+//         // 5. Agar product 'Deals' mein hai, to deals page bhi refresh karo
+//         if (doc.isOnDeal) {
+//           revalidatePath("/deals");
+//         }
+
+//         console.log(
+//           `🚀 SEO Sync: Revalidated all paths for product: ${doc.title}`,
+//         );
+//       },
+//     ],
+//     afterDelete: [
+//       ({ doc }) => {
+//         // Product delete hote hi sitemap aur pages se hata do taake 404 error na aaye Google par
+//         revalidatePath(`/product/${doc.slug}`);
+//         revalidatePath("/sitemap.xml");
+//         revalidatePath("/api/google-shopping");
+//       },
+//     ],
+//   },
+//   // =================================================================
+
 //   fields: [
 //     {
 //       type: "tabs",
 //       tabs: [
+//         // --- TAB 1: MAIN INFORMATION ---
 //         {
 //           label: "Main Information",
 //           fields: [
@@ -23,7 +64,7 @@
 //               type: "text",
 //               required: true,
 //               unique: true,
-//               index: true,
+//               index: true, // ✅ Database Index for Speed
 //               admin: { description: "Unique URL part (e.g. usama-ali-shirts)" },
 //             },
 //             {
@@ -39,11 +80,6 @@
 //               required: true,
 //               minRows: 1,
 //               fields: [
-//                 // 🔥 NAYA FIELD: Permanent Key ke liye
-//                 // Payload by default arrays ke andar '_id' ya 'id' khud lagata hai,
-//                 // lekin hum explicit control ke liye sku ko as a key use kar sakte hain
-//                 // ya phir Payload ki internal 'id' par depend kar sakte hain.
-//                 // Asal fix query mein hoga, schema waisa hi rehnay den.
 //                 {
 //                   type: "row",
 //                   fields: [
@@ -57,8 +93,9 @@
 //                       name: "sku",
 //                       type: "text",
 //                       required: true,
+//                       index: true, // ✅ SKU per search fast hogi
 //                       admin: { width: "50%" },
-//                     }, // ✅ SKU ko required kar den taake ise as a key use kiya ja sake
+//                     },
 //                   ],
 //                 },
 //                 {
@@ -137,6 +174,8 @@
 //             },
 //           ],
 //         },
+
+//         // --- TAB 2: DETAILS & SPECIFICATIONS ---
 //         {
 //           label: "Details & Specifications",
 //           fields: [
@@ -147,8 +186,14 @@
 //               relationTo: "categories",
 //               hasMany: true,
 //               required: true,
+//               index: true, // ✅ Index for Category filtering
 //             },
-//             { name: "brand", type: "relationship", relationTo: "brands" },
+//             {
+//               name: "brand",
+//               type: "relationship",
+//               relationTo: "brands",
+//               index: true,
+//             },
 //             {
 //               name: "specifications",
 //               type: "array",
@@ -165,6 +210,8 @@
 //             { name: "shippingAndReturns", type: "richText" },
 //           ],
 //         },
+
+//         // --- TAB 3: MARKETING & SEO ---
 //         {
 //           label: "Marketing & SEO",
 //           fields: [
@@ -174,28 +221,49 @@
 //               type: "relationship",
 //               relationTo: "campaigns",
 //               hasMany: true,
+//               index: true, // ✅ Index for Sales/Campaigns
 //             },
 //             {
 //               type: "row",
 //               fields: [
-//                 { name: "isBestSeller", type: "checkbox", defaultValue: false },
-//                 { name: "isNewArrival", type: "checkbox", defaultValue: false },
-//                 { name: "isFeatured", type: "checkbox", defaultValue: false },
-//                 { name: "isOnDeal", type: "checkbox", defaultValue: false },
+//                 {
+//                   name: "isBestSeller",
+//                   type: "checkbox",
+//                   defaultValue: false,
+//                   index: true,
+//                 },
+//                 {
+//                   name: "isNewArrival",
+//                   type: "checkbox",
+//                   defaultValue: false,
+//                   index: true,
+//                 },
+//                 {
+//                   name: "isFeatured",
+//                   type: "checkbox",
+//                   defaultValue: false,
+//                   index: true,
+//                 },
+//                 {
+//                   name: "isOnDeal",
+//                   type: "checkbox",
+//                   defaultValue: false,
+//                   index: true,
+//                 },
 //               ],
 //             },
-//             SEO,
+//             SEO, // Reusable SEO Object
 //           ],
 //         },
-
 //       ],
 //     },
 //   ],
 // };
 
+// src/payload/collections/Products.ts
+
 import type { CollectionConfig } from "payload";
 import { SEO } from "../fields/SEO";
-import { revalidatePath } from "next/cache"; // ✅ Next.js Cache invalidation ke liye
 
 export const Products: CollectionConfig = {
   slug: "products",
@@ -207,44 +275,46 @@ export const Products: CollectionConfig = {
     read: () => true,
   },
   // =================================================================
-  // 🔥 ENTERPRISE SEO HOOKS: Real-time Data Sync
+  // 🔥 ENTERPRISE SEO HOOKS: Real-time Data Sync (Optimized for Build)
   // =================================================================
   hooks: {
     afterChange: [
-      ({ doc, req }) => {
-        // 1. Product Detail Page ko refresh karo
-        revalidatePath(`/product/${doc.slug}`);
+      async ({ doc }) => {
+        try {
+          // ✅ FIX: Dynamic import to prevent Server-only leak in Next.js Build
+          const { revalidatePath } = await import("next/cache");
 
-        // 2. Homepage refresh karo (Naya product ya price change dikhane ke liye)
-        revalidatePath("/");
+          revalidatePath(`/product/${doc.slug}`);
+          revalidatePath("/");
+          revalidatePath("/sitemap.xml");
+          revalidatePath("/api/google-shopping");
 
-        // 3. Sitemap refresh karo taake Google ko nayi update mile
-        revalidatePath("/sitemap.xml");
+          if (doc.isOnDeal) {
+            revalidatePath("/deals");
+          }
 
-        // 4. Google Shopping Feed refresh karo
-        revalidatePath("/api/google-shopping");
-
-        // 5. Agar product 'Deals' mein hai, to deals page bhi refresh karo
-        if (doc.isOnDeal) {
-          revalidatePath("/deals");
+          console.log(`🚀 SEO Sync: Revalidated paths for: ${doc.title}`);
+        } catch (error) {
+          console.error("Revalidation failed:", error);
         }
-
-        console.log(
-          `🚀 SEO Sync: Revalidated all paths for product: ${doc.title}`,
-        );
       },
     ],
     afterDelete: [
-      ({ doc }) => {
-        // Product delete hote hi sitemap aur pages se hata do taake 404 error na aaye Google par
-        revalidatePath(`/product/${doc.slug}`);
-        revalidatePath("/sitemap.xml");
-        revalidatePath("/api/google-shopping");
+      async ({ doc }) => {
+        try {
+          // ✅ FIX: Dynamic import for delete hook
+          const { revalidatePath } = await import("next/cache");
+
+          revalidatePath(`/product/${doc.slug}`);
+          revalidatePath("/sitemap.xml");
+          revalidatePath("/api/google-shopping");
+        } catch (error) {
+          console.error("Delete revalidation failed:", error);
+        }
       },
     ],
   },
   // =================================================================
-
   fields: [
     {
       type: "tabs",
@@ -259,7 +329,7 @@ export const Products: CollectionConfig = {
               type: "text",
               required: true,
               unique: true,
-              index: true, // ✅ Database Index for Speed
+              index: true,
               admin: { description: "Unique URL part (e.g. usama-ali-shirts)" },
             },
             {
@@ -267,8 +337,6 @@ export const Products: CollectionConfig = {
               type: "text",
               label: "Product Video URL (Optional)",
             },
-
-            // --- THE VARIANTS ARRAY ---
             {
               name: "variants",
               type: "array",
@@ -288,7 +356,7 @@ export const Products: CollectionConfig = {
                       name: "sku",
                       type: "text",
                       required: true,
-                      index: true, // ✅ SKU per search fast hogi
+                      index: true,
                       admin: { width: "50%" },
                     },
                   ],
@@ -381,7 +449,7 @@ export const Products: CollectionConfig = {
               relationTo: "categories",
               hasMany: true,
               required: true,
-              index: true, // ✅ Index for Category filtering
+              index: true,
             },
             {
               name: "brand",
@@ -410,13 +478,39 @@ export const Products: CollectionConfig = {
         {
           label: "Marketing & SEO",
           fields: [
-            { name: "rating", type: "number", min: 1, max: 5 },
+            {
+              type: "row",
+              fields: [
+                {
+                  name: "rating",
+                  type: "number",
+                  min: 0,
+                  max: 5,
+                  defaultValue: 0,
+                  admin: {
+                    width: "50%",
+                    readOnly: true,
+                    description: "Auto-calculated based on approved reviews.",
+                  },
+                },
+                {
+                  name: "reviewCount",
+                  type: "number",
+                  defaultValue: 0,
+                  admin: {
+                    width: "50%",
+                    readOnly: true,
+                    description: "Total number of approved reviews.",
+                  },
+                },
+              ],
+            },
             {
               name: "activeCampaigns",
               type: "relationship",
               relationTo: "campaigns",
               hasMany: true,
-              index: true, // ✅ Index for Sales/Campaigns
+              index: true,
             },
             {
               type: "row",
@@ -447,7 +541,7 @@ export const Products: CollectionConfig = {
                 },
               ],
             },
-            SEO, // Reusable SEO Object
+            SEO,
           ],
         },
       ],
