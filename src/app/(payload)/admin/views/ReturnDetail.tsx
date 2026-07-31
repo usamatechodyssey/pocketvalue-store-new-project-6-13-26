@@ -3,10 +3,10 @@
 import { DefaultTemplate } from '@payloadcms/next/templates';
 import Link from "next/link";
 import { ArrowLeft, User, MapPin, Package, Hash, Calendar, Mail, FileText, MessageSquare } from "lucide-react";
-import CopyButton from "@/app/_components/shared/CopyButton";
-import { getSingleReturnRequestPayload } from "@/app/actions/payloadReturnAdminActions";
-import UpdateReturnStatus from "@/app/components/payload-returns/UpdateReturnStatus";
-import ReturnDetailsProductCard from "@/app/_components/shared/ReturnDetailsProductCard";
+import CopyButton from "@/app/shared/components/helpers/CopyButton";
+import { getSingleReturnRequestPayload } from "@/app/features/admin/order-fulfillment/actions/payloadReturnAdminActions";
+import UpdateReturnStatus from "@/app/features/admin/order-fulfillment/components/returns/UpdateReturnStatus";
+import ReturnDetailsProductCard from "@/app/shared/components/helpers/ReturnDetailsProductCard";
 
 const InfoCard = ({ icon, title, children }: any) => (
   <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md border dark:border-gray-700">

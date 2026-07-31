@@ -1,140 +1,27 @@
-// // // /src/app/faq/page.tsx
-
-// import type { Metadata } from "next";
-
-// // ✅ NEW PAYLOAD IMPORTS
-// import { getPayloadFaqPage } from "@/sanity/lib/payload/content.queries";
-// import { getPayloadBreadcrumbs } from "@/sanity/lib/payload/category.queries";
-
-// import FaqAccordion from "@/app/(main)/faq/FaqAccordion";
-// import { HelpCircle } from "lucide-react";
-// import { generateBaseMetadata } from "@/utils/metadata";
-// import Breadcrumbs from "@/app/components/ui/Breadcrumbs";
-// import { FaqItem } from "@/sanity/types/product_types";
-
-// export const dynamic = 'force-dynamic';
-// // 🔥 FIX: Interface ab yahan file mein hi define hai
-// interface FaqPageData {
-//   _id: string;
-//   title: string;
-//   subtitle?: string | null; // ✅ Subtitle add kar diya
-//   faqList: FaqItem[];
-//   seo?: {
-//     metaTitle?: string;
-//     metaDescription?: string;
-//     ogImage?: any;
-//   };
-// }
-
-// export async function generateMetadata(): Promise<Metadata> {
-//   // ✅ Switch to Payload & Cast Type
-//   const faqData = await getPayloadFaqPage() as FaqPageData | null;
-
-//   const description =
-//     faqData?.seo?.metaDescription ||
-//     "Find answers to frequently asked questions about orders, shipping, returns, and more.";
-
-//   return generateBaseMetadata({
-//     title: faqData?.seo?.metaTitle || "Help Center & FAQ",
-//     description: description,
-//     image: faqData?.seo?.ogImage,
-//     path: "/faq",
-//   });
-// }
-
-// function portableTextToString(blocks: any[]): string {
-//   if (!blocks || !Array.isArray(blocks)) return "";
-//   return blocks
-//     .map((block) => {
-//       if (block._type !== "block" || !block.children) return "";
-//       return block.children.map((child: any) => child.text).join("");
-//     })
-//     .join(" \n\n");
-// }
-
-// export default async function Faq() {
-//   const [faqData, breadcrumbs] = await Promise.all([
-//     // ✅ Switch to Payload & Cast Type
-//     getPayloadFaqPage() as Promise<FaqPageData | null>,
-//     getPayloadBreadcrumbs("faq"),
-//   ]);
-
-//   if (!faqData || !faqData.faqList) {
-//     return (
-//       <main className="w-full bg-gray-50 dark:bg-gray-900">
-//         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-20 text-center">
-//           <HelpCircle size={48} className="mx-auto text-gray-400" />
-//           <h1 className="mt-4 text-4xl font-bold">FAQs Not Found</h1>
-//           <p className="mt-2 text-gray-600 dark:text-gray-400">
-//             We couldn&apos;t load the questions right now. Please check back later.
-//           </p>
-//         </div>
-//       </main>
-//     );
-//   }
-
-//   const faqPageSchema = {
-//     "@context": "https://schema.org",
-//     "@type": "FAQPage",
-//     mainEntity: faqData.faqList.map((item) => ({
-//       "@type": "Question",
-//       name: item.question,
-//       acceptedAnswer: {
-//         "@type": "Answer",
-//         text: portableTextToString(item.answer),
-//       },
-//     })),
-//   };
-
-//   return (
-//     <>
-//       <script
-//         type="application/ld+json"
-//         dangerouslySetInnerHTML={{ __html: JSON.stringify(faqPageSchema) }}
-//       />
-//       <main className="w-full bg-white dark:bg-gray-900">
-//         <div className="bg-gray-50 dark:bg-gray-800/50">
-//           <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-16 text-center">
-//             <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-gray-900 dark:text-white">
-//               {faqData.title}
-//             </h1>
-
-//             {/* 🔥 NEW: Subtitle Display */}
-//             {faqData.subtitle && (
-//               <p className="mt-4 max-w-2xl mx-auto text-xl text-gray-500 dark:text-gray-400 font-medium">
-//                 {faqData.subtitle}
-//               </p>
-//             )}
-//           </div>
-//         </div>
-//         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-16">
-//           <div className="max-w-4xl mx-auto">
-//             <div className="mb-8">
-//               <Breadcrumbs crumbs={breadcrumbs} />
-//             </div>
-//             <FaqAccordion items={faqData.faqList} />
-//           </div>
-//         </div>
-//       </main>
-//     </>
-//   );
-// }
 // src/app/faq/page.tsx
+// ================================================================
+// ❓ ENTERPRISE FAQ PAGE ENGINE (UPGRADED — FINAL)
+// ================================================================
+// This file handles the FAQ page with:
+// ✅ ISR + Edge caching with on-demand revalidation
+// ✅ FAQPage Schema with @id and mainEntity (#72)
+// ✅ Content freshness signals in metadata (#23)
+// ✅ Entity linking for AI overviews (#39)
+// ✅ Fully accessible accordion with rich text answers
+// ================================================================
 
 import type { Metadata } from "next";
-import { cache } from "react"; // 🔥 Added for Deduplication
+import { unstable_cache } from "next/cache";
+import { notFound } from "next/navigation";
 
-// ✅ NEW PAYLOAD IMPORTS
 import { getPayloadFaqPage } from "@/sanity/lib/payload/content.queries";
 import { getPayloadBreadcrumbs } from "@/sanity/lib/payload/category.queries";
 
-import FaqAccordion from "@/app/(main)/faq/FaqAccordion";
-import { HelpCircle, Search } from "lucide-react";
+import FaqAccordion from "@/app/features/storefront/catalog/components/FaqAccordion";
+import { HelpCircle } from "lucide-react";
 import { generateBaseMetadata } from "@/utils/metadata";
-import Breadcrumbs from "@/app/components/ui/Breadcrumbs";
-import { FaqItem } from "@/sanity/types/product_types";
-
-export const dynamic = "force-dynamic";
+import Breadcrumbs from "@/app/shared/components/ui/Breadcrumbs";
+import { FaqItem } from "@/types";
 
 interface FaqPageData {
   _id: string;
@@ -149,11 +36,18 @@ interface FaqPageData {
 }
 
 // =========================================================================
-// 🔥 CACHED DATA FETCHER (Prevents Double DB Hits)
+// 🔥 CACHED DATA FETCHER
 // =========================================================================
-const getCachedFaqData = cache(async () => {
-  return (await getPayloadFaqPage()) as FaqPageData | null;
-});
+const getCachedFaqData = unstable_cache(
+  async () => {
+    return (await getPayloadFaqPage()) as FaqPageData | null;
+  },
+  ["faq-data"],
+  {
+    tags: ["faq-page"],
+    revalidate: false,
+  }
+);
 
 // =========================================================================
 // 🔥 HELPER: Clean Text Extraction for SEO Schema
@@ -162,18 +56,22 @@ function portableTextToString(blocks: any[]): string {
   if (!blocks || !Array.isArray(blocks)) return "";
   return blocks
     .map((block) => {
-      if (block._type !== "block" || !block.children) return "";
-      return block.children.map((child: any) => child.text).join("");
+      if (block._type === "block" || block.type === "paragraph") {
+        const children = block.children || [];
+        return children.map((child: any) => child.text || "").join("");
+      }
+      return "";
     })
     .join(" ")
     .trim();
 }
 
 // =========================================================================
-// 🔥 METADATA
+// 🔥 METADATA (Enhanced with freshness signals)
 // =========================================================================
 export async function generateMetadata(): Promise<Metadata> {
   const faqData = await getCachedFaqData();
+  const now = new Date().toISOString();
 
   const description =
     faqData?.seo?.metaDescription ||
@@ -184,6 +82,12 @@ export async function generateMetadata(): Promise<Metadata> {
     description: description,
     image: faqData?.seo?.ogImage,
     path: "/faq",
+    // ✅ Point #23: Content Freshness
+    publishedTime: now,
+    modifiedTime: now,
+    // ✅ Point #80: Author/Publisher signals
+    author: "PocketValue Team",
+    section: "FAQ",
   });
 }
 
@@ -191,42 +95,38 @@ export async function generateMetadata(): Promise<Metadata> {
 // ❓ FAQ PAGE COMPONENT
 // =========================================================================
 export default async function Faq() {
-  // Concurrent Fetch
   const [faqData, breadcrumbs] = await Promise.all([
     getCachedFaqData(),
     getPayloadBreadcrumbs("faq"),
   ]);
 
-  if (!faqData || !faqData.faqList) {
-    return (
-      <main className="w-full bg-gray-50 dark:bg-gray-900 py-32 text-center">
-        <HelpCircle size={64} className="mx-auto text-gray-300 mb-4" />
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-          FAQs Not Found
-        </h1>
-        <p className="mt-2 text-gray-500">
-          Please check back later or contact support.
-        </p>
-      </main>
-    );
+  if (!faqData || !faqData.faqList || faqData.faqList.length === 0) {
+    notFound();
   }
 
   const siteUrl =
     process.env.NEXT_PUBLIC_BASE_URL || "https://www.pocketvalue.pk";
 
-  // 🔥 SEO: Structured Data for Google Search
+  // ================================================================
+  // 🔥 SEO: FAQPage Schema (Enhanced with @id and inLanguage)
+  // ================================================================
   const faqPageSchema = {
     "@context": "https://schema.org",
     "@type": "FAQPage",
-    "@id": `${siteUrl}/faq/#faq`,
-    mainEntity: faqData.faqList.map((item) => ({
+    "@id": `${siteUrl}/faq/#faqpage`,
+    // ✅ Point #39: Entity linking via @id
+    mainEntity: faqData.faqList.map((item, index) => ({
       "@type": "Question",
+      "@id": `${siteUrl}/faq/#question-${index + 1}`,
       name: item.question,
       acceptedAnswer: {
         "@type": "Answer",
+        "@id": `${siteUrl}/faq/#answer-${index + 1}`,
         text: portableTextToString(item.answer as any[]),
       },
     })),
+    // ✅ Point #98: Language signal
+    inLanguage: "en-US",
   };
 
   return (
@@ -237,7 +137,7 @@ export default async function Faq() {
       />
 
       <main className="w-full bg-white dark:bg-gray-950">
-        {/* 1. PREMIUM HEADER SECTION */}
+        {/* HEADER SECTION */}
         <section className="bg-gray-50 dark:bg-gray-900/50 border-b border-gray-100 dark:border-gray-800">
           <div className="container mx-auto px-4 py-16 md:py-24 text-center">
             <div className="mb-6 flex justify-center">
@@ -255,10 +155,9 @@ export default async function Faq() {
           </div>
         </section>
 
-        {/* 2. ACCORDION SECTION */}
+        {/* ACCORDION SECTION */}
         <section className="container mx-auto px-4 py-16 md:py-24">
           <div className="max-w-4xl mx-auto">
-            {/* Optional: Add a small search-like visual or help icon */}
             <div className="flex items-center gap-3 mb-10 pb-6 border-b border-gray-100 dark:border-gray-800">
               <div className="p-3 bg-brand-primary/10 rounded-2xl text-brand-primary">
                 <HelpCircle size={28} />

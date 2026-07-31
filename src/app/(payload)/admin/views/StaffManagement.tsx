@@ -1,6 +1,6 @@
 import { DefaultTemplate } from "@payloadcms/next/templates";
-import { getStaffMembers } from "@/app/actions/payloadAdminActions";
-import StaffListClient from "@/app/components/payload-staff/StaffListClient";
+import { getStaffMembers } from "@/app/features/admin/order-fulfillment/actions/payloadAdminActions";
+import StaffListClient from "@/app/features/admin/staff-management/components/StaffListClient";
 import { ShieldCheck, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 

@@ -1,11 +1,10 @@
-// /src/models/OrderSequence.ts
+//app/models/OrderSequence.ts
+import { Schema, model, models, Document } from 'mongoose';
 
-import { Schema, model, models } from 'mongoose';
-
-// Interface for type safety
-export interface IOrderSequence {
-  _id: string;
-  sequence_value: number;
+// ✅ FIXED COMPILER TYPING: Omit default ObjectId '_id' to allow custom string identifier
+export interface IOrderSequence extends Omit<Document, '_id'> {
+  _id: string; // The constant unique key (e.g., "order_id_counter")
+  sequence_value: number; // Holds the last allocated incremental index offset
 }
 
 const OrderSequenceSchema = new Schema<IOrderSequence>({
@@ -15,17 +14,16 @@ const OrderSequenceSchema = new Schema<IOrderSequence>({
   },
   sequence_value: { 
     type: Number, 
-    default: 1000 // Start order numbers from 1001
+    default: 1000, // Starts counter allocation from 1001
+    required: true
   },
+}, {
+  timestamps: true, // Auto updatedAt/createdAt to track last counter increments times
+  toJSON: { getters: true },
+  toObject: { getters: true }
 });
 
-// Using models.OrderSequence to prevent recompiling the model on hot reloads
+// Using models.OrderSequence to prevent model re-registration crashes on Next.js HMR hot-reloads
 const OrderSequence = models.OrderSequence || model<IOrderSequence>('OrderSequence', OrderSequenceSchema);
 
 export default OrderSequence;
-
-// --- SUMMARY OF CHANGES ---
-// - Created a new Mongoose schema and model named `OrderSequence`.
-// - The schema is designed to hold a single document that acts as our atomic counter.
-// - `_id` is a string to hold a constant identifier (e.g., "order_id_counter").
-// - `sequence_value` is the number that will be incremented for each new order, starting from 1000.

@@ -1,8 +1,8 @@
 
 import { auth } from "../../auth";
 import { redirect } from "next/navigation";
-import AccountSidebarClient from "./_components/AccountSidebarClient";
-import Breadcrumbs from "@/app/components/ui/Breadcrumbs";
+import AccountSidebarClient from "@/app/features/storefront/customer-account/components/AccountSidebarClient";
+import Breadcrumbs from "@/app/shared/components/ui/Breadcrumbs";
 
 export default async function AccountLayout({
   children,

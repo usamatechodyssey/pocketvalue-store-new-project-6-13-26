@@ -1,272 +1,290 @@
-// // src/app/(main)/category/[...slug]/page.tsx
+
+// // // src/app/(main)/category/[...slug]/page.tsx (UPGRADED WITH SAFE PAYLOAD HANDSHAKE)
+
+
 // import { notFound } from "next/navigation";
 // import Image from "next/image";
 // import Link from "next/link";
+// import { unstable_cache } from "next/cache";
+// import { FiArrowLeft } from "react-icons/fi";
 
-// // ✅ PAYLOAD IMPORTS
-// import { getPayload } from "payload";
-// import configPromise from "@payload-config";
+// // ✅ Type Imports
+// import SanityProduct, { SanityCategory } from "@/types";
+
+// // ✅ Payload + Caching Imports
+// import { getSafePayload } from "@/app/shared/lib/payloadInstance";
 // import { getPayloadProducts } from "@/sanity/lib/payload/plp";
 // import { getPayloadBreadcrumbs } from "@/sanity/lib/payload/category.queries";
 
-// import ProductListingClient from "@/app/components/category/ProductListingClient";
-// import Breadcrumbs from "@/app/components/ui/Breadcrumbs";
+// // ✅ Centralized Settings Cache
+// import { getCachedSettings } from "@/app/shared/lib/cache/settings";
+
+// // ✅ UI Components
+// import ProductListingClient from "@/app/features/storefront/catalog/components/category/ProductListingClient";
+// import Breadcrumbs from "@/app/shared/components/ui/Breadcrumbs";
 // import { generateBaseMetadata } from "@/utils/metadata";
 // import { urlFor } from "@/sanity/lib/image";
-// import { FiArrowLeft } from "react-icons/fi";
-// import { SanityCategory, SanityBrand } from "@/sanity/types/product_types";
 
-// export const dynamic = 'force-dynamic';
-
+// // ✅ Types
 // type CategoryPageProps = {
 //   params: Promise<{ slug: string[] }>;
+//   searchParams: Promise<{ page?: string; sort?: string }>;
 // };
 
-// // --- 🔥 HELPER: Category Data Fetcher (Payload Version) ---
-// async function getPayloadCategoryPageData(slug: string) {
-//   const payload = await getPayload({ config: configPromise });
+// // =====================================================
+// // ✅ ISR: Page will be statically generated on first request,
+// //    then served from CDN for all subsequent requests.
+// //    Cache clears automatically on admin update via revalidateTag.
+// // =====================================================
+// export const revalidate = false;
 
-//   // 1. Current Category Fetch karo
-//   const categoryResult = await payload.find({
-//     collection: "categories",
-//     where: { slug: { equals: slug } },
-//     depth: 2,
-//   });
+// // =========================================================================
+// // 🔥 LIGHTWEIGHT METADATA FETCH (No products, no sub-categories)
+// // =========================================================================
+// const getCachedCategoryMetadata = async (slug: string) => {
+//   return unstable_cache(
+//     async () => {
+//       const payload = await getSafePayload();
 
-//   const categoryDoc = categoryResult.docs[0];
-//   if (!categoryDoc) return null;
-
-//   // =========================================================
-//   // 🔥 FIX START: Sub-Categories (Children) Fetch Karna
-//   // =========================================================
-//   // Hum database se wo categories mangwayenge jinka parent ye current category hai
-//   const subCategoriesResult = await payload.find({
-//     collection: "categories",
-//     where: {
-//         parent: { equals: categoryDoc.id }
-//     },
-//     sort: 'name',
-//     limit: 50
-//   });
-
-//   // Unhein Sanity format mein map karein
-//   const mappedSubCategories: SanityCategory[] = subCategoriesResult.docs.map((sub: any) => ({
-//       _id: sub.id,
-//       name: sub.name,
-//       slug: sub.slug,
-//       parent: { _id: categoryDoc.id }, // Parent yehi current category hai
-//       image: (sub.image as any)?.url || null,
-//       subCategories: []
-//   }));
-//   // =========================================================
-//   // 🔥 FIX END
-//   // =========================================================
-
-//   // 2. Products Fetch karo (PLP Engine se)
-//   const productData = await getPayloadProducts({
-//     categorySlug: slug,
-//     page: 1,
-//     sortOrder: "newest",
-//   });
-
-//   const products = productData.products;
-
-//   // 3. Filter Data Calculate karo
-//   const brandMap = new Map();
-//   products.forEach((p: any) => {
-//     if (p.brand && p.brand._id) {
-//         brandMap.set(p.brand._id, p.brand);
-//     }
-//   });
-//   const brands = Array.from(brandMap.values()) as SanityBrand[];
-
-//   let minPrice = Infinity;
-//   let maxPrice = 0;
-//   const attributes: any[] = [];
-
-//   products.forEach((p: any) => {
-//     p.variants?.forEach((v: any) => {
-//       if (v.price < minPrice) minPrice = v.price;
-//       if (v.price > maxPrice) maxPrice = v.price;
-//       v.attributes?.forEach((attr: any) => {
-//          attributes.push({ name: attr.name, value: attr.value });
+//       const categoryResult = await payload.find({
+//         collection: "categories",
+//         where: { slug: { equals: slug } },
+//         depth: 1, // ✅ Only depth: 1 (no sub-categories needed)
 //       });
-//     });
-//   });
 
-//   if (minPrice === Infinity) minPrice = 0;
+//       const categoryDoc = categoryResult.docs[0];
+//       if (!categoryDoc) return null;
 
-//   // 4. Data Mapping
-//   const currentCategory: SanityCategory = {
-//     _id: categoryDoc.id,
-//     name: categoryDoc.name,
-//     slug: categoryDoc.slug,
-//     parent: null,
-//     // @ts-ignore
-//     desktopBanner: categoryDoc.desktopBanner,
-//     // @ts-ignore
-//     mobileBanner: categoryDoc.mobileBanner,
-//     // @ts-ignore
-//     description: categoryDoc.description,
-//     image: (categoryDoc.image as any)?.url
-//   };
-
-//   // 🔥 FIX: Ab selfTree mein hum 'mappedSubCategories' daal rahe hain
-//   const selfTree: SanityCategory = {
-//      _id: categoryDoc.id,
-//      name: categoryDoc.name,
-//      slug: categoryDoc.slug,
-//      parent: null,
-//      subCategories: mappedSubCategories, // ✅ Yahan list pass ho gayi
-//      image: (categoryDoc.image as any)?.url
-//   };
-
-//   // Logic to determine parent tree (Simple version for now)
-//   // Agar is category ka koi parent hai, to usay grandparentRef logic mein handle karte hain
-//   // Filhal hum 'selfTree' ko hi primary source bana rahe hain sidebar ke liye
-//   const hasParent = categoryDoc.parent;
-
-//   return {
-//     initialProducts: products,
-//     totalCount: productData.totalCount,
-//     currentCategory,
-//     // Agar parent hai, to shayad humein parent ka tree dikhana chahiye,
-//     // lekin abhi ke liye 'selfTree' (Children list) hi best hai user navigation ke liye
-//     grandparentRef: undefined,
-//     parentTree: undefined,
-//     selfTree,
-//     filterData: {
-//       brands,
-//       attributes,
-//       priceRange: { min: minPrice, max: maxPrice }
+//       return {
+//         name: categoryDoc.name,
+//         slug: categoryDoc.slug,
+//         description: (categoryDoc as any).description || null,
+//         image: (categoryDoc.image as any)?.url || null,
+//         seo: (categoryDoc.seo as any) || {},
+//         desktopBanner: (categoryDoc as any).desktopBanner || null,
+//         mobileBanner: (categoryDoc as any).mobileBanner || null,
+//       };
+//     },
+//     [`category-meta-${slug}`],
+//     {
+//       tags: [`category-${slug}`],
+//       revalidate: false,
 //     }
-//   };
-// }
+//   )();
+// };
 
-// export async function generateMetadata({
-//   params: paramsPromise,
-// }: CategoryPageProps) {
-//   const { slug } = await paramsPromise;
+// // =========================================================================
+// // 🔥 FULL CATEGORY DATA (For product listing)
+// // =========================================================================
+// const getCachedCategoryData = async (slug: string, page: number, sort?: string) => {
+//   const cacheKey = `category-${slug}-${page}-${sort || "newest"}`;
+
+//   return unstable_cache(
+//     async () => {
+//       const payload = await getSafePayload();
+
+//       // 1️⃣ Fetch Current Category
+//       const categoryResult = await payload.find({
+//         collection: "categories",
+//         where: { slug: { equals: slug } },
+//         depth: 2,
+//       });
+
+//       const categoryDoc = categoryResult.docs[0];
+//       if (!categoryDoc) return null;
+
+//       // 2️⃣ Fetch Sub-Categories (Children)
+//       const subCategoriesResult = await payload.find({
+//         collection: "categories",
+//         where: { parent: { equals: categoryDoc.id } },
+//         sort: "name",
+//         limit: 50,
+//       });
+
+//       const mappedSubCategories: SanityCategory[] = subCategoriesResult.docs.map(
+//         (sub: any) => ({
+//           _id: sub.id,
+//           name: sub.name,
+//           slug: sub.slug,
+//           parent: { _id: categoryDoc.id } as any,
+//           image: (sub.image as any)?.url || null,
+//           subCategories: [],
+//           seo: {},
+//         })
+//       );
+
+//       // 3️⃣ Fetch Products & Global Filters
+//       const productData = await getPayloadProducts({
+//         categorySlug: slug,
+//         page: page,
+//         sortOrder: sort || "newest",
+//       });
+
+//       const currentCategory: SanityCategory = {
+//         _id: categoryDoc.id,
+//         name: categoryDoc.name,
+//         slug: categoryDoc.slug,
+//         parent: null,
+//         desktopBanner: (categoryDoc as any).desktopBanner,
+//         mobileBanner: (categoryDoc as any).mobileBanner,
+//         description: (categoryDoc as any).description,
+//         image: (categoryDoc.image as any)?.url || null,
+//         seo: (categoryDoc.seo as any) || {},
+//         subCategories: mappedSubCategories,
+//       };
+
+//       const selfTree: SanityCategory = {
+//         ...currentCategory,
+//         subCategories: mappedSubCategories,
+//       };
+
+//       return {
+//         initialProducts: productData.products as SanityProduct[],
+//         totalCount: productData.totalCount,
+//         filterData: productData.filterData,
+//         currentCategory,
+//         selfTree,
+//       };
+//     },
+//     [cacheKey],
+//     {
+//       tags: [`category-${slug}`],
+//       revalidate: false,
+//     }
+//   )();
+// };
+
+// // =========================================================================
+// // 🔥 METADATA GENERATION (Uses lightweight fetch)
+// // =========================================================================
+// export async function generateMetadata({ params }: CategoryPageProps) {
+//   const { slug } = await params;
 //   const currentSlug = slug[slug.length - 1];
 
-//   const payload = await getPayload({ config: configPromise });
-//   const result = await payload.find({
-//     collection: "categories",
-//     where: { slug: { equals: currentSlug } },
-//     depth: 1,
-//   });
-//   const category = result.docs[0];
+//   // ✅ Using lightweight metadata fetch (no products, no sub-categories)
+//   const metaData = await getCachedCategoryMetadata(currentSlug);
+//   if (!metaData) return {};
 
-//   if (!category) {
-//     return {};
-//   }
-
-//   const ogImage = category.seo?.ogImage || category.image;
+//   const { name, description, image, seo } = metaData;
 
 //   return generateBaseMetadata({
-//     title: category.seo?.metaTitle || category.name,
-//     // @ts-ignore
-//     description: category.seo?.metaDescription || category.description,
-//     image: ogImage,
-//     path: `/category/${category.slug}`,
+//     title: seo.metaTitle || name,
+//     description:
+//       seo.metaDescription ||
+//       description ||
+//       `Shop for ${name} online at PocketValue.`,
+//     image: seo.ogImage || image,
+//     path: `/category/${currentSlug}`,
 //   });
 // }
 
+// // =========================================================================
+// // 🛒 MAIN CATEGORY PAGE (Server Component)
+// // =========================================================================
 // export default async function CategoryPage({
-//   params: paramsPromise,
+//   params,
+//   searchParams,
 // }: CategoryPageProps) {
-//   const { slug } = await paramsPromise;
-//   const currentSlug = slug[slug.length - 1];
+//   const { slug } = await params;
+//   const resolvedSearchParams = await searchParams;
 
+//   const currentSlug = slug[slug.length - 1];
+//   const currentPage = Number(resolvedSearchParams?.page) || 1;
+//   const sort = resolvedSearchParams?.sort as string | undefined;
+
+//   // ✅ Using centralized cached settings (Redis already handles caching)
+//   const settings = await getCachedSettings();
+//   const lowStockThreshold = settings.inventorySettings?.lowStockThreshold || 5;
+
+//   // ✅ Parallel Fetch: Category Data + Breadcrumbs
 //   const [plpData, breadcrumbs] = await Promise.all([
-//     getPayloadCategoryPageData(currentSlug),
+//     getCachedCategoryData(currentSlug, currentPage, sort),
 //     getPayloadBreadcrumbs("category", currentSlug),
 //   ]);
 
-//   if (!plpData || !plpData.currentCategory) {
+//   if (!plpData) {
 //     notFound();
 //   }
 
-//   const {
-//     initialProducts,
-//     filterData,
-//     totalCount,
-//     currentCategory,
-//     grandparentRef,
-//     parentTree,
-//     selfTree,
-//   } = plpData;
+//   const { initialProducts, filterData, totalCount, currentCategory, selfTree } =
+//     plpData;
 
-//   const siteUrl = process.env.NEXT_PUBLIC_BASE_URL || "";
-//   const collectionPageSchema = {
+//   const siteUrl =
+//     process.env.NEXT_PUBLIC_BASE_URL || "https://www.pocketvalue.pk";
+
+//   // 🔥 SEO: CollectionPage + BreadcrumbList JSON-LD
+//   const jsonLd = {
 //     "@context": "https://schema.org",
-//     "@type": "CollectionPage",
-//     name: currentCategory.name,
-//     // @ts-ignore
-//     description: currentCategory.description || `Shop for ${currentCategory.name} on PocketValue.`,
-//     url: `${siteUrl}/category/${currentSlug}`,
+//     "@graph": [
+//       {
+//         "@type": "CollectionPage",
+//         "@id": `${siteUrl}/category/${currentSlug}/#webpage`,
+//         url: `${siteUrl}/category/${currentSlug}`,
+//         name: currentCategory.name,
+//         description:
+//           (currentCategory.description as string) ||
+//           `Shop for ${currentCategory.name} online.`,
+//         breadcrumb: { "@id": `${siteUrl}/category/${currentSlug}/#breadcrumb` },
+//       },
+//       {
+//         "@type": "BreadcrumbList",
+//         "@id": `${siteUrl}/category/${currentSlug}/#breadcrumb`,
+//         itemListElement: breadcrumbs.map((crumb, index) => ({
+//           "@type": "ListItem",
+//           position: index + 1,
+//           item: {
+//             "@id": `${siteUrl}${crumb.href.startsWith("/") ? crumb.href : "/" + crumb.href}`,
+//             name: crumb.name,
+//           },
+//         })),
+//       },
+//     ],
 //   };
 
-//   let categoryTreeForSidebar: SanityCategory | undefined;
-
-//   // Logic: Agar parentTree hai to wo dikhao, warna selfTree (Children list) dikhao
-//   if (grandparentRef && parentTree) {
-//     categoryTreeForSidebar = parentTree;
-//   } else {
-//     categoryTreeForSidebar = selfTree;
-//   }
-
-//   const hasBanner =
-//     currentCategory.desktopBanner || currentCategory.mobileBanner;
+//   const hasBanner = !!(currentCategory.desktopBanner || currentCategory.mobileBanner);
 
 //   return (
 //     <>
 //       <script
 //         type="application/ld+json"
-//         dangerouslySetInnerHTML={{
-//           __html: JSON.stringify(collectionPageSchema),
-//         }}
+//         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
 //       />
+
 //       <main className="w-full bg-gray-50 dark:bg-gray-950 px-2 md:px-4 py-8 md:py-12">
 //         <div className="max-w-480 mx-auto">
-//           {/* --- HEADER LOGIC --- */}
+//           {/* HEADER: Breadcrumbs + Title + Back Button */}
 //           <div className="flex justify-between items-start mb-6 md:mb-8">
 //             <div>
 //               <Breadcrumbs crumbs={breadcrumbs} />
-//               <h1 className="text-3xl md:text-4xl font-bold text-text-primary dark:text-gray-100 mt-2">
+//               <h1 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mt-2">
 //                 {currentCategory.name}
 //               </h1>
 //             </div>
 //             {slug.length > 1 && (
 //               <Link
 //                 href={`/category/${slug.slice(0, -1).join("/")}`}
+//                 aria-label="Go back to parent category"
 //                 className="hidden sm:flex items-center gap-2 text-sm font-semibold text-brand-primary hover:underline mt-2"
 //               >
-//                 <FiArrowLeft size={16} />
-//                 Back
+//                 <FiArrowLeft size={16} aria-hidden="true" /> Back
 //               </Link>
 //             )}
 //           </div>
 
+//           {/* BANNER */}
 //           {hasBanner && (
-//             <div className="relative w-full h-[30vh] sm:h-[40vh] md:h-[50vh] max-h-112.5 rounded-xl overflow-hidden mb-8 shadow-lg">
+//             <div className="relative w-full h-62.5 sm:h-87.5 md:h-112.5 rounded-2xl overflow-hidden mb-8 shadow-sm">
 //               <picture>
 //                 {currentCategory.mobileBanner && (
 //                   <source
 //                     media="(max-width: 767px)"
-//                     srcSet={urlFor(currentCategory.mobileBanner).url()}
-//                   />
-//                 )}
-//                 {currentCategory.desktopBanner && (
-//                   <source
-//                     media="(min-width: 768px)"
-//                     srcSet={urlFor(currentCategory.desktopBanner).url()}
+//                     srcSet={urlFor(currentCategory.mobileBanner as any).url()}
 //                   />
 //                 )}
 //                 <Image
 //                   src={urlFor(
-//                     currentCategory.desktopBanner ||
-//                       currentCategory.mobileBanner!
+//                     (currentCategory.desktopBanner ||
+//                       currentCategory.mobileBanner) as any
 //                   ).url()}
 //                   alt={`${currentCategory.name} Category Banner`}
 //                   fill
@@ -277,177 +295,261 @@
 //             </div>
 //           )}
 
+//           {/* DESCRIPTION */}
 //           {currentCategory.description && (
-//             <div className="prose prose-sm max-w-none mb-8 p-4 bg-white dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700 text-text-secondary dark:text-gray-300">
-//                <p>{currentCategory.description as string}</p>
+//             <div className="prose prose-sm max-w-none mb-8 p-5 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 text-gray-600 dark:text-gray-300">
+//               <p>{currentCategory.description as string}</p>
+//             </div>
+//           )}
+
+//           {/* PRODUCT LISTING */}
+//           {initialProducts && initialProducts.length > 0 ? (
+//             <ProductListingClient
+//               key={`${currentSlug}-${currentPage}`}
+//               initialProducts={initialProducts}
+//               filterData={filterData}
+//               categoryTree={selfTree}
+//               totalCount={totalCount || 0}
+//               context={{ type: "category", value: currentSlug }}
+//               lowStockThreshold={lowStockThreshold}
+//             />
+//           ) : (
+//             <div
+//               className="text-center py-32 bg-white dark:bg-gray-900 rounded-2xl border-2 border-dashed border-gray-200 dark:border-gray-800"
+//               role="status"
+//               aria-live="polite"
+//             >
+//               <h3 className="text-xl font-bold">No Products Found</h3>
+//               <p className="text-gray-500 mt-2">
+//                 We couldn&apos;t find any products in this category right now.
+//               </p>
 //             </div>
 //           )}
 //         </div>
-
-//         {initialProducts && initialProducts.length > 0 ? (
-//           <ProductListingClient
-//             initialProducts={initialProducts}
-//             filterData={filterData}
-//             // 🔥 AB YEHA DATA HOGA: selfTree.subCategories populated hain
-//             categoryTree={categoryTreeForSidebar}
-//             totalCount={totalCount || 0}
-//             context={{ type: "category", value: currentSlug }}
-//           />
-//         ) : (
-//           <div className="max-w-full mx-auto">
-//             <div className="text-center py-20 bg-white dark:bg-gray-800/50 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-700">
-//               <h3 className="text-xl font-semibold text-text-primary dark:text-gray-200">
-//                 No Products Found
-//               </h3>
-//               <p className="text-text-secondary dark:text-gray-400 mt-2">
-//                 There are currently no products in the
-//                 &quot;{currentCategory.name}&quot; category.
-//               </p>
-//             </div>
-//           </div>
-//         )}
 //       </main>
 //     </>
 //   );
 // }
 // src/app/(main)/category/[...slug]/page.tsx
+// ================================================================
+// 🏷️ ENTERPRISE CATEGORY PAGE ENGINE (UPGRADED — FINAL)
+// ================================================================
+// This file handles category pages with full SEO optimization:
+// ✅ ISR + Edge caching with on-demand revalidation
+// ✅ CollectionPage + BreadcrumbList Schema (#67, #77)
+// ✅ Content freshness signals in metadata (#23)
+// ✅ Entity linking for AI overviews (#39)
+// ✅ Dynamic product listing with filters
+// ✅ Responsive banners (desktop + mobile)
+// ✅ Sub-category navigation
+// ================================================================
 
 import { notFound } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
-import { cache } from "react"; // 🔥 Added for Deduplication
+import { unstable_cache } from "next/cache";
+import { FiArrowLeft } from "react-icons/fi";
 
-// ✅ PAYLOAD IMPORTS
-import { getPayload } from "payload";
-import configPromise from "@payload-config";
+// ✅ Type Imports
+import SanityProduct, { SanityCategory } from "@/types";
+
+// ✅ Payload + Caching Imports
+import { getSafePayload } from "@/app/shared/lib/payloadInstance";
 import { getPayloadProducts } from "@/sanity/lib/payload/plp";
 import { getPayloadBreadcrumbs } from "@/sanity/lib/payload/category.queries";
 
-import ProductListingClient from "@/app/components/category/ProductListingClient";
-import Breadcrumbs from "@/app/components/ui/Breadcrumbs";
+// ✅ Centralized Settings Cache
+import { getCachedSettings } from "@/app/shared/lib/cache/settings";
+
+// ✅ UI Components
+import ProductListingClient from "@/app/features/storefront/catalog/components/category/ProductListingClient";
+import Breadcrumbs from "@/app/shared/components/ui/Breadcrumbs";
 import { generateBaseMetadata } from "@/utils/metadata";
 import { urlFor } from "@/sanity/lib/image";
-import { FiArrowLeft } from "react-icons/fi";
-import { SanityCategory } from "@/sanity/types/product_types";
 
-export const dynamic = "force-dynamic";
+// ✅ Structured Data Utilities (#67, #77)
+import { generateCollectionStructuredData } from "@/app/shared/lib/seo/structuredData";
 
+// ✅ Types
 type CategoryPageProps = {
   params: Promise<{ slug: string[] }>;
-  searchParams: Promise<{ page?: string; sort?: string }>; // 🔥 Added searchParams
+  searchParams: Promise<{ page?: string; sort?: string }>;
+};
+
+// =====================================================
+// ✅ ISR: Statically generated, served from CDN
+// =====================================================
+export const revalidate = false;
+
+// =========================================================================
+// 🔥 LIGHTWEIGHT METADATA FETCH (No products, no sub-categories)
+// =========================================================================
+const getCachedCategoryMetadata = async (slug: string) => {
+  return unstable_cache(
+    async () => {
+      const payload = await getSafePayload();
+
+      const categoryResult = await payload.find({
+        collection: "categories",
+        where: { slug: { equals: slug } },
+        depth: 1,
+      });
+
+      const categoryDoc = categoryResult.docs[0];
+      if (!categoryDoc) return null;
+
+      return {
+        name: categoryDoc.name,
+        slug: categoryDoc.slug,
+        description: (categoryDoc as any).description || null,
+        image: (categoryDoc.image as any)?.url || null,
+        seo: (categoryDoc.seo as any) || {},
+        desktopBanner: (categoryDoc as any).desktopBanner || null,
+        mobileBanner: (categoryDoc as any).mobileBanner || null,
+        // ✅ Added timestamps for freshness (#23)
+        createdAt: categoryDoc.createdAt,
+        updatedAt: categoryDoc.updatedAt,
+      };
+    },
+    [`category-meta-${slug}`],
+    {
+      tags: [`category-${slug}`],
+      revalidate: false,
+    }
+  )();
 };
 
 // =========================================================================
-// 🔥 CACHED DATA FETCHER (Prevents Double DB Hits)
+// 🔥 FULL CATEGORY DATA (For product listing)
 // =========================================================================
-const getCachedCategoryData = cache(
-  async (slug: string, page: number, sort?: string) => {
-    const payload = await getPayload({ config: configPromise });
+const getCachedCategoryData = async (slug: string, page: number, sort?: string) => {
+  const cacheKey = `category-${slug}-${page}-${sort || "newest"}`;
 
-    // 1. Fetch Current Category
-    const categoryResult = await payload.find({
-      collection: "categories",
-      where: { slug: { equals: slug } },
-      depth: 2,
-    });
+  return unstable_cache(
+    async () => {
+      const payload = await getSafePayload();
 
-    const categoryDoc = categoryResult.docs[0];
-    if (!categoryDoc) return null;
+      // 1️⃣ Fetch Current Category
+      const categoryResult = await payload.find({
+        collection: "categories",
+        where: { slug: { equals: slug } },
+        depth: 2,
+      });
 
-    // 2. Fetch Sub-Categories (Children)
-    const subCategoriesResult = await payload.find({
-      collection: "categories",
-      where: { parent: { equals: categoryDoc.id } },
-      sort: "name",
-      limit: 50,
-    });
+      const categoryDoc = categoryResult.docs[0];
+      if (!categoryDoc) return null;
 
-    const mappedSubCategories: SanityCategory[] = subCategoriesResult.docs.map(
-      (sub: any) => ({
-        _id: sub.id,
-        name: sub.name,
-        slug: sub.slug,
-        parent: { _id: categoryDoc.id },
-        image: (sub.image as any)?.url || null,
-        subCategories: [],
-      }),
-    );
+      // 2️⃣ Fetch Sub-Categories (Children)
+      const subCategoriesResult = await payload.find({
+        collection: "categories",
+        where: { parent: { equals: categoryDoc.id } },
+        sort: "name",
+        limit: 50,
+      });
 
-    // 3. Fetch Products & GLOBAL FILTERS (Using our updated PLP Engine)
-    // Humne 'getPayloadProducts' ko pehle hi update kiya hai ke wo global filters de
-    const productData = await getPayloadProducts({
-      categorySlug: slug,
-      page: page,
-      sortOrder: sort || "newest",
-    });
+      const mappedSubCategories: SanityCategory[] = subCategoriesResult.docs.map(
+        (sub: any) => ({
+          _id: sub.id,
+          name: sub.name,
+          slug: sub.slug,
+          parent: { _id: categoryDoc.id } as any,
+          image: (sub.image as any)?.url || null,
+          subCategories: [],
+          seo: {},
+        })
+      );
 
-    const currentCategory: SanityCategory = {
-      _id: categoryDoc.id,
-      name: categoryDoc.name,
-      slug: categoryDoc.slug,
-      parent: null,
-      // @ts-ignore
-      desktopBanner: categoryDoc.desktopBanner,
-      // @ts-ignore
-      mobileBanner: categoryDoc.mobileBanner,
-      // @ts-ignore
-      description: categoryDoc.description,
-      image: (categoryDoc.image as any)?.url,
-    };
+      // 3️⃣ Fetch Products & Global Filters
+      const productData = await getPayloadProducts({
+        categorySlug: slug,
+        page: page,
+        sortOrder: sort || "newest",
+      });
 
-    const selfTree: SanityCategory = {
-      ...currentCategory,
-      subCategories: mappedSubCategories,
-    };
+      const currentCategory: SanityCategory = {
+        _id: categoryDoc.id,
+        name: categoryDoc.name,
+        slug: categoryDoc.slug,
+        parent: null,
+        desktopBanner: (categoryDoc as any).desktopBanner,
+        mobileBanner: (categoryDoc as any).mobileBanner,
+        description: (categoryDoc as any).description,
+        image: (categoryDoc.image as any)?.url || null,
+        seo: (categoryDoc.seo as any) || {},
+        subCategories: mappedSubCategories,
+      };
 
-    return {
-      initialProducts: productData.products,
-      totalCount: productData.totalCount,
-      filterData: productData.filterData, // 🔥 Global Filters from PLP Engine
-      currentCategory,
-      selfTree,
-    };
-  },
-);
+      const selfTree: SanityCategory = {
+        ...currentCategory,
+        subCategories: mappedSubCategories,
+      };
+
+      return {
+        initialProducts: productData.products as SanityProduct[],
+        totalCount: productData.totalCount,
+        filterData: productData.filterData,
+        currentCategory,
+        selfTree,
+      };
+    },
+    [cacheKey],
+    {
+      tags: [`category-${slug}`],
+      revalidate: false,
+    }
+  )();
+};
 
 // =========================================================================
-// 🔥 METADATA GENERATION
+// 🔥 METADATA GENERATION (Enhanced with freshness signals)
 // =========================================================================
 export async function generateMetadata({ params }: CategoryPageProps) {
   const { slug } = await params;
   const currentSlug = slug[slug.length - 1];
 
-  // Ye call 'getCachedCategoryData' se deduplicate ho jayegi
-  const data = await getCachedCategoryData(currentSlug, 1);
-  if (!data) return {};
+  const metaData = await getCachedCategoryMetadata(currentSlug);
+  if (!metaData) return {};
 
-  const { currentCategory } = data;
-  // @ts-ignore
-  const seo = currentCategory.seo || {};
+  const { name, description, image, seo, createdAt, updatedAt } = metaData;
+  const now = new Date().toISOString();
 
   return generateBaseMetadata({
-    title: seo.metaTitle || currentCategory.name,
+    title: seo.metaTitle || name,
     description:
-      seo.metaDescription || (currentCategory.description as string) || "",
-    image: seo.ogImage || currentCategory.image,
-    path: `/category/${currentCategory.slug}`,
+      seo.metaDescription ||
+      description ||
+      `Shop for ${name} online at PocketValue.`,
+    image: seo.ogImage || image,
+    path: `/category/${currentSlug}`,
+    // ✅ Point #23: Content Freshness
+    publishedTime: createdAt || now,
+    modifiedTime: updatedAt || createdAt || now,
+    // ✅ Point #80: Publisher/Author signals
+    author: "PocketValue Team",
+    section: "Category",
+    // ✅ Point #39: Entity linking
   });
 }
 
 // =========================================================================
-// 🛒 MAIN CATEGORY PAGE
+// 🛒 MAIN CATEGORY PAGE (Server Component)
 // =========================================================================
 export default async function CategoryPage({
   params,
   searchParams,
 }: CategoryPageProps) {
   const { slug } = await params;
-  const { page, sort } = await searchParams;
+  const resolvedSearchParams = await searchParams;
 
   const currentSlug = slug[slug.length - 1];
-  const currentPage = Number(page) || 1;
+  const currentPage = Number(resolvedSearchParams?.page) || 1;
+  const sort = resolvedSearchParams?.sort as string | undefined;
 
-  // Parallel Fetching: Category Data + Breadcrumbs
+  // ✅ Centralized cached settings
+  const settings = await getCachedSettings();
+  const lowStockThreshold = settings.inventorySettings?.lowStockThreshold || 5;
+
+  // ✅ Parallel Fetch: Category Data + Breadcrumbs
   const [plpData, breadcrumbs] = await Promise.all([
     getCachedCategoryData(currentSlug, currentPage, sort),
     getPayloadBreadcrumbs("category", currentSlug),
@@ -462,49 +564,57 @@ export default async function CategoryPage({
 
   const siteUrl =
     process.env.NEXT_PUBLIC_BASE_URL || "https://www.pocketvalue.pk";
+  const categoryUrl = `${siteUrl}/category/${currentSlug}`;
 
-  // 🔥 SEO: CollectionPage & Breadcrumb Schemas
-  const jsonLd = {
-    "@context": "https://schema.org",
-    "@graph": [
-      {
-        "@type": "CollectionPage",
-        "@id": `${siteUrl}/category/${currentSlug}/#webpage`,
-        url: `${siteUrl}/category/${currentSlug}`,
-        name: currentCategory.name,
-        description:
-          currentCategory.description ||
-          `Shop for ${currentCategory.name} online.`,
-        breadcrumb: { "@id": `${siteUrl}/category/${currentSlug}/#breadcrumb` },
-      },
-      {
-        "@type": "BreadcrumbList",
-        "@id": `${siteUrl}/category/${currentSlug}/#breadcrumb`,
-        itemListElement: breadcrumbs.map((crumb, index) => ({
-          "@type": "ListItem",
-          position: index + 1,
-          item: {
-            "@id": `${siteUrl}${crumb.href.startsWith("/") ? crumb.href : "/" + crumb.href}`,
-            name: crumb.name,
+  // ================================================================
+  // 🔥 STRUCTURED DATA — Using generateCollectionStructuredData (#67, #77)
+  // ================================================================
+  const collectionSchema = generateCollectionStructuredData({
+    name: currentCategory.name,
+    description: (currentCategory.description as string) ||
+      `Shop for ${currentCategory.name} online at PocketValue.`,
+    url: categoryUrl,
+    baseUrl: siteUrl,
+    breadcrumbs: breadcrumbs,
+  });
+
+  // ✅ Add @id for entity linking (#39)
+  // Already present in the utility, but we ensure it's there
+  const enhancedSchema = {
+    ...collectionSchema,
+    "@graph": collectionSchema["@graph"].map((item: any) => {
+      if (item["@type"] === "CollectionPage") {
+        return {
+          ...item,
+          // ✅ Ensure @id is present (#39)
+          "@id": `${categoryUrl}/#webpage`,
+          // ✅ Add inLanguage (#98)
+          inLanguage: "en-US",
+          // ✅ Add publisher (#80)
+          publisher: {
+            "@type": "Organization",
+            "@id": `${siteUrl}/#organization`,
           },
-        })),
-      },
-    ],
+        };
+      }
+      return item;
+    }),
   };
 
-  const hasBanner =
-    currentCategory.desktopBanner || currentCategory.mobileBanner;
+  const hasBanner = !!(currentCategory.desktopBanner || currentCategory.mobileBanner);
 
   return (
     <>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(enhancedSchema),
+        }}
       />
 
       <main className="w-full bg-gray-50 dark:bg-gray-950 px-2 md:px-4 py-8 md:py-12">
         <div className="max-w-480 mx-auto">
-          {/* HEADER SECTION */}
+          {/* HEADER: Breadcrumbs + Title + Back Button */}
           <div className="flex justify-between items-start mb-6 md:mb-8">
             <div>
               <Breadcrumbs crumbs={breadcrumbs} />
@@ -515,27 +625,28 @@ export default async function CategoryPage({
             {slug.length > 1 && (
               <Link
                 href={`/category/${slug.slice(0, -1).join("/")}`}
+                aria-label="Go back to parent category"
                 className="hidden sm:flex items-center gap-2 text-sm font-semibold text-brand-primary hover:underline mt-2"
               >
-                <FiArrowLeft size={16} /> Back
+                <FiArrowLeft size={16} aria-hidden="true" /> Back
               </Link>
             )}
           </div>
 
-          {/* BANNER SECTION */}
+          {/* BANNER */}
           {hasBanner && (
             <div className="relative w-full h-62.5 sm:h-87.5 md:h-112.5 rounded-2xl overflow-hidden mb-8 shadow-sm">
               <picture>
                 {currentCategory.mobileBanner && (
                   <source
                     media="(max-width: 767px)"
-                    srcSet={urlFor(currentCategory.mobileBanner).url()}
+                    srcSet={urlFor(currentCategory.mobileBanner as any).url()}
                   />
                 )}
                 <Image
                   src={urlFor(
-                    currentCategory.desktopBanner ||
-                      currentCategory.mobileBanner!,
+                    (currentCategory.desktopBanner ||
+                      currentCategory.mobileBanner) as any
                   ).url()}
                   alt={`${currentCategory.name} Category Banner`}
                   fill
@@ -553,21 +664,26 @@ export default async function CategoryPage({
             </div>
           )}
 
-          {/* PRODUCT LISTING ENGINE */}
+          {/* PRODUCT LISTING */}
           {initialProducts && initialProducts.length > 0 ? (
             <ProductListingClient
-              key={`${currentSlug}-${currentPage}`} // 🔥 Force reset on category change
+              key={`${currentSlug}-${currentPage}`}
               initialProducts={initialProducts}
               filterData={filterData}
               categoryTree={selfTree}
               totalCount={totalCount || 0}
               context={{ type: "category", value: currentSlug }}
+              lowStockThreshold={lowStockThreshold}
             />
           ) : (
-            <div className="text-center py-32 bg-white dark:bg-gray-900 rounded-2xl border-2 border-dashed border-gray-200 dark:border-gray-800">
+            <div
+              className="text-center py-32 bg-white dark:bg-gray-900 rounded-2xl border-2 border-dashed border-gray-200 dark:border-gray-800"
+              role="status"
+              aria-live="polite"
+            >
               <h3 className="text-xl font-bold">No Products Found</h3>
               <p className="text-gray-500 mt-2">
-                We couldn't find any products in this category right now.
+                We couldn&apos;t find any products in this category right now.
               </p>
             </div>
           )}

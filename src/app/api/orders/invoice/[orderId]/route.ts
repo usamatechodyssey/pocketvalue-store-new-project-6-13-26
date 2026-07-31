@@ -1,7 +1,4 @@
-
-
-
-// /src/app/api/orders/invoice/[orderId]/route.ts
+// src/app/api/orders/invoice/[orderId]/route.ts
 
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/app/auth";
@@ -9,9 +6,11 @@ import React from "react";
 import ReactPDF from "@react-pdf/renderer";
 
 // --- REFACTORED IMPORTS ---
-import connectMongoose from "@/app/lib/mongoose";
-import Order, { IOrder } from "@/models/Order"; // Hamara naya Mongoose model aur type
-import { InvoiceTemplate } from "@/app/(main)/account/orders/[orderId]/_components/Invoice/InvoiceTemplate";
+import connectMongoose from "@/app/shared/lib/checkout/mongoose";
+import Order, { IOrder } from "@/models/Order";
+import { InvoiceTemplate } from "@/app/features/storefront/customer-account/components/orders/Invoice/InvoiceTemplate";
+import type { ClientOrder } from "@/models/Order";
+
 /**
  * Helper function to convert a NodeJS ReadableStream into a Buffer.
  */
@@ -22,6 +21,45 @@ async function streamToBuffer(stream: NodeJS.ReadableStream): Promise<Buffer> {
     stream.on("error", (err) => reject(err));
     stream.on("end", () => resolve(Buffer.concat(chunks)));
   });
+}
+
+/**
+ * ✅ ENTERPRISE FIX: Transform Mongoose document to ClientOrder
+ * Converts Date objects to ISO strings for client-side compatibility.
+ */
+function transformOrderToClientOrder(order: IOrder): ClientOrder {
+  return {
+    _id: order._id,
+    orderId: order.orderId,
+    userId: order.userId,
+    totalPrice: order.totalPrice,
+    status: order.status,
+    createdAt: order.createdAt instanceof Date 
+      ? order.createdAt.toISOString() 
+      : order.createdAt,
+    products: order.products.map((p: any) => ({
+      _id: p._id,
+      cartItemId: p.cartItemId,
+      name: p.name,
+      price: p.price,
+      quantity: p.quantity,
+      slug: p.slug,
+      image: p.image,
+      variant: p.variant,
+    })),
+    shippingAddress: order.shippingAddress,
+    paymentMethod: order.paymentMethod,
+    paymentStatus: order.paymentStatus,
+    subtotal: order.subtotal,
+    shippingCost: order.shippingCost,
+    trafficSource: order.trafficSource
+      ? {
+          source: order.trafficSource.utmSource ?? 'Direct',
+          medium: order.trafficSource.utmMedium ?? 'None',
+          campaign: order.trafficSource.utmCampaign ?? 'None',
+        }
+      : undefined,
+  };
 }
 
 /**
@@ -42,43 +80,37 @@ export async function GET(
     const params = await paramsPromise;
     const { orderId } = params;
 
-    const order = await Order.findOne({
+    // ✅ FIX 1: Explicitly cast to IOrder | null using `as`
+    const order = (await Order.findOne({
       $or: [{ _id: orderId }, { orderId: orderId }],
-      userId: session.user.id
-    }).lean() as IOrder | null;
+      userId: session.user.id,
+    }).lean()) as IOrder | null;
 
+    // ✅ FIX 2: Check if order exists
     if (!order) {
       return new NextResponse("Order not found or access denied.", { status: 404 });
     }
 
-    const documentElement = React.createElement(InvoiceTemplate, { order: order });
+    // ✅ FIX 3: Transform to ClientOrder
+    const clientOrder = transformOrderToClientOrder(order);
 
-    // BUG FIX #1: Aapke purane code ki tarah `as any` ko wapas add kiya gaya hai
-    // kyunke @react-pdf/renderer ki types is custom component ke sath sahi kaam nahi karteen.
+    const documentElement = React.createElement(InvoiceTemplate, { order: clientOrder });
+
     const pdfStream = await ReactPDF.renderToStream(documentElement as any);
-
     const pdfBuffer = await streamToBuffer(pdfStream);
-
-    // BUG FIX #2: Aapke purane code ki tarah Buffer ko Uint8Array mein convert kiya gaya hai
-    // taake NextResponse usay sahi tareeqe se handle kar sake.
     const pdfUint8Array = new Uint8Array(pdfBuffer);
 
+    // ✅ FIX 4: Use `order.orderId` safely (now typed as IOrder)
     const response = new NextResponse(pdfUint8Array, {
       headers: {
-        'Content-Type': 'application/pdf',
-        'Content-Disposition': `attachment; filename="invoice-${order.orderId}.pdf"`,
+        "Content-Type": "application/pdf",
+        "Content-Disposition": `attachment; filename="invoice-${order.orderId}.pdf"`,
       },
     });
 
     return response;
-
   } catch (error: any) {
     console.error("Failed to generate PDF invoice:", error);
     return new NextResponse("Failed to generate invoice.", { status: 500 });
   }
 }
-
-// --- SUMMARY OF CHANGES ---
-// - **Error Fix #1 (ReactPDF Type):** `renderToStream` ke argument mein `as any` ko dobara shamil kiya gaya hai, bilkul aapke original code ki tarah, taake TypeScript ka type error khatam ho jaye.
-// - **Error Fix #2 (NextResponse Body):** `pdfBuffer` ko `new Uint8Array(pdfBuffer)` ka istemal karke convert kiya gaya hai, bilkul aapke original code ki tarah, taake `NextResponse` usay sahi tareeqe se accept kar sake.
-// - **Architectural Consistency:** In ghaltiyon ko theek karne ke bawajood, hum ne Mongoose model ka istemal barqarar rakha hai taake hamara code poore project mein consistent rahe.

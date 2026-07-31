@@ -3,7 +3,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react"; // <-- Naya Import
 import { Loader2 } from "lucide-react"; // <-- Naya Import
-import RegisterClient from "./RegisterClient";
+import RegisterClient from "../../features/storefront/auth/components/RegisterClient";
 
 export const metadata: Metadata = {
   title: "Create Account | PocketValue",

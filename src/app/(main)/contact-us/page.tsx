@@ -1,182 +1,160 @@
-// import { Mail, Phone, MapPin } from "lucide-react";
-// import ContactForm from "./_components/ContactForm";
-// import { getGlobalSettings, getBreadcrumbs } from "@/sanity/lib/queries";
-// import { generateBaseMetadata } from "@/utils/metadata";
-// import type { Metadata } from "next";
-// import Breadcrumbs from "@/app/components/ui/Breadcrumbs";
+// src/app/(main)/contact-us/page.tsx
+// ================================================================
+// 📞 ENTERPRISE CONTACT PAGE ENGINE (UPGRADED — FINAL)
+// ================================================================
+// This file handles the Contact Us page with:
+// ✅ ContactPoint Schema with @id (#39)
+// ✅ LocalBusiness Schema (#100) — For local SEO
+// ✅ Cached breadcrumbs + settings
+// ✅ Contact form with honeypot protection
+// ✅ Full accessibility support
+// ================================================================
 
-// // 🔥 FIX: Build Error Solution
-// export const dynamic = "force-dynamic";
-
-// export async function generateMetadata(): Promise<Metadata> {
-//   return generateBaseMetadata({
-//     title: "Contact Us",
-//     description:
-//       "Get in touch with PocketValue. We are here to help you with your queries, orders, and feedback.",
-//     path: "/contact-us",
-//   });
-// }
-
-// export default async function ContactPage() {
-//   const [settings, breadcrumbs] = await Promise.all([
-//     getGlobalSettings(),
-//     getBreadcrumbs("contact-us"),
-//   ]);
-
-//   return (
-//     <main className="w-full bg-white dark:bg-gray-900">
-//       <div className="bg-gray-50 dark:bg-gray-800/50">
-//         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-12 text-center">
-//           <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-gray-900 dark:text-white">
-//             Get in Touch
-//           </h1>
-//           <p className="mt-4 max-w-2xl mx-auto text-lg text-gray-600 dark:text-gray-300">
-//             {/* ✅ FIX: 'We'd' -> 'We&apos;d' */}
-//             We&apos;d love to hear from you! Whether you have a question about our
-//             products, an order, or just want to say hello, our team is ready to
-//             answer all your questions.
-//           </p>
-//         </div>
-//       </div>
-
-//       <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-16">
-//         <div className="max-w-7xl mx-auto mb-12">
-//           <Breadcrumbs crumbs={breadcrumbs} />
-//         </div>
-
-//         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
-//           <div className="lg:col-span-5 space-y-8">
-//             <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100">
-//               Contact Information
-//             </h2>
-//             <div className="space-y-6">
-//               {settings.storeContactEmail && (
-//                 <div className="flex items-start gap-4">
-//                   <div className="shrink-0 bg-brand-primary/10 p-3 rounded-full">
-//                     <Mail className="h-6 w-6 text-brand-primary" />
-//                   </div>
-//                   <div>
-//                     <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">
-//                       Email Us
-//                     </h3>
-//                     <p className="text-gray-600 dark:text-gray-400">
-//                       Our support team will get back to you within 24 hours.
-//                     </p>
-//                     <a
-//                       href={`mailto:${settings.storeContactEmail}`}
-//                       className="mt-1 text-brand-primary font-medium hover:underline break-all"
-//                     >
-//                       {settings.storeContactEmail}
-//                     </a>
-//                   </div>
-//                 </div>
-//               )}
-
-//               {settings.storePhoneNumber && (
-//                 <div className="flex items-start gap-4">
-//                   <div className="shrink-0 bg-brand-primary/10 p-3 rounded-full">
-//                     <Phone className="h-6 w-6 text-brand-primary" />
-//                   </div>
-//                   <div>
-//                     <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">
-//                       Call Us
-//                     </h3>
-//                     <p className="text-gray-600 dark:text-gray-400">
-//                       Mon-Fri from 9am to 6pm PST.
-//                     </p>
-//                     <a
-//                       href={`tel:${settings.storePhoneNumber}`}
-//                       className="mt-1 text-brand-primary font-medium hover:underline"
-//                     >
-//                       {settings.storePhoneNumber}
-//                     </a>
-//                   </div>
-//                 </div>
-//               )}
-
-//               {settings.storeAddress && (
-//                 <div className="flex items-start gap-4">
-//                   <div className="shrink-0 bg-brand-primary/10 p-3 rounded-full">
-//                     <MapPin className="h-6 w-6 text-brand-primary" />
-//                   </div>
-//                   <div>
-//                     <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">
-//                       Our Office
-//                     </h3>
-//                     <p
-//                       className="text-gray-600 dark:text-gray-400"
-//                       style={{ whiteSpace: "pre-line" }}
-//                     >
-//                       {settings.storeAddress}
-//                     </p>
-//                   </div>
-//                 </div>
-//               )}
-//             </div>
-//           </div>
-
-//           <div className="lg:col-span-7 bg-gray-50 dark:bg-gray-800/50 p-6 sm:p-8 rounded-2xl border border-gray-200 dark:border-gray-700">
-//             <ContactForm />
-//           </div>
-//         </div>
-//       </div>
-//     </main>
-//   );
-// }
-// src/app/contact-us/page.tsx
-
+import { unstable_cache } from "next/cache";
 import { Mail, Phone, MapPin, Clock } from "lucide-react";
-import ContactForm from "./_components/ContactForm";
-import { getGlobalSettings, getBreadcrumbs } from "@/sanity/lib/queries";
+import ContactForm from "../../features/storefront/catalog/components/ContactForm";
+
+import { getPayloadBreadcrumbs } from "@/sanity/lib/payload/category.queries";
+import { getCachedSettings } from "@/app/shared/lib/cache/settings";
 import { generateBaseMetadata } from "@/utils/metadata";
 import type { Metadata } from "next";
-import Breadcrumbs from "@/app/components/ui/Breadcrumbs";
+import Breadcrumbs from "@/app/shared/components/ui/Breadcrumbs";
 
-export const dynamic = "force-dynamic";
+// =========================================================================
+// 🔥 CACHED BREADCRUMBS
+// =========================================================================
+const getCachedBreadcrumbs = unstable_cache(
+  async () => {
+    return await getPayloadBreadcrumbs("contact-us");
+  },
+  ["breadcrumbs-contact-us"],
+  {
+    tags: ["breadcrumbs-contact-us"],
+    revalidate: false,
+  }
+);
 
+// =========================================================================
+// 🔥 METADATA (Enhanced with freshness signals)
+// =========================================================================
 export async function generateMetadata(): Promise<Metadata> {
   return generateBaseMetadata({
     title: "Contact Us | PocketValue Customer Support",
     description:
       "Have questions? Get in touch with PocketValue. We're here to assist with orders, tracking, and product queries.",
     path: "/contact-us",
+    publishedTime: new Date().toISOString(),
+    modifiedTime: new Date().toISOString(),
+    author: "PocketValue Team",
+    section: "Contact",
   });
 }
 
+// =========================================================================
+// 📄 MAIN CONTACT PAGE
+// =========================================================================
 export default async function ContactPage() {
   const [settings, breadcrumbs] = await Promise.all([
-    getGlobalSettings(),
-    getBreadcrumbs("contact-us"),
+    getCachedSettings(),
+    getCachedBreadcrumbs(),
   ]);
 
   const siteUrl =
     process.env.NEXT_PUBLIC_BASE_URL || "https://www.pocketvalue.pk";
 
-  // 🔥 SEO: ContactPoint Schema
-  const jsonLd = {
+  // ✅ Try to get lat/lng from warehouse locations if available
+  const firstWarehouse = settings.warehouse?.locations?.[0];
+  const latitude = firstWarehouse?.lat;
+  const longitude = firstWarehouse?.lng;
+
+  // ================================================================
+  // 🔥 SEO: Organization + ContactPoint Schema
+  // ================================================================
+  const organizationSchema = {
     "@context": "https://schema.org",
     "@type": "Organization",
+    "@id": `${siteUrl}/#organization`,
     name: "PocketValue",
     url: siteUrl,
     contactPoint: [
       {
         "@type": "ContactPoint",
-        telephone: settings.storePhoneNumber,
+        "@id": `${siteUrl}/contact-us/#contactpoint`,
+        telephone: settings.storePhoneNumber || "",
         contactType: "customer service",
-        email: settings.storeContactEmail,
+        email: settings.storeContactEmail || "",
         availableLanguage: ["English", "Urdu"],
+        inLanguage: "en-US",
       },
     ],
   };
 
+  // ================================================================
+  // 🆕 TASK #100: LocalBusiness Schema (Karachi, Sindh based)
+  // ================================================================
+  const localBusinessSchema = {
+    "@context": "https://schema.org",
+    "@type": "LocalBusiness",
+    "@id": `${siteUrl}/#localbusiness`,
+    name: "PocketValue",
+    url: siteUrl,
+    telephone: settings.storePhoneNumber || "",
+    email: settings.storeContactEmail || "",
+    address: {
+      "@type": "PostalAddress",
+      streetAddress: settings.storeAddress || "",
+      addressLocality: "Karachi",
+      addressRegion: "Sindh",
+      postalCode: "74000",
+      addressCountry: "PK",
+    },
+    // ✅ Geo coordinates (from warehouse if available)
+    ...(latitude && longitude
+      ? {
+          geo: {
+            "@type": "GeoCoordinates",
+            latitude: latitude,
+            longitude: longitude,
+          },
+        }
+      : {}),
+    openingHoursSpecification: [
+      {
+        "@type": "OpeningHoursSpecification",
+        dayOfWeek: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
+        opens: "09:00",
+        closes: "18:00",
+      },
+      {
+        "@type": "OpeningHoursSpecification",
+        dayOfWeek: ["Sunday"],
+        opens: "00:00",
+        closes: "00:00",
+      },
+    ],
+    paymentAccepted: ["Cash", "Credit Card", "Debit Card", "Bank Transfer", "EasyPaisa", "JazzCash"],
+    priceRange: "PKR",
+    inLanguage: "en-US",
+    parentOrganization: {
+      "@type": "Organization",
+      "@id": `${siteUrl}/#organization`,
+    },
+  };
+
   return (
     <main className="w-full bg-white dark:bg-gray-950">
+      {/* ✅ Organization Schema */}
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema) }}
       />
 
-      {/* 1. HEADER SECTION */}
+      {/* ✅ LocalBusiness Schema (#100) */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(localBusinessSchema) }}
+      />
+
       <section className="bg-gray-50 dark:bg-gray-900/50 border-b border-gray-100 dark:border-gray-800">
         <div className="container mx-auto px-4 py-16 md:py-24 text-center">
           <h1 className="text-4xl md:text-6xl font-black tracking-tight text-gray-900 dark:text-white">
@@ -189,7 +167,6 @@ export default async function ContactPage() {
         </div>
       </section>
 
-      {/* 2. CONTENT SECTION */}
       <section className="container mx-auto px-4 py-16">
         <div className="max-w-7xl mx-auto mb-10">
           <Breadcrumbs crumbs={breadcrumbs} />
@@ -211,7 +188,7 @@ export default async function ContactPage() {
               {settings.storeContactEmail && (
                 <div className="flex items-start gap-5">
                   <div className="shrink-0 bg-brand-primary/10 p-4 rounded-2xl text-brand-primary">
-                    <Mail size={24} />
+                    <Mail size={24} aria-hidden="true" />
                   </div>
                   <div>
                     <h3 className="font-bold text-gray-900 dark:text-white">
@@ -233,7 +210,7 @@ export default async function ContactPage() {
               {settings.storePhoneNumber && (
                 <div className="flex items-start gap-5">
                   <div className="shrink-0 bg-brand-primary/10 p-4 rounded-2xl text-brand-primary">
-                    <Phone size={24} />
+                    <Phone size={24} aria-hidden="true" />
                   </div>
                   <div>
                     <h3 className="font-bold text-gray-900 dark:text-white">
@@ -246,7 +223,7 @@ export default async function ContactPage() {
                       {settings.storePhoneNumber}
                     </a>
                     <div className="flex items-center gap-1.5 text-sm text-gray-500 mt-1">
-                      <Clock size={14} /> <span>9 AM - 6 PM (PST)</span>
+                      <Clock size={14} aria-hidden="true" /> <span>9 AM - 6 PM (PST)</span>
                     </div>
                   </div>
                 </div>
@@ -255,7 +232,7 @@ export default async function ContactPage() {
               {settings.storeAddress && (
                 <div className="flex items-start gap-5">
                   <div className="shrink-0 bg-brand-primary/10 p-4 rounded-2xl text-brand-primary">
-                    <MapPin size={24} />
+                    <MapPin size={24} aria-hidden="true" />
                   </div>
                   <div>
                     <h3 className="font-bold text-gray-900 dark:text-white">

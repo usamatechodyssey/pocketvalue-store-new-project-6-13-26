@@ -1,6 +1,6 @@
 // /src/app/sell/page.tsx
 
-import ComingSoon from "@/app/components/ui/ComingSoon";
+import ComingSoon from "@/app/shared/components/ui/ComingSoon";
 import type { Metadata } from "next"; // <-- IMPORT METADATA TYPE
 
 // --- UPDATED METADATA ---

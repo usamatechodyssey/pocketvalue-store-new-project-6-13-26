@@ -1,169 +1,180 @@
-// // /src/app/api/filter/route.ts
 
 // import { getPayloadProducts } from "@/sanity/lib/payload/plp";
-// // import { searchProducts } from "@/sanity/lib/queries";
 // import { NextRequest, NextResponse } from "next/server";
-
-// interface FilterRequestBody {
-//   page?: number;
-//   sortOrder?: string;
-//   filters?: {
-//     brands?: string[];
-//     categories?: string[];
-//     isFeatured?: boolean;
-//     availability?: string[]; // ✨ ADDED
-//     isOnSale?: boolean;      // ✨ ADDED
-//     minRating?: number;      // ✨ ADDED
-//     [key: string]: any;
-//   };
-//   priceRange?: {
-//     min?: number;
-//     max?: number;
-//   };
-//   context: {
-//     type: 'category' | 'search' | 'deals';
-//     value?: string;
-//     sort?: string;
-//     filter?: string;
-//   }
-// }
+// import { FilterRequestSchema } from "@/app/shared/lib/zodSchemas";
+// import { QueryOptions } from "@/sanity/lib/payload/plp/queryBuilder";
 
 // export async function POST(request: NextRequest) {
 //   try {
-//     const body: FilterRequestBody = await request.json();
+//     const body = await request.json();
 
-//     const sortOrder = body.sortOrder || body.context.sort || 'best-match';
-//     const filters = body.filters || {};
-
-//     // Legacy context filter support
-//     if (body.context.filter === 'isFeatured') {
-//       filters.isFeatured = true;
+//     const parsed = FilterRequestSchema.safeParse(body);
+//     if (!parsed.success) {
+//       return NextResponse.json(
+//         { 
+//           message: "Invalid request payload.",
+//           errors: parsed.error.issues.map(i => i.message)
+//         },
+//         { status: 400 }
+//       );
 //     }
 
-//     const options: any = {
-//       searchTerm: body.context.type === 'search' ? body.context.value : undefined,
-//       categorySlug: body.context.type === 'category' ? body.context.value : undefined,
+//     const {
+//       context,
+//       filters = {},
+//       priceRange,
+//       page,
+//       sortOrder: bodySort,
+//     } = parsed.data;
 
-//       // Legacy Deals Logic
-//       isDeal: body.context.type === 'deals' && !body.context.value,
-//       // Campaign Logic
-//       campaignSlug: body.context.type === 'deals' ? body.context.value : undefined,
+//     const finalSortOrder = bodySort || context.sort || "best-match";
 
-//       // Pass the Full Filters Object (including new fields)
-//       filters: filters,
+//     let finalFilters = { ...filters };
+//     if (context.filter === "isFeatured") {
+//       finalFilters.isFeatured = true;
+//     }
 
-//       minPrice: body.priceRange?.min,
-//       maxPrice: body.priceRange?.max,
-//       sortOrder: sortOrder,
-//       page: body.page || 1,
+//     const options = {
+//       searchTerm: context.type === "search" ? context.value : undefined,
+//       categorySlug: context.type === "category" ? context.value : undefined,
+//       isDeal: context.type === "deals" && !context.value,
+//       campaignSlug: context.type === "deals" && context.value ? context.value : undefined,
+//       filters: finalFilters as QueryOptions['filters'],
+//       minPrice: priceRange?.min,
+//       maxPrice: priceRange?.max,
+//       sortOrder: finalSortOrder,
+//       page: page || 1,
 //     };
 
-//     // const results = await searchProducts(options);
-//     // ✅ Switch to Payload Query Engine
 //     const results = await getPayloadProducts(options);
-
 //     return NextResponse.json(results);
 
 //   } catch (error) {
 //     console.error("API Filter Error:", error);
 //     const errorMessage = error instanceof Error ? error.message : "An unknown error occurred";
-//     return new NextResponse(
-//       JSON.stringify({ message: "Error processing filter request.", error: errorMessage }),
+//     return NextResponse.json(
+//       { message: "Error processing filter request.", error: errorMessage },
 //       { status: 500 }
 //     );
 //   }
 // }
-// /src/app/api/filter/route.ts
+// src/app/api/filter/route.ts
+
 import { getPayloadProducts } from "@/sanity/lib/payload/plp";
 import { NextRequest, NextResponse } from "next/server";
-
-interface FilterRequestBody {
-  page?: number;
-  sortOrder?: string;
-  filters?: {
-    brands?: string[];
-    categories?: string[];
-    isFeatured?: boolean;
-    availability?: string[];
-    isOnSale?: boolean;
-    minRating?: number;
-    [key: string]: any;
-  };
-  priceRange?: {
-    min?: number;
-    max?: number;
-  };
-  context: {
-    type: "category" | "search" | "deals";
-    value?: string;
-    sort?: string;
-    filter?: string;
-  };
-}
+import { FilterRequestSchema } from "@/app/shared/lib/zodSchemas";
+import { QueryOptions } from "@/sanity/lib/payload/plp/queryBuilder";
 
 export async function POST(request: NextRequest) {
   try {
-    const body: FilterRequestBody = await request.json();
+    // ================================================================
+    // 🔥 STEP 1: RAW BODY LOG (Sab se pehle)
+    // ================================================================
+    const rawBody = await request.text();
+    console.log("📦 [API Filter] RAW BODY RECEIVED:", rawBody);
 
-    // 🔥 FIX 1: Safety Check for Body & Context (Prevents Crash)
-    if (!body || !body.context) {
+    // ================================================================
+    // 🔥 STEP 2: PARSE JSON
+    // ================================================================
+    let body: any;
+    try {
+      body = JSON.parse(rawBody);
+    } catch (parseError) {
+      console.error("❌ [API Filter] JSON PARSE FAILED:", parseError);
       return NextResponse.json(
-        { message: "Invalid request: Context is missing." },
-        { status: 400 },
+        { message: "Invalid JSON in request body." },
+        { status: 400 }
       );
     }
 
+    // ================================================================
+    // 🔥 STEP 3: STRUCTURED LOG
+    // ================================================================
+    console.log("🔍 [API Filter] PARSED BODY:", JSON.stringify(body, null, 2));
+
+    // ================================================================
+    // 🔥 STEP 4: CONTEXT SPECIFIC LOG (YAHAN SE ISSUE PAKADNA HAI)
+    // ================================================================
+    console.log("🧠 [API Filter] CONTEXT OBJECT:");
+    console.log("  - typeof context:", typeof body.context);
+    console.log("  - context:", body.context);
+    if (body.context) {
+      console.log("  - context.type:", body.context.type);
+      console.log("  - typeof context.type:", typeof body.context.type);
+      console.log("  - context.value:", body.context.value);
+    } else {
+      console.error("❌ [API Filter] context IS MISSING!");
+    }
+
+    // ================================================================
+    // 🔥 STEP 5: VALIDATION (With extra logging)
+    // ================================================================
+    const parsed = FilterRequestSchema.safeParse(body);
+    if (!parsed.success) {
+      console.error("❌ [API Filter] VALIDATION FAILED:", JSON.stringify(parsed.error.issues, null, 2));
+      
+      // ✅ Extra check: Agar type invalid hai toh exact value batao
+      const typeIssue = parsed.error.issues.find(i => i.path.includes('type'));
+      if (typeIssue) {
+        console.error(`🚨 [API Filter] INVALID CONTEXT TYPE: "${body.context?.type}"`);
+        console.error(`   Expected one of: "category", "search", "deals"`);
+      }
+
+      return NextResponse.json(
+        {
+          message: "Invalid request payload.",
+          errors: parsed.error.issues.map(i => ({
+            path: i.path.join('.'),
+            message: i.message,
+          })),
+        },
+        { status: 400 }
+      );
+    }
+
+    // ================================================================
+    // ✅ SUCCESS: Proceed
+    // ================================================================
     const {
       context,
       filters = {},
       priceRange,
       page,
       sortOrder: bodySort,
-    } = body;
+    } = parsed.data;
 
-    // Sort logic consolidation
+    console.log("✅ [API Filter] VALIDATION SUCCESS! Context type:", context.type);
+
     const finalSortOrder = bodySort || context.sort || "best-match";
 
-    // Legacy support
+    let finalFilters = { ...filters };
     if (context.filter === "isFeatured") {
-      filters.isFeatured = true;
+      finalFilters.isFeatured = true;
     }
 
-    // 🔥 FIX 2: Type-Safe Options Mapping
-    const options: any = {
+    const options = {
       searchTerm: context.type === "search" ? context.value : undefined,
       categorySlug: context.type === "category" ? context.value : undefined,
-
-      // Legacy Deals vs Campaign Logic
       isDeal: context.type === "deals" && !context.value,
-      campaignSlug:
-        context.type === "deals" && context.value ? context.value : undefined,
-
-      filters: filters,
-
-      // 🔥 FIX 3: Explicit Price Handling (Avoids 0 being ignored)
-      minPrice:
-        typeof priceRange?.min === "number" ? priceRange.min : undefined,
-      maxPrice:
-        typeof priceRange?.max === "number" ? priceRange.max : undefined,
-
+      campaignSlug: context.type === "deals" && context.value ? context.value : undefined,
+      filters: finalFilters as QueryOptions['filters'],
+      minPrice: priceRange?.min,
+      maxPrice: priceRange?.max,
       sortOrder: finalSortOrder,
       page: page || 1,
     };
 
-    // Execute Payload Query
+    console.log("📤 [API Filter] OPTIONS:", JSON.stringify(options, null, 2));
+
     const results = await getPayloadProducts(options);
-
-    // 🔥 FIX 4: Consistent JSON Response
     return NextResponse.json(results);
-  } catch (error) {
-    console.error("API Filter Error:", error);
-    const errorMessage =
-      error instanceof Error ? error.message : "An unknown error occurred";
 
+  } catch (error) {
+    console.error("❌ [API Filter] UNHANDLED ERROR:", error);
+    const errorMessage = error instanceof Error ? error.message : "An unknown error occurred";
     return NextResponse.json(
       { message: "Error processing filter request.", error: errorMessage },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }

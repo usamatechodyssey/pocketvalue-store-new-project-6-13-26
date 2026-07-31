@@ -1,18 +1,89 @@
-import type { CollectionConfig } from 'payload'
-import { SEO } from '../fields/SEO' // ✅ Humne jo SEO field banayi thi usay import kiya
+import type { CollectionConfig, CollectionAfterChangeHook, CollectionAfterDeleteHook } from 'payload';
+import { SEO } from '../fields/SEO';
 
+// ====================================================================
+// ⚡ ENTERPRISE HOOKS: Cache Invalidation (GAP 2 FIX)
+// ====================================================================
+const afterChangeHook: CollectionAfterChangeHook = async ({ doc, previousDoc }) => {
+  try {
+    const { revalidatePath, revalidateTag } = await import('next/cache');
+
+    // Agar slug ya name change hua hai toh puri site ki cache clear karo
+    const prevSlug = previousDoc?.slug as string | undefined;
+    const newSlug = doc.slug as string;
+
+    revalidatePath('/'); // Homepage
+    revalidatePath('/sitemap.xml');
+
+    // ✅ FIX: Next.js 16+ requires 2 arguments (tag, "max")
+    revalidateTag('filter-data', 'max');
+
+    // Agar category ka slug change hua hai, toh purane product paths bhi clear karo
+    if (prevSlug && prevSlug !== newSlug) {
+      revalidatePath(`/category/${prevSlug}`, 'page');
+    }
+    // Naye category slug ke liye path clear karo
+    revalidatePath(`/category/${newSlug}`, 'page');
+
+    console.log(`🔄 Category Cache Cleared: ${doc.name} (${newSlug})`);
+  } catch (error: unknown) {
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    console.error('Category revalidation failed:', errorMsg);
+  }
+};
+
+const afterDeleteHook: CollectionAfterDeleteHook = async ({ doc }) => {
+  try {
+    const { revalidatePath, revalidateTag } = await import('next/cache');
+
+    revalidatePath('/');
+    revalidatePath('/sitemap.xml');
+
+    // ✅ FIX: Next.js 16+ requires 2 arguments (tag, "max")
+    revalidateTag('filter-data', 'max');
+
+    if (doc.slug) {
+      revalidatePath(`/category/${doc.slug}`, 'page');
+    }
+
+    console.log(`🗑️ Category Deleted: ${doc.name} - Cache Purged`);
+  } catch (error: unknown) {
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    console.error('Category delete revalidation failed:', errorMsg);
+  }
+};
+
+// ====================================================================
+// COLLECTION CONFIGURATION
+// ====================================================================
 export const Categories: CollectionConfig = {
   slug: 'categories',
   admin: {
     useAsTitle: 'name',
-    defaultColumns: ['name', 'slug', 'parent'], // Dashboard table view settings
+    defaultColumns: ['name', 'slug', 'parent'],
   },
   access: {
     read: () => true,
   },
+  // ====================================================================
+  // 🚀 ENTERPRISE FIX (GAP 1): Indexes for Rocket Speed
+  // ====================================================================
+  indexes: [
+    // ✅ Parent field index for fast tree traversal
+    { fields: ['parent'] },
+    // ✅ Compound index for parent + slug (if you ever query by both)
+    { fields: ['parent', 'slug'] },
+  ],
+  // ====================================================================
+  // ✅ ENTERPRISE FIX (GAP 2): Hooks for Cache Management
+  // ====================================================================
+  hooks: {
+    afterChange: [afterChangeHook],
+    afterDelete: [afterDeleteHook],
+  },
   fields: [
     {
-      type: 'tabs', // ✅ Sanity ke "Groups" ka behtareen replacement
+      type: 'tabs',
       tabs: [
         // --- TAB 1: MAIN DETAILS ---
         {
@@ -37,7 +108,7 @@ export const Categories: CollectionConfig = {
             {
               name: 'parent',
               type: 'relationship',
-              relationTo: 'categories', // ✅ Recursive Tree logic
+              relationTo: 'categories',
               label: 'Parent Category',
               admin: {
                 position: 'sidebar',
@@ -64,22 +135,22 @@ export const Categories: CollectionConfig = {
               },
             },
             {
-                name: 'desktopBanner',
-                type: 'upload',
-                relationTo: 'media',
-                label: 'Desktop Banner Image',
-                admin: {
-                  description: 'Wide image for large screens (e.g. 1500x400).',
-                },
+              name: 'desktopBanner',
+              type: 'upload',
+              relationTo: 'media',
+              label: 'Desktop Banner Image',
+              admin: {
+                description: 'Wide image for large screens (e.g. 1500x400).',
+              },
             },
             {
-                name: 'mobileBanner',
-                type: 'upload',
-                relationTo: 'media',
-                label: 'Mobile Banner Image',
-                admin: {
-                  description: 'Tall/Square image for mobile screens.',
-                },
+              name: 'mobileBanner',
+              type: 'upload',
+              relationTo: 'media',
+              label: 'Mobile Banner Image',
+              admin: {
+                description: 'Tall/Square image for mobile screens.',
+              },
             },
           ],
         },
@@ -87,10 +158,10 @@ export const Categories: CollectionConfig = {
         {
           label: 'SEO Settings',
           fields: [
-            SEO, // ✅ Hamara reusable SEO object yahan inject ho gaya
+            SEO,
           ],
         },
       ],
     },
   ],
-}
+};

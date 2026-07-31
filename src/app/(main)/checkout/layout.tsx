@@ -1,15 +1,15 @@
-
+//// /src/app/(main))/checkout/layout.tsx
 import React from "react";
 import { auth } from "@/app/auth";
 import { redirect } from "next/navigation";
 import { CheckoutProvider } from "./CheckoutContext";
-import OrderSummary from "./_components/OrderSummary";
-import StepIndicator from "./_components/StepIndicator";
+import OrderSummary from "../../features/storefront/cart-checkout/components/checkout/OrderSummary";
+import StepIndicator from "../../features/storefront/cart-checkout/components/checkout/StepIndicator";
 import type { Metadata } from "next";
-import connectMongoose from "@/app/lib/mongoose";
+import connectMongoose from "@/app/shared/lib/checkout/mongoose";
 import User, { IAddress } from "@/models/User";
-import { ClientAddress } from "@/app/actions/addressActions";
-import CheckoutMobileSummary from "./_components/CheckoutMobileSummary";
+import { ClientAddress } from "@/app/features/storefront/cart-checkout/actions/addressActions";
+import CheckoutMobileSummary from "@/app/features/storefront/cart-checkout/components/checkout/CheckoutMobileSummary";
 import Link from "next/link"; 
 import Image from "next/image"; 
 import { ChevronLeft } from "lucide-react"; 

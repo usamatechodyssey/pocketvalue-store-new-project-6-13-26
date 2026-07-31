@@ -2,7 +2,7 @@
 // ✅ Payload ka Default Layout (Sidebar + Header) Import karein
 import { DefaultTemplate } from '@payloadcms/next/templates';
 // ✅ Aapka naya Category Import Content Component
-import ImportCategoriesContent from "@/app/components/admin/ImportCategoriesContent";
+import ImportCategoriesContent from "@/app/features/admin/inventory-cms/components/main/ImportCategoriesContent";
 
 
 // ✅ Payload ki Custom View ke liye component

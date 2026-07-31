@@ -1,9 +1,12 @@
+// src/email_templates/masterLayout.ts
+
 interface MasterLayoutProps {
   preheaderText: string;
   headerText: string;
   bodyHtml: string;
 }
 
+// ✅ SYNC: No async, no DB, no API calls — just pure speed!
 export const createMasterEmailLayout = ({
   preheaderText,
   headerText,
@@ -11,11 +14,14 @@ export const createMasterEmailLayout = ({
 }: MasterLayoutProps): string => {
   const year = new Date().getFullYear();
   
-  // --- NAYE, BEHTAR COLORS ---
-  const brandPrimary = '#F97316';    // Aapka aam orange
-  const headerBgColor = '#ffffff';    // White header to make logo pop
-  const bodyBgColor = '#F3F4F6';      // Halka sa gray body background
-  const darkBgColor = '#111827';      // Dark mode background
+  // ✅ Statically served from public folder (No DB/Cloudinary dependency)
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://www.pocketvalue.pk';
+  const logoUrl = `${baseUrl}/email-logo.svg`; // Place your logo at public/email-logo.png
+
+  const brandPrimary = '#F97316';
+  const headerBgColor = '#ffffff';
+  const bodyBgColor = '#F3F4F6';
+  const darkBgColor = '#111827';
 
   return `
     <!DOCTYPE html>
@@ -30,7 +36,6 @@ export const createMasterEmailLayout = ({
         img { -ms-interpolation-mode: bicubic; border: 0; height: auto; line-height: 100%; outline: none; text-decoration: none; }
         body { height: 100% !important; margin: 0 !important; padding: 0 !important; width: 100% !important; font-family: 'Helvetica Neue', Arial, sans-serif; }
 
-        /* Dark Mode Styles */
         @media (prefers-color-scheme: dark) {
           .dark-bg { background-color: ${darkBgColor} !important; }
           .dark-text { color: #E5E7EB !important; }
@@ -55,10 +60,9 @@ export const createMasterEmailLayout = ({
               <tr>
                 <td align="center" valign="top" style="padding: 30px 20px; background-color: ${headerBgColor}; border-bottom: 1px solid #e5e7eb; border-radius: 8px 8px 0 0;" class="dark-header">
                   <a href="https://www.pocketvalue.pk" target="_blank" style="text-decoration: none;">
-                     <!-- LOGO SIZE BARHA DIYA GAYA HAI -->
-                     <img src="https://res.cloudinary.com/darj7gvze/image/upload/v1760528451/PNG_500x500_rn8yep.png" alt="PocketValue Logo" width="80" style="display: block; width: 80px; margin: 0 auto;">
-                     <!-- BRAND NAME ADD KIYA GAYA HAI -->
-                     <span style="display: block; color: #1F2937; font-size: 20px; font-weight: bold; margin-top: 10px;" class="dark-text">PocketValue</span>
+                    <!-- ✅ STATIC LOGO FROM PUBLIC FOLDER (FASTEST!) -->
+                    <img src="${logoUrl}" alt="PocketValue Logo" width="80" style="display: block; width: 80px; margin: 0 auto;">
+                    <span style="display: block; color: #1F2937; font-size: 20px; font-weight: bold; margin-top: 10px;" class="dark-text">PocketValue</span>
                   </a>
                 </td>
               </tr>

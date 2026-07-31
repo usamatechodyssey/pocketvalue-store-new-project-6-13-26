@@ -1,7 +1,7 @@
 
 // ✅ 1. Payload ka Default Layout (Sidebar + Header) Import karein
 import { DefaultTemplate } from '@payloadcms/next/templates';
-import ImportProductsContent from "@/app/components/admin/ImportProductsContent";
+import ImportProductsContent from "@/app/features/admin/inventory-cms/components/main/ImportProductsContent";
 
 // ✅ 2. Props receive karein jo Payload automatically is view ko bhejta hai
 export default function ImportProductsViewComponent(props: any) {

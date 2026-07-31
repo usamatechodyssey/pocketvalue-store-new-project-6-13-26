@@ -5,10 +5,10 @@ import { auth } from "@/app/auth";
 import { redirect } from "next/navigation";
 import { MapPin } from "lucide-react";
 
-import connectMongoose from "@/app/lib/mongoose";
+import connectMongoose from "@/app/shared/lib/checkout/mongoose";
 import User, { IAddress } from "@/models/User";
-import AddressClient from "./_components/AddressClient";
-import { ClientAddress } from "@/app/actions/addressActions"; // <-- Import the new PLAIN type
+import AddressClient from "@/app/features/storefront/customer-account/components/addresses/AddressClient";
+import { ClientAddress } from "@/app/features/storefront/cart-checkout/actions/addressActions"; // <-- Import the new PLAIN type
 
 // This function now returns an array of our safe, plain ClientAddress objects
 async function getUserAddresses(userId: string): Promise<ClientAddress[]> {

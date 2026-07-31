@@ -1,21 +1,14 @@
-
-// /src/app/api/user/update-image/route.ts
+// src/app/api/user/update-image/route.ts
 
 import { NextResponse } from 'next/server';
 import { auth } from '@/app/auth';
-import { v2 as cloudinary } from 'cloudinary';
-import { Readable } from 'stream';
+// ✅ REMOVED: import { v2 as cloudinary } from 'cloudinary';
+// ✅ REMOVED: import { Readable } from 'stream';
 
-// --- NAYE IMPORTS ---
-import connectMongoose from '@/app/lib/mongoose';
-import User from '@/models/User'; // Hamara naya, mustanad User model
-
-// Cloudinary config
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME!,
-  api_key: process.env.CLOUDINARY_API_KEY!,
-  api_secret: process.env.CLOUDINARY_API_SECRET!,
-});
+// ✅ NEW: Media Adapter
+import { getMediaAdapter } from '@/lib/adapters/media/factory';
+import connectMongoose from '@/app/shared/lib/checkout/mongoose';
+import User from '@/models/User';
 
 // Helper function to convert Blob to Buffer
 const blobToBuffer = async (blob: Blob): Promise<Buffer> => {
@@ -37,26 +30,38 @@ export const POST = async (req: Request) => {
       return NextResponse.json({ success: false, message: 'No file uploaded' }, { status: 400 });
     }
 
+    // ✅ FIX: MIME Type Validation (Security)
+    const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/webp'];
+    if (!allowedMimeTypes.includes(file.type)) {
+      return NextResponse.json(
+        { success: false, message: 'Invalid file format. Only JPEG, PNG, and WEBP images are allowed.' },
+        { status: 400 }
+      );
+    }
+
+    // ✅ FIX: File Size Validation
+    if (file.size > 5 * 1024 * 1024) {
+      return NextResponse.json(
+        { success: false, message: 'File size must be less than 5MB.' },
+        { status: 400 }
+      );
+    }
+
     const buffer = await blobToBuffer(file);
 
-    // Upload buffer to Cloudinary
-    const uploadResult = await new Promise<any>((resolve, reject) => {
-      const stream = cloudinary.uploader.upload_stream(
-        { folder: 'pocketvalue_profiles' },
-        (err, result) => {
-          if (err) {
-            console.error('Cloudinary Error:', err);
-            return reject(err);
-          }
-          resolve(result);
-        }
-      );
-      Readable.from(buffer).pipe(stream);
+    // ================================================================
+    // ✅ ENTERPRISE FIX: Adapter-based upload (Cloudinary removed)
+    // ================================================================
+    const mediaAdapter = await getMediaAdapter();
+    
+    const uploadResult = await mediaAdapter.upload(buffer, {
+      folder: 'profiles', // ✅ User profile images ka alag folder
+      metadata: { mimeType: file.type },
     });
 
-    const imageUrl = uploadResult.secure_url;
+    const imageUrl = uploadResult.url;
     if (!imageUrl) {
-        throw new Error("Image URL not returned from Cloudinary.");
+      throw new Error('Image URL not returned from adapter.');
     }
 
     // --- YAHAN BEHTARI KI GAYI HAI ---
@@ -67,7 +72,7 @@ export const POST = async (req: Request) => {
     // 2. Mongoose ke zariye user dhoondein
     const user = await User.findById(session.user.id);
     if (!user) {
-        return NextResponse.json({ success: false, message: 'User not found in database' }, { status: 404 });
+      return NextResponse.json({ success: false, message: 'User not found in database' }, { status: 404 });
     }
 
     // 3. User ki image update karein aur save karein
@@ -87,8 +92,3 @@ export const POST = async (req: Request) => {
     return NextResponse.json({ success: false, message: 'Upload failed due to a server error.' }, { status: 500 });
   }
 };
-
-// --- SUMMARY OF CHANGES ---
-// - **Architectural Consistency (Rule #5):** `mongodb` native driver ka istemal mukammal taur par Mongoose `User` model se replace kar diya gaya hai. `updateOne` aur `new ObjectId()` jaisi commands ke bajaye ab Mongoose ka simple `User.findById`, `user.image = ...`, aur `user.save()` ka tareeqa istemal ho raha hai.
-// - **Code Readability & Simplicity:** Data update karne ka logic ab bohot saaf suthra, parhne mein aasan, aur ghaltiyon se paak hai.
-// - **Robust Error Handling:** Agar Cloudinary se image URL wapas na aaye to us soorat mein error ko behtar tareeqe se handle kiya gaya hai.

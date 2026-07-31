@@ -1,117 +1,272 @@
-// import { Suspense } from "react";
-// // import { client } from "@/sanity/lib/client";
-// // import { HOMEPAGE_DATA_QUERY } from "@/sanity/lib/queries";
-// // ✅ NEW PAYLOAD IMPORT
-// import { getPayloadHomepageData } from "@/sanity/lib/payload/homepage.queries";
-// // Components
-// import HeroSection from "../components/home/HeroSection";
-// import HeroSkeleton from "../components/home/HeroSkeleton";
-// import RenderSection from "../components/home/builder/RenderSection";
+// // // src/app/(main)/page.tsx
+// // ================================================================
+// // 🏠 ENTERPRISE HOMEPAGE ENGINE (UPGRADED — FINAL)
+// // ================================================================
+// // This file handles the homepage with:
+// // ✅ ISR + Edge caching with on-demand revalidation
+// // ✅ WebPage Schema with @id and publisher linking (#39)
+// // ✅ Content freshness signals in metadata (#23)
+// // ✅ Entity linking for AI overviews (#39)
+// // ✅ Dynamic page builder with all sections
+// // ✅ Low stock threshold for scarcity signals
+// // ================================================================
 
-// // Metadata
+// import { Suspense } from "react";
+// import { unstable_cache } from "next/cache";
+// import { getPayloadHomepageData } from "@/sanity/lib/payload/homepage.queries";
+// import HeroSection from "../features/storefront/catalog/components/home/HeroSection";
+// import HeroSkeleton from "../features/storefront/catalog/components/home/HeroSkeleton";
+// import RenderSection from "../features/storefront/catalog/components/home/builder/RenderSection";
 // import { generateBaseMetadata } from "@/utils/metadata";
 // import type { Metadata } from "next";
 
-// export const dynamic = 'force-dynamic';
+// // ✅ Use centralized cache utility
+// import { getCachedSettings } from "@/app/shared/lib/cache/settings";
 
+// // ============================================================
+// // ✅ ISR: Page will be statically generated on first request,
+// //    then served from CDN for all subsequent requests.
+// // ============================================================
+// export const revalidate = false;
+
+// // ============================================================
+// // 🔥 CACHED HOMEPAGE DATA
+// // ============================================================
+// const getHomepageData = unstable_cache(
+//   async () => {
+//     return await getPayloadHomepageData();
+//   },
+//   ["homepage-data"],
+//   { tags: ["homepage"], revalidate: false }
+// );
+
+// // ============================================================
+// // 🔥 METADATA (Enhanced with freshness signals)
+// // ============================================================
 // export async function generateMetadata(): Promise<Metadata> {
+//   const data = await getHomepageData();
+//   const seo = data?.seo || {};
+//   const now = new Date().toISOString();
+
 //   return generateBaseMetadata({
+//     title: seo.metaTitle || "PocketValue - Smart Shopping",
+//     description: seo.metaDescription || "Find the best deals and values.",
+//     image: seo.ogImage,
 //     path: "/",
+//     // ✅ Point #23: Content Freshness
+//     publishedTime: now,
+//     modifiedTime: now,
+//     // ✅ Point #80: Author/Publisher signals
+//     author: "PocketValue Team",
+//     section: "Homepage",
 //   });
 // }
 
-// // === THE CLEANEST PAGE EVER ===
+// // ============================================================
+// // 🏠 HOMEPAGE COMPONENT
+// // ============================================================
 // export default async function Home() {
-//   // 1. Fetch Only Essential Data
-//   // ✅ Switch: Ab Homepage Data Payload se aayega
-//   const homepageData = await getPayloadHomepageData();
+//   const [homepageData, settings] = await Promise.all([
+//     getHomepageData(),
+//     getCachedSettings(),
+//   ]);
+
+//   const lowStockThreshold = settings.inventorySettings?.lowStockThreshold || 5;
 //   const pageSections = homepageData?.pageSections || [];
+//   const siteUrl =
+//     process.env.NEXT_PUBLIC_BASE_URL || "https://www.pocketvalue.pk";
+
+//   // ============================================================
+//   // 🔥 SEO: WebPage Schema (Enhanced with @id and publisher)
+//   // ============================================================
+//   const webPageSchema = {
+//     "@context": "https://schema.org",
+//     "@type": "WebPage",
+//     "@id": `${siteUrl}/#webpage`, // ✅ Point #39: Entity linking
+//     url: siteUrl,
+//     name: "PocketValue - Smart Shopping",
+//     description:
+//       homepageData?.seo?.metaDescription ||
+//       "Find the best deals and values at PocketValue.",
+//     // ✅ Point #23: Content Freshness
+//     dateModified: new Date().toISOString(),
+//     // ✅ Point #98: Language signal
+//     inLanguage: "en-US",
+//     // ✅ Point #39: Publisher linking
+//     publisher: {
+//       "@type": "Organization",
+//       "@id": `${siteUrl}/#organization`,
+//     },
+//     // ✅ Breadcrumb linking (if needed)
+//     breadcrumb: {
+//       "@type": "BreadcrumbList",
+//       "@id": `${siteUrl}/#breadcrumb`,
+//     },
+//     // ✅ Primary image (hero or first section)
+//     primaryImageOfPage:
+//       pageSections.length > 0 &&
+//       pageSections[0]?.banners?.[0]?.desktopImage
+//         ? {
+//             "@type": "ImageObject",
+//             url: pageSections[0].banners[0].desktopImage,
+//           }
+//         : undefined,
+//   };
 
 //   return (
-//     <main className="w-full flex flex-col items-center bg-white dark:bg-gray-950 overflow-x-hidden">
+//     <>
+//       {/* ✅ JSON-LD: WebPage Schema */}
+//       <script
+//         type="application/ld+json"
+//         dangerouslySetInnerHTML={{ __html: JSON.stringify(webPageSchema) }}
+//       />
 
-//       {/* === 1. HERO (ALWAYS ON TOP) === */}
-//       <Suspense fallback={<HeroSkeleton />}>
-//         <HeroSection />
-//       </Suspense>
+//       <main className="w-full flex flex-col items-center bg-white dark:bg-gray-950 overflow-x-hidden">
+//         {/* 1. HERO (Static/Heavy LCP Section) */}
+//         <Suspense fallback={<HeroSkeleton />}>
+//           <HeroSection />
+//         </Suspense>
 
-//       {/* === 2. DYNAMIC BUILDER (THE MAGIC) === */}
-//       {/* Ab aap Sanity se jo chaho jahan chaho laga sakte ho */}
-//       <div className="w-full">
+//         {/* 2. DYNAMIC PAGE BUILDER */}
+//         <div className="w-full">
 //           {pageSections.length > 0 ? (
-//              <div className="flex flex-col w-full">
-//                 {pageSections.map((section: any) => (
-//                     <RenderSection key={section._key} section={section} />
-//                 ))}
-//              </div>
+//             <div className="flex flex-col w-full">
+//               {pageSections.map((section: any) => (
+//                 <RenderSection
+//                   key={section.id || section._key || Math.random().toString()}
+//                   section={section}
+//                   lowStockThreshold={lowStockThreshold}
+//                 />
+//               ))}
+//             </div>
 //           ) : (
-//              // Empty State (Sirf tab dikhega agar Sanity khali ho)
-//              <div className="text-center py-20 text-gray-400">
-//                 Homepage content not set. Please configure via Sanity Page Builder.
-//              </div>
+//             <div className="text-center py-32 text-gray-400">
+//               Homepage content is being prepared in the Dashboard.
+//             </div>
 //           )}
-//       </div>
-
-//     </main>
+//         </div>
+//       </main>
+//     </>
 //   );
 // }
-// src/app/page.tsx
-import { Suspense, cache } from "react";
+import { Suspense } from "react";
+import { unstable_cache } from "next/cache";
 import { getPayloadHomepageData } from "@/sanity/lib/payload/homepage.queries";
-import HeroSection from "../components/home/HeroSection";
-import HeroSkeleton from "../components/home/HeroSkeleton";
-import RenderSection from "../components/home/builder/RenderSection";
+import HeroSection from "../features/storefront/catalog/components/home/HeroSection";
+import HeroSkeleton from "../features/storefront/catalog/components/home/HeroSkeleton";
+import RenderSection from "../features/storefront/catalog/components/home/builder/RenderSection";
 import { generateBaseMetadata } from "@/utils/metadata";
 import type { Metadata } from "next";
 
-export const dynamic = "force-dynamic";
+// Use centralized cache utility
+import { getCachedSettings } from "@/app/shared/lib/cache/settings";
 
-// 🔥 DEDUPLICATION: Cache the DB response for the entire request lifecycle
-const getHomepageData = cache(async () => {
-  return await getPayloadHomepageData();
-});
+export const revalidate = false;
 
+// CACHED HOMEPAGE DATA
+const getHomepageData = unstable_cache(
+  async () => {
+    return await getPayloadHomepageData();
+  },
+  ["homepage-data"],
+  { tags: ["homepage"], revalidate: false }
+);
+
+// METADATA
 export async function generateMetadata(): Promise<Metadata> {
   const data = await getHomepageData();
   const seo = data?.seo || {};
+  const now = new Date().toISOString();
 
   return generateBaseMetadata({
     title: seo.metaTitle || "PocketValue - Smart Shopping",
     description: seo.metaDescription || "Find the best deals and values.",
     image: seo.ogImage,
     path: "/",
+    publishedTime: now,
+    modifiedTime: now,
+    author: "PocketValue Team",
+    section: "Homepage",
   });
 }
 
+// HOMEPAGE COMPONENT
 export default async function Home() {
-  const homepageData = await getHomepageData();
+  const [homepageData, settings] = await Promise.all([
+    getHomepageData(),
+    getCachedSettings(),
+  ]);
+
+  const lowStockThreshold = settings.inventorySettings?.lowStockThreshold || 5;
   const pageSections = homepageData?.pageSections || [];
+  const siteUrl =
+    process.env.NEXT_PUBLIC_BASE_URL || "https://www.pocketvalue.pk";
+
+  // WebPage Schema (JSON-LD)
+  const webPageSchema = {
+    "@context": "https://schema.org",
+    "@type": "WebPage",
+    "@id": `${siteUrl}/#webpage`,
+    url: siteUrl,
+    name: "PocketValue - Smart Shopping",
+    description:
+      homepageData?.seo?.metaDescription ||
+      "Find the best deals and values at PocketValue.",
+    dateModified: new Date().toISOString(),
+    inLanguage: "en-US",
+    publisher: {
+      "@type": "Organization",
+      "@id": `${siteUrl}/#organization`,
+    },
+    breadcrumb: {
+      "@type": "BreadcrumbList",
+      "@id": `${siteUrl}/#breadcrumb`,
+    },
+    primaryImageOfPage:
+      pageSections.length > 0 &&
+      pageSections[0]?.banners?.[0]?.desktopImage
+        ? {
+            "@type": "ImageObject",
+            url: pageSections[0].banners[0].desktopImage,
+          }
+        : undefined,
+  };
 
   return (
-    <main className="w-full flex flex-col items-center bg-white dark:bg-gray-950 overflow-x-hidden">
-      {/* 1. HERO (Static/Heavy LCP Section) */}
-      <Suspense fallback={<HeroSkeleton />}>
-        <HeroSection />
-      </Suspense>
+    <>
+      {/* JSON-LD: WebPage Schema */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(webPageSchema) }}
+      />
 
-      {/* 2. DYNAMIC PAGE BUILDER */}
-      <div className="w-full">
-        {pageSections.length > 0 ? (
-          <div className="flex flex-col w-full">
-            {pageSections.map((section: any) => (
-              <RenderSection
-                // 🔥 FIX: Using Payload's 'id' as stable React key
-                key={section.id || section._key || Math.random().toString()}
-                section={section}
-              />
-            ))}
-          </div>
-        ) : (
-          <div className="text-center py-32 text-gray-400">
-            Homepage content is being prepared in the Dashboard.
-          </div>
-        )}
+      {/* ✅ Changed <main> to <div> to avoid nested main tags (Better SEO & Heights) */}
+      <div className="w-full flex flex-col items-center bg-white dark:bg-gray-950 overflow-x-hidden">
+        {/* 1. HERO (Static/Heavy LCP Section) */}
+        <Suspense fallback={<HeroSkeleton />}>
+          <HeroSection />
+        </Suspense>
+
+        {/* 2. DYNAMIC PAGE BUILDER */}
+        <div className="w-full">
+          {pageSections.length > 0 ? (
+            <div className="flex flex-col w-full">
+              {pageSections.map((section: any) => (
+                <RenderSection
+                  key={section.id || section._key || Math.random().toString()}
+                  section={section}
+                  lowStockThreshold={lowStockThreshold}
+                />
+              ))}
+            </div>
+          ) : (
+            /* ✅ contrast fix: changed text-gray-400 to text-gray-500 */
+            <div className="text-center py-32 text-gray-500 dark:text-gray-400">
+              Homepage content is being prepared in the Dashboard.
+            </div>
+          )}
+        </div>
       </div>
-    </main>
+    </>
   );
 }

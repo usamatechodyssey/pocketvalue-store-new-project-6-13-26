@@ -3,7 +3,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { Loader2 } from "lucide-react";
-import VerifyEmailClient from "./VerifyEmailClient";
+import VerifyEmailClient from "../../features/storefront/auth/components/VerifyEmailClient";
 
 export const metadata: Metadata = {
   title: "Verify Your Email | PocketValue",

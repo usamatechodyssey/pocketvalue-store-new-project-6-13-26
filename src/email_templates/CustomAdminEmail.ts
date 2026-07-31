@@ -1,20 +1,4 @@
-// import { createMasterEmailLayout } from './masterLayout';
-
-// export const createCustomAdminEmailHtml = (data: { customerName: string; message: string; }) => {
-//   const formattedMessage = data.message.replace(/\n/g, "<br />");
-//   const bodyHtml = `
-//     <p>Hi ${data.customerName},</p>
-//     <p>${formattedMessage}</p>
-//     <br/>
-//     <p>Warm regards,<br/>The PocketValue Team</p>
-//   `;
-//   return createMasterEmailLayout({
-//     preheaderText: 'A special message regarding your account.',
-//     headerText: "A Message from PocketValue",
-//     bodyHtml
-//   });
-// };
-// /src/email_templates/CustomAdminEmail.ts
+// src/email_templates/CustomAdminEmail.ts
 
 import { createMasterEmailLayout } from "./masterLayout";
 
@@ -62,6 +46,7 @@ export const createCustomAdminEmailHtml = (data: CustomEmailProps): string => {
     </div>
   `;
 
+  // ✅ SYNC: No await needed (masterLayout is now sync)
   return createMasterEmailLayout({
     preheaderText:
       "You have a new message from the PocketValue Management Team.",

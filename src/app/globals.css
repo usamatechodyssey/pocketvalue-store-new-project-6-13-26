@@ -1,15 +1,10 @@
-/* ✅ Removed @import url(...) - Handled in layout.tsx */
+/* ✅ Removed Swiper CSS @imports - Handled locally in carousel components */
 
 /* Core Tailwind imports (Tailwind v4) */
 @import "tailwindcss";
-@import "./styles/ProductCarousel.css";
-@import "./styles/CategoryCarousel.css";
-/* ✅ Swiper styles */
-@import "swiper/css";
-@import "swiper/css/navigation";
-@import "swiper/css/thumbs";
-@import "swiper/css/pagination";
-@import "swiper/css/effect-fade";
+@import "./shared/styles/ProductCarousel.css";
+@import "./shared/styles/CategoryCarousel.css";
+
 /* === CUSTOM VARIANTS === */
 @custom-variant dark (&:where(.dark, .dark *));
 
@@ -158,6 +153,7 @@
   }
 }
 
+/* Pagination dot overrides for Swiper styling */
 .product-card-swiper .swiper-pagination-bullet {
   background-color: #cccccc;
   opacity: 1;
@@ -176,9 +172,9 @@
   padding-bottom: env(safe-area-inset-bottom);
 }
 
-/* src/app/globals.css (FINAL CURSOR FIX) */
+/* === FINAL CURSOR & PROGRESS INDICATOR FIX === */
 
-/* 1. HTML tag par clicks aur cursor ko block karein (Most Important) */
+/* 1. HTML tag par clicks aur cursor ko block karein */
 html.nprogress-busy {
   cursor: wait !important;
   pointer-events: none !important; 
@@ -186,24 +182,16 @@ html.nprogress-busy {
 
 /* 2. Body/Content ko dim karein (UX Feedback) */
 html.nprogress-busy body {
-  /* 🔴 CHANGE 1: Opacity ko 0.85 karein taake dimming nazar aye */
   opacity: 0.85 !important; 
   transition: opacity 0.3s ease;
-  
-  /* 🔴 CHANGE 2 (EXTRA SAFETY): Agar browser body/main ko white de raha ho */
   background-color: white !important; 
-  
-  /* Z-Index fix */
   position: relative !important;
   z-index: 1; 
 }
 
-/* 3. FINAL FIX: Har possible element par 'wait' cursor force karein */
-/* Ye code * har element aur ::before/::after pseudoelements par 'wait' cursor laga dega */
+/* 3. Har element par 'wait' cursor force karein busy state ke dauran */
 html.nprogress-busy *,
 html.nprogress-busy *::before,
 html.nprogress-busy *::after {
     cursor: wait !important;
 }
-
-

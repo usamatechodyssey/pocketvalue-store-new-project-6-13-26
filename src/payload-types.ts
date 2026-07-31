@@ -78,6 +78,7 @@ export interface Config {
     pages: Page;
     couponBanners: CouponBanner;
     heroCarousel: HeroCarousel;
+    'audit-logs': AuditLog;
     'payload-kv': PayloadKv;
     'payload-locked-documents': PayloadLockedDocument;
     'payload-preferences': PayloadPreference;
@@ -96,6 +97,7 @@ export interface Config {
     pages: PagesSelect<false> | PagesSelect<true>;
     couponBanners: CouponBannersSelect<false> | CouponBannersSelect<true>;
     heroCarousel: HeroCarouselSelect<false> | HeroCarouselSelect<true>;
+    'audit-logs': AuditLogsSelect<false> | AuditLogsSelect<true>;
     'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
     'payload-preferences': PayloadPreferencesSelect<false> | PayloadPreferencesSelect<true>;
@@ -211,6 +213,40 @@ export interface Category {
      * Jab ye page Facebook ya WhatsApp par share hoga, to ye image dikhegi.
      */
     ogImage?: (string | null) | Media;
+    /**
+     * e.g., Cotton, Leather, Plastic, Steel
+     */
+    material?: string | null;
+    /**
+     * e.g., Striped, Floral, Solid, Checkered
+     */
+    pattern?: string | null;
+    /**
+     * Google Shopping feed mein default category override karein. Leave empty to use default.
+     */
+    merchantCategory?: string | null;
+    /**
+     * Variants ko Google ProductGroup schema mein group karein. Sirf products par apply hota hai.
+     */
+    enableProductGroup?: boolean | null;
+    /**
+     * e.g., "00:45" for a specific highlight in product video. Google uses this for Video Key Moments (#134).
+     */
+    videoKeyMoment?: string | null;
+    /**
+     * Google AI Overviews ke liye direct answer. 40-60 words mein concise jawab (#13).
+     */
+    atomicAnswer?: string | null;
+    /**
+     * AI models ke liye additional Q&A pairs. Inhe FAQPage schema mein include karein (#72).
+     */
+    faqQuestions?:
+      | {
+          question?: string | null;
+          answer?: string | null;
+          id?: string | null;
+        }[]
+      | null;
   };
   updatedAt: string;
   createdAt: string;
@@ -221,11 +257,16 @@ export interface Category {
  */
 export interface Media {
   id: string;
+  /**
+   * Descriptive text for accessibility (max 200 chars).
+   */
   alt: string;
   assetCategory: 'products' | 'categories' | 'banners' | 'general' | 'custom';
   customFolderName?: string | null;
-  cloudinaryId?: string | null;
-  cloudinaryUrl?: string | null;
+  imageUrl?: string | null;
+  imgbbUrl?: string | null;
+  r2Url?: string | null;
+  imageId?: string | null;
   updatedAt: string;
   createdAt: string;
   url?: string | null;
@@ -257,7 +298,19 @@ export interface Product {
     salePrice?: number | null;
     stock?: number | null;
     inStock?: boolean | null;
+    /**
+     * Upload images (ImgBB/R2 based on settings).
+     */
     images?: (string | Media)[] | null;
+    /**
+     * Paste direct image URLs (e.g., from Cloudinary, ImgBB, or custom CDN). Works when CDN Mode is enabled.
+     */
+    cdnImages?:
+      | {
+          url: string;
+          id?: string | null;
+        }[]
+      | null;
     attributes?:
       | {
           name?: string | null;
@@ -338,7 +391,49 @@ export interface Product {
      * Jab ye page Facebook ya WhatsApp par share hoga, to ye image dikhegi.
      */
     ogImage?: (string | null) | Media;
+    /**
+     * e.g., Cotton, Leather, Plastic, Steel
+     */
+    material?: string | null;
+    /**
+     * e.g., Striped, Floral, Solid, Checkered
+     */
+    pattern?: string | null;
+    /**
+     * Google Shopping feed mein default category override karein. Leave empty to use default.
+     */
+    merchantCategory?: string | null;
+    /**
+     * Variants ko Google ProductGroup schema mein group karein. Sirf products par apply hota hai.
+     */
+    enableProductGroup?: boolean | null;
+    /**
+     * e.g., "00:45" for a specific highlight in product video. Google uses this for Video Key Moments (#134).
+     */
+    videoKeyMoment?: string | null;
+    /**
+     * Google AI Overviews ke liye direct answer. 40-60 words mein concise jawab (#13).
+     */
+    atomicAnswer?: string | null;
+    /**
+     * AI models ke liye additional Q&A pairs. Inhe FAQPage schema mein include karein (#72).
+     */
+    faqQuestions?:
+      | {
+          question?: string | null;
+          answer?: string | null;
+          id?: string | null;
+        }[]
+      | null;
   };
+  /**
+   * Override the global upload provider for THIS product only.
+   */
+  storageProvider?: ('global' | 'imgbb' | 'r2' | 'both') | null;
+  /**
+   * If 'Both' is selected, which URL should be served as the primary image?
+   */
+  primaryProvider?: ('imgbb' | 'r2') | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -397,6 +492,10 @@ export interface Review {
    * Frontend par show karne ke liye approval zaroori hai.
    */
   isApproved?: boolean | null;
+  /**
+   * Kya is user ne yeh product sach mein khareeda hai?
+   */
+  isVerifiedPurchase?: boolean | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -447,6 +546,10 @@ export interface Coupon {
    * How many times a single customer can use this coupon.
    */
   usageLimitPerUser?: number | null;
+  /**
+   * Optional: Bind this coupon to a specific storefront Customer ID. Only this user will be able to apply this coupon at checkout, completely blocking WhatsApp/social sharing leaks.
+   */
+  boundUserId?: string | null;
   /**
    * If ON, this coupon can be used even if a product is already on sale.
    */
@@ -503,6 +606,40 @@ export interface Page {
      * Jab ye page Facebook ya WhatsApp par share hoga, to ye image dikhegi.
      */
     ogImage?: (string | null) | Media;
+    /**
+     * e.g., Cotton, Leather, Plastic, Steel
+     */
+    material?: string | null;
+    /**
+     * e.g., Striped, Floral, Solid, Checkered
+     */
+    pattern?: string | null;
+    /**
+     * Google Shopping feed mein default category override karein. Leave empty to use default.
+     */
+    merchantCategory?: string | null;
+    /**
+     * Variants ko Google ProductGroup schema mein group karein. Sirf products par apply hota hai.
+     */
+    enableProductGroup?: boolean | null;
+    /**
+     * e.g., "00:45" for a specific highlight in product video. Google uses this for Video Key Moments (#134).
+     */
+    videoKeyMoment?: string | null;
+    /**
+     * Google AI Overviews ke liye direct answer. 40-60 words mein concise jawab (#13).
+     */
+    atomicAnswer?: string | null;
+    /**
+     * AI models ke liye additional Q&A pairs. Inhe FAQPage schema mein include karein (#72).
+     */
+    faqQuestions?:
+      | {
+          question?: string | null;
+          answer?: string | null;
+          id?: string | null;
+        }[]
+      | null;
   };
   updatedAt: string;
   createdAt: string;
@@ -582,6 +719,41 @@ export interface HeroCarousel {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "audit-logs".
+ */
+export interface AuditLog {
+  id: string;
+  admin: string | User;
+  adminEmail: string;
+  adminRole: string;
+  action: string;
+  targetCollection: string;
+  targetId: string;
+  changes?: string | null;
+  previousData?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  newData?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  ipAddress: string;
+  userAgent?: string | null;
+  timestamp: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-kv".
  */
 export interface PayloadKv {
@@ -647,6 +819,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'heroCarousel';
         value: string | HeroCarousel;
+      } | null)
+    | ({
+        relationTo: 'audit-logs';
+        value: string | AuditLog;
       } | null);
   globalSlug?: string | null;
   user: {
@@ -732,6 +908,19 @@ export interface CategoriesSelect<T extends boolean = true> {
         metaTitle?: T;
         metaDescription?: T;
         ogImage?: T;
+        material?: T;
+        pattern?: T;
+        merchantCategory?: T;
+        enableProductGroup?: T;
+        videoKeyMoment?: T;
+        atomicAnswer?: T;
+        faqQuestions?:
+          | T
+          | {
+              question?: T;
+              answer?: T;
+              id?: T;
+            };
       };
   updatedAt?: T;
   createdAt?: T;
@@ -744,8 +933,10 @@ export interface MediaSelect<T extends boolean = true> {
   alt?: T;
   assetCategory?: T;
   customFolderName?: T;
-  cloudinaryId?: T;
-  cloudinaryUrl?: T;
+  imageUrl?: T;
+  imgbbUrl?: T;
+  r2Url?: T;
+  imageId?: T;
   updatedAt?: T;
   createdAt?: T;
   url?: T;
@@ -776,6 +967,12 @@ export interface ProductsSelect<T extends boolean = true> {
         stock?: T;
         inStock?: T;
         images?: T;
+        cdnImages?:
+          | T
+          | {
+              url?: T;
+              id?: T;
+            };
         attributes?:
           | T
           | {
@@ -817,7 +1014,22 @@ export interface ProductsSelect<T extends boolean = true> {
         metaTitle?: T;
         metaDescription?: T;
         ogImage?: T;
+        material?: T;
+        pattern?: T;
+        merchantCategory?: T;
+        enableProductGroup?: T;
+        videoKeyMoment?: T;
+        atomicAnswer?: T;
+        faqQuestions?:
+          | T
+          | {
+              question?: T;
+              answer?: T;
+              id?: T;
+            };
       };
+  storageProvider?: T;
+  primaryProvider?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -858,6 +1070,7 @@ export interface ReviewsSelect<T extends boolean = true> {
   comment?: T;
   reviewImage?: T;
   isApproved?: T;
+  isVerifiedPurchase?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -877,6 +1090,7 @@ export interface CouponsSelect<T extends boolean = true> {
   expiryDate?: T;
   totalUsageLimit?: T;
   usageLimitPerUser?: T;
+  boundUserId?: T;
   isStackable?: T;
   applicableTo?: T;
   applicableProducts?: T;
@@ -899,6 +1113,19 @@ export interface PagesSelect<T extends boolean = true> {
         metaTitle?: T;
         metaDescription?: T;
         ogImage?: T;
+        material?: T;
+        pattern?: T;
+        merchantCategory?: T;
+        enableProductGroup?: T;
+        videoKeyMoment?: T;
+        atomicAnswer?: T;
+        faqQuestions?:
+          | T
+          | {
+              question?: T;
+              answer?: T;
+              id?: T;
+            };
       };
   updatedAt?: T;
   createdAt?: T;
@@ -950,6 +1177,24 @@ export interface HeroCarouselSelect<T extends boolean = true> {
   mobileImage?: T;
   updatedAt?: T;
   createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "audit-logs_select".
+ */
+export interface AuditLogsSelect<T extends boolean = true> {
+  admin?: T;
+  adminEmail?: T;
+  adminRole?: T;
+  action?: T;
+  targetCollection?: T;
+  targetId?: T;
+  changes?: T;
+  previousData?: T;
+  newData?: T;
+  ipAddress?: T;
+  userAgent?: T;
+  timestamp?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -1026,11 +1271,15 @@ export interface Setting {
     | {
         name: string;
         minAmount: number;
-        cost: number;
+        cost?: number | null;
         isOnCall?: boolean | null;
         id?: string | null;
       }[]
     | null;
+  /**
+   * This is used as the base shipping cost for Google Shopping feed and general fallback calculations.
+   */
+  shippingCost: number;
   inventorySettings?: {
     lowStockThreshold?: number | null;
     alertRecipientEmail?: string | null;
@@ -1044,9 +1293,6 @@ export interface Setting {
       | null;
     popularCategories?: (string | Category)[] | null;
   };
-  /**
-   * Percentages deducted from Gross Sale Price (e.g., Bank Charges 3%, Platform Fee 2%).
-   */
   globalFixedFees?:
     | {
         label: string;
@@ -1054,9 +1300,6 @@ export interface Setting {
         id?: string | null;
       }[]
     | null;
-  /**
-   * Based on your Excel plan: Define Profit and Ad Spend based on the Buying Price (Cost).
-   */
   pricingLogicTiers?:
     | {
         minCost: number;
@@ -1067,6 +1310,87 @@ export interface Setting {
         id?: string | null;
       }[]
     | null;
+  taxSettings: {
+    standardGstPercent: number;
+  };
+  returnsSettings: {
+    estimatedReturnRatePercent: number;
+  };
+  pricingSettings: {
+    estimatedDutiesPercent: number;
+  };
+  loyaltyEnabled?: boolean | null;
+  referralLimitPerUser: number;
+  /**
+   * Target number of converted referrals per month. Dashboard will show progress.
+   */
+  referralGoalTarget?: number | null;
+  /**
+   * Define rewards based on verified successful referrals.
+   */
+  referralMilestones?:
+    | {
+        requiredConversions: number;
+        rewardLabel: string;
+        discountType: 'percentage' | 'fixed' | 'freeShipping';
+        /**
+         * e.g., 15 for 15%, or 500 for Rs. 500
+         */
+        discountValue: number;
+        /**
+         * Optional: Only applies to percentage coupons.
+         */
+        maximumDiscount?: number | null;
+        id?: string | null;
+      }[]
+    | null;
+  /**
+   * Define loyalty rewards based on customer's own total verified spending (Lifetime Spend in PKR).
+   */
+  vipShoppingMilestones?:
+    | {
+        requiredSpend: number;
+        rewardLabel: string;
+        discountType: 'percentage' | 'fixed' | 'freeShipping';
+        /**
+         * e.g., 10 for 10%, or 1000 for Rs. 1000 voucher
+         */
+        discountValue: number;
+        /**
+         * Optional: Only applies to percentage coupons.
+         */
+        maximumDiscount?: number | null;
+        id?: string | null;
+      }[]
+    | null;
+  /**
+   * How many days until auto-generated coupons expire.
+   */
+  couponDefaultExpiryDays: number;
+  /**
+   * How many times a customer can use their reward coupon.
+   */
+  couponDefaultUsageLimit: number;
+  /**
+   * If enabled, customers can use this coupon with other promotions.
+   */
+  couponIsStackable?: boolean | null;
+  /**
+   * Customers with no orders after this many days are considered inactive.
+   */
+  inactiveDaysThreshold: number;
+  /**
+   * Minimum lifetime spend to be considered a high-value inactive customer.
+   */
+  highValueInactiveThreshold: number;
+  /**
+   * Optional custom email template. Use {{name}}, {{coupon}}, {{link}} as placeholders. Leave empty to use default.
+   */
+  reactivationEmailTemplate?: string | null;
+  /**
+   * Allow marketing team to create and save custom customer segments.
+   */
+  segmentBuilderEnabled?: boolean | null;
   seo?: {
     /**
      * Browser tab aur search results mein nazar aane wala title (50-60 chars).
@@ -1080,6 +1404,126 @@ export interface Setting {
      * Jab ye page Facebook ya WhatsApp par share hoga, to ye image dikhegi.
      */
     ogImage?: (string | null) | Media;
+    /**
+     * e.g., Cotton, Leather, Plastic, Steel
+     */
+    material?: string | null;
+    /**
+     * e.g., Striped, Floral, Solid, Checkered
+     */
+    pattern?: string | null;
+    /**
+     * Google Shopping feed mein default category override karein. Leave empty to use default.
+     */
+    merchantCategory?: string | null;
+    /**
+     * Variants ko Google ProductGroup schema mein group karein. Sirf products par apply hota hai.
+     */
+    enableProductGroup?: boolean | null;
+    /**
+     * e.g., "00:45" for a specific highlight in product video. Google uses this for Video Key Moments (#134).
+     */
+    videoKeyMoment?: string | null;
+    /**
+     * Google AI Overviews ke liye direct answer. 40-60 words mein concise jawab (#13).
+     */
+    atomicAnswer?: string | null;
+    /**
+     * AI models ke liye additional Q&A pairs. Inhe FAQPage schema mein include karein (#72).
+     */
+    faqQuestions?:
+      | {
+          question?: string | null;
+          answer?: string | null;
+          id?: string | null;
+        }[]
+      | null;
+  };
+  operational?: {
+    limboRevenueThreshold?: number | null;
+    autoRefreshInterval?: number | null;
+  };
+  /**
+   * ✅ DEBUG: Current value will be logged in console.
+   */
+  mediaProvider: 'imgbb' | 'cloudflare-r2';
+  /**
+   * ✅ DEBUG: Current value will be logged in console.
+   */
+  mediaDualUpload?: boolean | null;
+  /**
+   * ✅ DEBUG: Current value will be logged in console.
+   */
+  mediaFetchMode: 'imgbb' | 'r2' | 'both';
+  /**
+   * ⚠️ CRITICAL: If enabled, the system will NOT upload images. It will store image URLs directly. Disable to use ImgBB/R2 uploads.
+   */
+  cdnMode?: boolean | null;
+  warehouse?: {
+    locations?:
+      | {
+          name: string;
+          address?: string | null;
+          lat: number;
+          lng: number;
+          id?: string | null;
+        }[]
+      | null;
+  };
+  geospatial?: {
+    highPotentialRevenue?: number | null;
+    highPotentialRto?: number | null;
+    topCityLimit?: number | null;
+  };
+  forecasting?: {
+    windowDays?: number | null;
+    criticalThreshold?: number | null;
+    highThreshold?: number | null;
+    topLimit?: number | null;
+  };
+  communication?: {
+    mailjet?: {
+      enabled?: boolean | null;
+      roles?:
+        | (
+            | 'order_confirmation'
+            | 'password_reset'
+            | 'marketing'
+            | 'cod_otp'
+            | 'tracking_update'
+            | 'invoice_delivery'
+            | 'abandoned_cart'
+          )[]
+        | null;
+    };
+    resend?: {
+      enabled?: boolean | null;
+      roles?:
+        | (
+            | 'order_confirmation'
+            | 'password_reset'
+            | 'marketing'
+            | 'cod_otp'
+            | 'tracking_update'
+            | 'invoice_delivery'
+            | 'abandoned_cart'
+          )[]
+        | null;
+    };
+    whatsapp?: {
+      enabled?: boolean | null;
+      roles?:
+        | (
+            | 'order_confirmation'
+            | 'password_reset'
+            | 'marketing'
+            | 'cod_otp'
+            | 'tracking_update'
+            | 'invoice_delivery'
+            | 'abandoned_cart'
+          )[]
+        | null;
+    };
   };
   updatedAt?: string | null;
   createdAt?: string | null;
@@ -1129,6 +1573,40 @@ export interface Faq {
      * Jab ye page Facebook ya WhatsApp par share hoga, to ye image dikhegi.
      */
     ogImage?: (string | null) | Media;
+    /**
+     * e.g., Cotton, Leather, Plastic, Steel
+     */
+    material?: string | null;
+    /**
+     * e.g., Striped, Floral, Solid, Checkered
+     */
+    pattern?: string | null;
+    /**
+     * Google Shopping feed mein default category override karein. Leave empty to use default.
+     */
+    merchantCategory?: string | null;
+    /**
+     * Variants ko Google ProductGroup schema mein group karein. Sirf products par apply hota hai.
+     */
+    enableProductGroup?: boolean | null;
+    /**
+     * e.g., "00:45" for a specific highlight in product video. Google uses this for Video Key Moments (#134).
+     */
+    videoKeyMoment?: string | null;
+    /**
+     * Google AI Overviews ke liye direct answer. 40-60 words mein concise jawab (#13).
+     */
+    atomicAnswer?: string | null;
+    /**
+     * AI models ke liye additional Q&A pairs. Inhe FAQPage schema mein include karein (#72).
+     */
+    faqQuestions?:
+      | {
+          question?: string | null;
+          answer?: string | null;
+          id?: string | null;
+        }[]
+      | null;
   };
   updatedAt?: string | null;
   createdAt?: string | null;
@@ -1153,6 +1631,40 @@ export interface Homepage {
      * Jab ye page Facebook ya WhatsApp par share hoga, to ye image dikhegi.
      */
     ogImage?: (string | null) | Media;
+    /**
+     * e.g., Cotton, Leather, Plastic, Steel
+     */
+    material?: string | null;
+    /**
+     * e.g., Striped, Floral, Solid, Checkered
+     */
+    pattern?: string | null;
+    /**
+     * Google Shopping feed mein default category override karein. Leave empty to use default.
+     */
+    merchantCategory?: string | null;
+    /**
+     * Variants ko Google ProductGroup schema mein group karein. Sirf products par apply hota hai.
+     */
+    enableProductGroup?: boolean | null;
+    /**
+     * e.g., "00:45" for a specific highlight in product video. Google uses this for Video Key Moments (#134).
+     */
+    videoKeyMoment?: string | null;
+    /**
+     * Google AI Overviews ke liye direct answer. 40-60 words mein concise jawab (#13).
+     */
+    atomicAnswer?: string | null;
+    /**
+     * AI models ke liye additional Q&A pairs. Inhe FAQPage schema mein include karein (#72).
+     */
+    faqQuestions?:
+      | {
+          question?: string | null;
+          answer?: string | null;
+          id?: string | null;
+        }[]
+      | null;
   };
   /**
    * Build your homepage by adding and dragging these blocks.
@@ -1283,6 +1795,38 @@ export interface Homepage {
         | {
             type?: ('trust' | 'newsletter' | 'infiniteGrid') | null;
             gridTitle?: string | null;
+            /**
+             * Select where products should be fetched from.
+             */
+            sourceType?: ('deals' | 'category' | 'search' | 'manual') | null;
+            /**
+             * e.g., "health-accessories" or "mens-clothing"
+             */
+            categorySlug?: string | null;
+            /**
+             * e.g., "wireless headphones"
+             */
+            searchTerm?: string | null;
+            /**
+             * Pick specific products to show in this grid.
+             */
+            manualProducts?: (string | Product)[] | null;
+            /**
+             * How should products be sorted?
+             */
+            sortOrder?: ('best-selling' | 'newest' | 'price-low-to-high' | 'price-high-to-low' | 'rating-high') | null;
+            /**
+             * How many products to show per page? (Max: 100)
+             */
+            limit?: number | null;
+            /**
+             * Where should the "View All" button go? (e.g., /deals, /category/health-accessories)
+             */
+            viewAllLink?: string | null;
+            /**
+             * Toggle visibility of the "View All" button.
+             */
+            showViewAll?: boolean | null;
             id?: string | null;
             blockName?: string | null;
             blockType: 'layoutSection';
@@ -1337,6 +1881,7 @@ export interface SettingsSelect<T extends boolean = true> {
         isOnCall?: T;
         id?: T;
       };
+  shippingCost?: T;
   inventorySettings?:
     | T
     | {
@@ -1371,12 +1916,130 @@ export interface SettingsSelect<T extends boolean = true> {
         visualDiscount?: T;
         id?: T;
       };
+  taxSettings?:
+    | T
+    | {
+        standardGstPercent?: T;
+      };
+  returnsSettings?:
+    | T
+    | {
+        estimatedReturnRatePercent?: T;
+      };
+  pricingSettings?:
+    | T
+    | {
+        estimatedDutiesPercent?: T;
+      };
+  loyaltyEnabled?: T;
+  referralLimitPerUser?: T;
+  referralGoalTarget?: T;
+  referralMilestones?:
+    | T
+    | {
+        requiredConversions?: T;
+        rewardLabel?: T;
+        discountType?: T;
+        discountValue?: T;
+        maximumDiscount?: T;
+        id?: T;
+      };
+  vipShoppingMilestones?:
+    | T
+    | {
+        requiredSpend?: T;
+        rewardLabel?: T;
+        discountType?: T;
+        discountValue?: T;
+        maximumDiscount?: T;
+        id?: T;
+      };
+  couponDefaultExpiryDays?: T;
+  couponDefaultUsageLimit?: T;
+  couponIsStackable?: T;
+  inactiveDaysThreshold?: T;
+  highValueInactiveThreshold?: T;
+  reactivationEmailTemplate?: T;
+  segmentBuilderEnabled?: T;
   seo?:
     | T
     | {
         metaTitle?: T;
         metaDescription?: T;
         ogImage?: T;
+        material?: T;
+        pattern?: T;
+        merchantCategory?: T;
+        enableProductGroup?: T;
+        videoKeyMoment?: T;
+        atomicAnswer?: T;
+        faqQuestions?:
+          | T
+          | {
+              question?: T;
+              answer?: T;
+              id?: T;
+            };
+      };
+  operational?:
+    | T
+    | {
+        limboRevenueThreshold?: T;
+        autoRefreshInterval?: T;
+      };
+  mediaProvider?: T;
+  mediaDualUpload?: T;
+  mediaFetchMode?: T;
+  cdnMode?: T;
+  warehouse?:
+    | T
+    | {
+        locations?:
+          | T
+          | {
+              name?: T;
+              address?: T;
+              lat?: T;
+              lng?: T;
+              id?: T;
+            };
+      };
+  geospatial?:
+    | T
+    | {
+        highPotentialRevenue?: T;
+        highPotentialRto?: T;
+        topCityLimit?: T;
+      };
+  forecasting?:
+    | T
+    | {
+        windowDays?: T;
+        criticalThreshold?: T;
+        highThreshold?: T;
+        topLimit?: T;
+      };
+  communication?:
+    | T
+    | {
+        mailjet?:
+          | T
+          | {
+              enabled?: T;
+              roles?: T;
+            };
+        resend?:
+          | T
+          | {
+              enabled?: T;
+              roles?: T;
+            };
+        whatsapp?:
+          | T
+          | {
+              enabled?: T;
+              roles?: T;
+            };
       };
   updatedAt?: T;
   createdAt?: T;
@@ -1402,6 +2065,19 @@ export interface FaqSelect<T extends boolean = true> {
         metaTitle?: T;
         metaDescription?: T;
         ogImage?: T;
+        material?: T;
+        pattern?: T;
+        merchantCategory?: T;
+        enableProductGroup?: T;
+        videoKeyMoment?: T;
+        atomicAnswer?: T;
+        faqQuestions?:
+          | T
+          | {
+              question?: T;
+              answer?: T;
+              id?: T;
+            };
       };
   updatedAt?: T;
   createdAt?: T;
@@ -1419,6 +2095,19 @@ export interface HomepageSelect<T extends boolean = true> {
         metaTitle?: T;
         metaDescription?: T;
         ogImage?: T;
+        material?: T;
+        pattern?: T;
+        merchantCategory?: T;
+        enableProductGroup?: T;
+        videoKeyMoment?: T;
+        atomicAnswer?: T;
+        faqQuestions?:
+          | T
+          | {
+              question?: T;
+              answer?: T;
+              id?: T;
+            };
       };
   pageSections?:
     | T
@@ -1541,6 +2230,14 @@ export interface HomepageSelect<T extends boolean = true> {
           | {
               type?: T;
               gridTitle?: T;
+              sourceType?: T;
+              categorySlug?: T;
+              searchTerm?: T;
+              manualProducts?: T;
+              sortOrder?: T;
+              limit?: T;
+              viewAllLink?: T;
+              showViewAll?: T;
               id?: T;
               blockName?: T;
             };

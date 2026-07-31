@@ -1,26 +1,25 @@
+
 // src/app/(payload)/admin/views/InventoryRiskList.tsx
+
 import { DefaultTemplate } from '@payloadcms/next/templates';
-import { getPaginatedInventoryRisk } from "@/app/actions/payloadInventoryActions";
-import InventoryRiskContent from "@/app/components/payload-analytics/InventoryRiskContent";
-import Pagination from "@/app/_components/shared/Pagination"; // ✅ Reusing your pagination
+import { getPaginatedInventoryRisk } from "@/app/features/admin/inventory-cms/actions/payloadInventoryActions";
+import InventoryRiskContent from "@/app/features/admin/inventory-cms/components/InventoryRiskContent"; 
+// ✅ UPDATED IMPORT: Pointing to ui/PaginationControls
+import PaginationControls from "@/app/shared/components/ui/PaginationControls";
 import Link from 'next/link';
 import { ArrowLeft, Box } from 'lucide-react';
-
 
 export default async function InventoryRiskListView(props: any) {
   const { initPageResult, params, searchParams: searchParamsPromise } = props;
   
-  // Next.js 15+ searchParams handling
   const searchParams = await searchParamsPromise;
   const page = Number(searchParams?.page) || 1;
 
-  // 1. Fetch Data
   const { items, totalPages, activeThreshold, totalDocs } = await getPaginatedInventoryRisk({ 
     page, 
-    limit: 15 // Ek page par 15 items dikhayenge
+    limit: 15 
   });
 
-  // 2. Safe Props for Sidebar
   const i18n = props.i18n || initPageResult?.req?.i18n;
   const locale = props.locale || initPageResult?.locale;
   const payload = props.payload || initPageResult?.req?.payload;
@@ -41,7 +40,6 @@ export default async function InventoryRiskListView(props: any) {
     >
       <div className="tw-admin-wrapper p-4 md:p-10 space-y-8 animate-in fade-in duration-500">
         
-        {/* HEADER & NAVIGATION */}
         <div className="flex flex-col gap-4">
             <Link href="/admin" className="flex items-center gap-2 text-sm font-bold text-brand-primary hover:underline transition-all w-fit">
                 <ArrowLeft size={16}/> Back to Intelligence Hub
@@ -60,7 +58,6 @@ export default async function InventoryRiskListView(props: any) {
                     </p>
                 </div>
 
-                {/* Status Indicator */}
                 <div className="px-4 py-2 bg-red-500/10 border border-red-500/20 rounded-2xl hidden md:block">
                     <div className="flex items-center gap-2 text-red-500 font-black text-[10px] uppercase tracking-widest">
                         <span className="relative flex h-2 w-2">
@@ -73,30 +70,17 @@ export default async function InventoryRiskListView(props: any) {
             </div>
         </div>
 
-        {/* MAIN LIST CONTENT */}
         <div className="min-h-100">
-            <InventoryRiskContent data={items} />
+            <InventoryRiskContent data={items} lowStockThreshold={activeThreshold} />
         </div>
 
-        {/* ✅ FIX: Pagination is now properly implemented using 'totalPages' */}
         {totalPages > 1 && (
             <div className="flex justify-center pt-6 border-t dark:border-gray-800">
-                <Pagination 
-                    totalPages={totalPages} 
-                    currentPage={page} 
-                    onPageChange={(newPage) => {
-                        // Root View mein client-side redirection handle karne ke liye 
-                        // Hum custom client logic handle karte hain ya server-side redirect link dete hain.
-                        // Yahan hum simply server action logic ki tarah redirect use kar sakte hain
-                        // Lekin Pagination component client-side hai, so it works naturally with router.push in its own file.
-                    }}
-                    // Note: InventoryRiskContent ke andar ka Pagination client side par automatic route handle karega.
-                    isPending={false} 
-                />
+                {/* ✅ RESOLVED: URL-driven pagination controls replace old custom triggers */}
+                <PaginationControls totalPages={totalPages} />
             </div>
         )}
 
-        {/* FOOTER INFO */}
         <div className="p-4 bg-blue-500/5 rounded-2xl border border-blue-500/10 flex items-center gap-4">
             <p className="text-[10px] text-gray-500 font-medium italic">
                 * This list updates in real-time as stock is replenished in the Products collection. 

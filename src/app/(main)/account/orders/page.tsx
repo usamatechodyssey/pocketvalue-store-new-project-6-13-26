@@ -1,38 +1,37 @@
 
-// /src/app/account/orders/page.tsx (UPDATED: NEXT.JS 16+ COMPLIANCE & DTO)
+// src/app/(main)/account/orders/page.tsx
 
 import { auth } from "@/app/auth";
 import { redirect } from "next/navigation";
 import { ShoppingBag } from "lucide-react";
 import Link from "next/link";
-import OrderList from "./_components/OrderList";
-import { getPaginatedOrders } from "@/app/actions/orderActions";
+import OrderList from "@/app/features/storefront/customer-account/components/orders/OrderList";
 
-// NEXT.JS 16 FIX: searchParams must be a Promise
+// 🚀 Naya Import (Customer Domain se)
+import { getCustomerOrders } from "@/app/features/storefront/customer-account/actions/customerOrderActions";
+
 type OrdersPageProps = {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 };
 
-// This page remains a Server Component
 export default async function OrdersPage({ searchParams }: OrdersPageProps) {
   const session = await auth();
   if (!session?.user?.id) {
     redirect("/login?callbackUrl=/account/orders");
   }
 
-  // NEXT.JS 16 FIX: Await searchParams before accessing properties
   const resolvedSearchParams = await searchParams;
 
   const currentPage = Number(resolvedSearchParams?.page || "1");
   const status = (resolvedSearchParams?.status as string) || "all";
   const searchTerm = (resolvedSearchParams?.search as string) || "";
 
-  // This function returns { orders: ClientOrder[], totalPages: number }
-  const { orders, totalPages } = await getPaginatedOrders({
+  // 🚀 Ab yahan getCustomerOrders call ho raha hai bina userId bheje 
+  // (kyunki userId action ke andar khud securely fetch ho raha hai)
+  const { orders, totalPages } = await getCustomerOrders({
     page: currentPage,
     status: status,
     searchTerm: searchTerm,
-    userId: session.user.id,
     limit: 5,
   });
 
@@ -60,7 +59,6 @@ export default async function OrdersPage({ searchParams }: OrdersPageProps) {
               strokeWidth={1.5}
             />
             <h3 className="mt-4 text-lg font-semibold text-gray-800 dark:text-gray-200">
-              {/* ✅ FIX: 'haven't' -> 'haven&apos;t' */}
               You haven&apos;t placed any orders yet.
             </h3>
             <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">

@@ -1,7 +1,7 @@
 // /src/app/cart/page.tsx
 
 import type { Metadata } from "next";
-import CartClient from "./_components/CartClient"; // Import the client component
+import CartClient from "../../features/storefront/cart-checkout/components/cart/CartClient"; // Import the client component
 
 // This is a Server Component, so metadata is allowed here.
 export const metadata: Metadata = {

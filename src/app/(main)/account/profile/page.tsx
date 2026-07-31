@@ -4,9 +4,9 @@
 import { User } from "lucide-react";
 
 // Import the new, smaller components we just created
-import UpdateProfileImage from "./_components/UpdateProfileImage";
-import UpdateNameForm from "./_components/UpdateNameForm";
-import UpdatePasswordForm from "./_components/UpdatePasswordForm";
+import UpdateProfileImage from "../../../features/storefront/customer-account/components/profile/UpdateProfileImage";
+import UpdateNameForm from "../../../features/storefront/customer-account/components/profile/UpdateNameForm";
+import UpdatePasswordForm from "../../../features/storefront/customer-account/components/profile/UpdatePasswordForm";
 
 // This is now a simple, clean Server Component
 export default function ProfilePage() {

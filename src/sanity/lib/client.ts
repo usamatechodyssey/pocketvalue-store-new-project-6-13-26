@@ -25,17 +25,4 @@ export const client: SanityClient = createClient({
   token: process.env.SANITY_API_WRITE_TOKEN, // <-- Token yahan use karna hai server actions ke liye.
 });
 
-/**
- * The dedicated, write-enabled, and uncached Sanity client.
- * This client is used EXCLUSIVELY for mutations (create, update, delete) within Server Actions.
- * It uses a secure token and always connects to the live API (`useCdn: false`).
- * This client should NEVER be imported into a client component.
- */
-export const writeClient: SanityClient = createClient({
-  projectId,
-  dataset,
-  apiVersion,
-  useCdn: false, // Write operations must NEVER use the CDN.
-  token: process.env.SANITY_API_WRITE_TOKEN, // The secure write token.
-});
 

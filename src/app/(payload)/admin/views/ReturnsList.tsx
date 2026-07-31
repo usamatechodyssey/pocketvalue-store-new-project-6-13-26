@@ -1,9 +1,9 @@
 // src/app/(payload)/admin/views/ReturnsList.tsx
 import { Suspense } from 'react';
 import { DefaultTemplate } from '@payloadcms/next/templates';
-import { getPaginatedReturnRequestsPayload } from "@/app/actions/payloadReturnAdminActions";
-import ReturnsClientPage from "@/app/components/payload-returns/ReturnsClientPage"; 
-import ReturnsLoadingSkeleton from "@/app/components/payload-returns/ReturnsLoadingSkeleton"; 
+import { getPaginatedReturnRequestsPayload } from "@/app/features/admin/order-fulfillment/actions/payloadReturnAdminActions";
+import ReturnsClientPage from "@/app/features/admin/order-fulfillment/components/returns/ReturnsClientPage"; 
+import ReturnsLoadingSkeleton from "@/app/features/admin/order-fulfillment/components/returns/ReturnsLoadingSkeleton"; 
 
 async function ReturnsListFetcher({ searchParams }: { searchParams: any }) {
   const page = Number(searchParams?.page) || 1;

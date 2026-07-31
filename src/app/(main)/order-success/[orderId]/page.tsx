@@ -1,14 +1,14 @@
-// /src/app/order-success/[orderId]/page.tsx
+// 📂 src/app/order-success/[orderId]/page.tsx
 
-import { CheckCircle2, ShoppingBag, ArrowRight } from "lucide-react";
+import { CheckCircle2, ShoppingBag, ArrowRight, Home, MessageCircle, Package } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 
-// --- NAYE IMPORTS ---
-import connectMongoose from "@/app/lib/mongoose";
-import Order, { IOrder } from "@/models/Order"; // Hamara mustanad Order model
-import ClearCartOnSuccess from "../_components/ClearCartOnSuccess";
+import connectMongoose from "@/app/shared/lib/checkout/mongoose";
+import Order, { IOrder } from "@/models/Order";
+import ClearCartOnSuccess from "../../../features/storefront/cart-checkout/components/checkout/ClearCartOnSuccess";
+import { logUserEvent } from "@/app/features/admin/analytics-telemetry/action/trackingActions";
 
 export const metadata: Metadata = {
   robots: {
@@ -17,19 +17,14 @@ export const metadata: Metadata = {
   },
 };
 
-// --- REFACTORED server-side function to use Mongoose ---
+// ================================================================
+// 📦 FETCH ORDER (with Mongoose)
+// ================================================================
 async function getOrder(id: string): Promise<IOrder | null> {
   try {
     await connectMongoose();
-
-    // Mongoose Order model ka istemal karein.
-    // Mongoose itna smart hai ke woh string ID ko purane ObjectId format se bhi match kar leta hai.
-    // Isliye, yeh query naye "PV-1001" aur purane "65f1..." dono qisam ke IDs par kaam karegi.
     const order = await Order.findById(id).lean();
-
     if (!order) return null;
-
-    // Data ko client component ke liye serialize karein
     return JSON.parse(JSON.stringify(order));
   } catch (error) {
     console.error("Failed to fetch order for success page:", error);
@@ -37,6 +32,9 @@ async function getOrder(id: string): Promise<IOrder | null> {
   }
 }
 
+// ================================================================
+// 🚀 PAGE COMPONENT
+// ================================================================
 type OrderSuccessPageProps = {
   params: Promise<{ orderId: string }>;
 };
@@ -51,85 +49,152 @@ export default async function OrderSuccessPage({
     notFound();
   }
 
+  // ✅ Idempotent Purchase Telemetry
+  await logUserEvent("purchase", `/order-success/${orderId}`, {
+    orderId: order.orderId,
+    totalPrice: order.totalPrice,
+    subtotal: order.subtotal,
+    shippingCost: order.shippingCost,
+    couponCode: order.coupon?.code || null,
+    couponAmount: order.coupon?.amount || 0,
+    paymentMethod: order.paymentMethod,
+    products: order.products.map((p: any) => ({
+      productId: p.productId || p._id,
+      name: p.name,
+      price: p.price,
+      quantity: p.quantity,
+      sku: p.sku || "N/A"
+    }))
+  });
+
   return (
-    <div className="bg-surface-ground min-h-screen flex items-center justify-center py-12 px-4">
-      <div className="bg-surface-base p-8 sm:p-10 rounded-2xl shadow-lg border border-surface-border max-w-2xl w-full text-center">
-        <ClearCartOnSuccess />
+    <div className="relative min-h-[80vh] flex items-center justify-center px-6 py-20 overflow-hidden">
+      {/* 🎨 Background Ambient Glow */}
+      <div className="absolute inset-0 -z-10">
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-emerald-500/5 rounded-full blur-[120px]" />
+        <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-brand-primary/5 rounded-full blur-[100px]" />
+      </div>
 
-        <div className="mx-auto w-20 h-20 flex items-center justify-center bg-brand-success/10 rounded-full mb-6">
-          <CheckCircle2
-            className="text-brand-success"
-            size={50}
-            strokeWidth={2}
-          />
+      <div className="relative max-w-2xl w-full text-center">
+        {/* 🏷️ Success Badge */}
+        <div className="inline-flex items-center gap-2 px-4 py-1.5 mb-8 bg-emerald-500/10 border border-emerald-500/20 rounded-full text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">
+          <span className="relative flex h-2 w-2">
+            <span className="animate-ping absolute h-full w-full rounded-full bg-emerald-500 opacity-75" />
+            <span className="relative rounded-full h-2 w-2 bg-emerald-500" />
+          </span>
+          Order Confirmed
+          <span className="ml-1 px-1.5 py-0.5 bg-emerald-500/20 rounded text-[8px] font-mono">
+            #{order.orderId}
+          </span>
         </div>
 
-        <h1 className="text-3xl font-bold text-text-primary mb-2">
-          Thank You For Your Order!
-        </h1>
-        <p className="text-text-secondary mb-6">
-          Your order has been placed successfully. A confirmation email has been
-          sent to you.
-        </p>
+        {/* 🎯 Success Display */}
+        <div className="relative mb-8">
+          <div className="w-32 h-32 mx-auto mb-6 rounded-full bg-emerald-500/10 flex items-center justify-center border-4 border-emerald-500/20">
+            <CheckCircle2 size={56} className="text-emerald-500" strokeWidth={1.5} />
+          </div>
+        </div>
 
-        <div className="bg-surface-ground border-dashed border-2 border-surface-border-darker rounded-lg p-4 my-8">
-          <p className="text-sm text-text-subtle uppercase tracking-wider">
-            Your Order ID
-          </p>
-          <p className="text-2xl font-mono font-bold text-brand-primary mt-1 tracking-wider">
-            {order.orderId} {/* Ab sirf mustanad orderId istemal karein */}
+        {/* 📝 Message */}
+        <div className="space-y-4 mb-10">
+          <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white tracking-tight">
+            Order Placed Successfully!
+          </h2>
+          <p className="text-lg text-gray-500 dark:text-gray-400 max-w-lg mx-auto leading-relaxed">
+            Thank you for your purchase. A confirmation email has been sent to your registered email address.
           </p>
         </div>
 
-        <div className="text-left grid grid-cols-1 md:grid-cols-2 gap-8 border-t border-surface-border pt-8 mb-8">
+        {/* 📦 Order & Shipping Details */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 max-w-md mx-auto mb-10 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-gray-200 dark:border-gray-700 text-left">
+          {/* Left: Shipping Address */}
           <div>
-            <h3 className="text-lg font-semibold text-text-primary">
-              Shipping to:
-            </h3>
-            <p className="text-text-primary font-bold mt-2">
+            <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
+              Shipping Address
+            </p>
+            <p className="text-sm font-semibold text-gray-900 dark:text-white mt-1">
               {order.shippingAddress.fullName}
             </p>
-            <address className="text-text-secondary text-sm not-italic mt-1">
-              {order.shippingAddress.address}, {order.shippingAddress.area},
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+              {order.shippingAddress.address}, {order.shippingAddress.area}
               <br />
               {order.shippingAddress.city}, {order.shippingAddress.province}
-            </address>
+            </p>
           </div>
+
+          {/* Right: Payment Summary */}
           <div>
-            <h3 className="text-lg font-semibold text-text-primary">
-              Payment Summary:
-            </h3>
-            <p className="text-text-primary font-bold mt-2">
+            <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
+              Payment Summary
+            </p>
+            <p className="text-lg font-black text-brand-primary mt-1">
               Rs. {order.totalPrice.toLocaleString()}
             </p>
-            <p className="text-text-secondary text-sm mt-1">
-              Paid via {order.paymentMethod}.
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              Paid via {order.paymentMethod}
             </p>
+            {order.coupon && (
+              <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium mt-0.5">
+                Coupon applied: {order.coupon.code} (Rs. {order.coupon.amount.toLocaleString()} off)
+              </p>
+            )}
           </div>
         </div>
 
-        <div className="flex flex-col sm:flex-row gap-4 justify-center">
+        {/* 🔗 Action Buttons */}
+        <div className="flex flex-wrap items-center justify-center gap-4">
           <Link
             href="/"
-            className="flex items-center justify-center gap-2 px-6 py-3 bg-brand-primary text-on-primary font-semibold rounded-lg shadow-md hover:bg-brand-primary-hover transition-colors text-amber-50"
+            className="inline-flex items-center gap-2 px-8 py-3.5 bg-brand-primary hover:bg-brand-primary-hover text-white font-bold rounded-xl shadow-lg shadow-brand-primary/30 hover:shadow-brand-primary/50 hover:scale-105 transition-all duration-300 active:scale-95"
           >
-            <ShoppingBag size={18} className="text-amber-50" />
+            <ShoppingBag size={18} />
             Continue Shopping
           </Link>
+
           <Link
             href="/account/orders"
-            className="flex items-center justify-center gap-2 px-6 py-3 bg-surface-input text-text-primary font-semibold rounded-lg shadow-sm hover:bg-surface-border transition-colors"
+            className="inline-flex items-center gap-2 px-8 py-3.5 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 font-bold rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md transition-all duration-300 hover:scale-105 active:scale-95"
           >
-            View My Orders
-            <ArrowRight size={18} />
+            <Package size={18} />
+            My Orders
           </Link>
         </div>
+
+        {/* 🔍 Quick Help Links */}
+        <div className="mt-12 pt-8 border-t border-gray-200 dark:border-gray-800">
+          <p className="text-sm text-gray-400 dark:text-gray-500 font-medium mb-4">
+            Need help with your order?
+          </p>
+          <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-3 text-sm">
+            <Link
+              href="/contact-us"
+              className="flex items-center gap-2 text-gray-500 dark:text-gray-400 hover:text-brand-primary dark:hover:text-brand-primary transition-colors"
+            >
+              <MessageCircle size={16} />
+              Contact Support
+            </Link>
+            <span className="text-gray-300 dark:text-gray-700">|</span>
+            <Link
+              href="/account/orders"
+              className="flex items-center gap-2 text-gray-500 dark:text-gray-400 hover:text-brand-primary dark:hover:text-brand-primary transition-colors"
+            >
+              <Package size={16} />
+              Track Order
+            </Link>
+            <span className="text-gray-300 dark:text-gray-700">|</span>
+            <Link
+              href="/faq"
+              className="flex items-center gap-2 text-gray-500 dark:text-gray-400 hover:text-brand-primary dark:hover:text-brand-primary transition-colors"
+            >
+              <MessageCircle size={16} />
+              FAQs
+            </Link>
+          </div>
+        </div>
+
+        {/* ✅ Clear Cart (Client Component) */}
+        <ClearCartOnSuccess />
       </div>
     </div>
   );
 }
-
-// --- SUMMARY OF CHANGES ---
-// - **Architectural Consistency (Rule #5):** `getOrder` function ab `mongodb` native driver (`clientPromise`, `ObjectId`) ka istemal nahi kar raha. Yeh ab mukammal taur par Mongoose `Order` model ka istemal karta hai, jis se hamare project mein data access ka aakhri inconsistent hissa bhi theek ho gaya hai.
-// - **Code Simplification:** `Order.findById(id)` ka istemal code ko bohot saaf suthra bana deta hai aur yeh naye aur purane, dono qisam ke IDs par kaam karne ke qabil hai.
-// - **Improved UI & Data:** Ab UI mein hamesha mustanad `order.orderId` hi dikhaya jayega, jo user ke liye behtar hai.

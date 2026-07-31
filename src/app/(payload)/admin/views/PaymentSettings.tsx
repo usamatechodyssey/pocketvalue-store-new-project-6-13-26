@@ -3,7 +3,7 @@
 // ✅ Payload ka Default Layout (Sidebar + Header) Import karein
 import { DefaultTemplate } from '@payloadcms/next/templates';
 // ✅ Aapka naya Payment Settings Content Component
-import PaymentSettingsContent from "@/app/components/admin/PaymentSettingsContent";
+import PaymentSettingsContent from "@/app/features/admin/inventory-cms/components/main/PaymentSettingsContent";
 
 
 // ✅ Payload ki Custom View ke liye component

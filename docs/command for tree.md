@@ -1,0 +1,1 @@
+find . \( -type d -o -type f \) -not -path "*/node_modules/*" -not -path "*/.next/*" -not -path "*/dist/*" -not -path "*/docs/*" -not -path "*/.git/*" -not -name "package-lock.json" -not -name ".env.local" | sed -e 's;[^/]*/;|____;g;s;____|; |;g' > project_structure.txt

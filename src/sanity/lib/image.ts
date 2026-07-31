@@ -1,49 +1,100 @@
-// import createImageUrlBuilder from '@sanity/image-url'
-// import { SanityImageSource } from "@sanity/image-url/lib/types/types";
-// import { dataset, projectId } from '../env'
-// // https://www.sanity.io/docs/image-url
-// const builder = createImageUrlBuilder({ projectId, dataset })
-// export const urlFor = (source: SanityImageSource) => {
-// return builder.image(source)
-// }
-///////////////////////////////////////////////////////////
-// import createImageUrlBuilder from '@sanity/image-url'
-// // ✅ FIX: 'type' import use karein taake Next.js/TS khush rahey
-// import type { SanityImageSource } from "@sanity/image-url/lib/types/types"; 
-// import { dataset, projectId } from '../env'
 
-// const builder = createImageUrlBuilder({ projectId, dataset })
+// // // src/sanity/lib/image.ts
 
-// // ✅ FIX: Union type use kiya (Sanity Image ya Payload Image)
-// export const urlFor = (source: SanityImageSource | { url?: string } | any) => {
-  
-//   // 🔥 THE PAYLOAD ADAPTER (NEW)
-//   // Agar source ke andar direct 'url' mojood hai (yani ye Payload/Cloudinary se aya hai)
-//   if (source && typeof source === 'object' && 'url' in source && source.url) {
-//     const mockBuilder: any = {
-//       width: () => mockBuilder,
-//       height: () => mockBuilder,
-//       fit: () => mockBuilder,
-//       url: () => source.url // Direct Cloudinary URL return kar dega
-//     };
-//     return mockBuilder;
-//   }
-
-//   // 🛑 THE SANITY ORIGINAL (Ye aapka purana code wese hi rahega)
-//   return builder.image(source as SanityImageSource)
-// }
-// src/sanity/lib/image.ts
-
-import createImageUrlBuilder from '@sanity/image-url'
+import createImageUrlBuilder from '@sanity/image-url';
 import type { SanityImageSource } from "@sanity/image-url/lib/types/types"; 
-import { dataset, projectId } from '../env'
+import { dataset, projectId } from '../env';
 
-const builder = createImageUrlBuilder({ projectId, dataset })
+const builder = createImageUrlBuilder({ projectId, dataset });
 
-// 🔥 UNIVERSAL MOCK BUILDER
-// Ye function ensure karega ke frontend code kitni bhi chaining kare (.width.height.fit), wo kabhi crash nahi hoga.
-const createMockBuilder = (finalUrl: string) => {
-  const mockBuilder: any = {
+// ====================================================================
+// 🛡️ TYPE DEFINITIONS FOR MOCK BUILDER PATTERN
+// ====================================================================
+export interface ImageUrlBuilderMock {
+  width: (w: number) => ImageUrlBuilderMock;
+  height: (h: number) => ImageUrlBuilderMock;
+  fit: (f: string) => ImageUrlBuilderMock;
+  crop: (c: string) => ImageUrlBuilderMock;
+  auto: (a: string) => ImageUrlBuilderMock;
+  format: (f: string) => ImageUrlBuilderMock;
+  quality: (q: number) => ImageUrlBuilderMock;
+  url: () => string;
+}
+
+interface PayloadImagePayload {
+  url?: string;
+  id?: string;
+  asset?: {
+    _ref?: string;
+    _type?: string;
+  };
+}
+
+// ====================================================================
+// 🛡️ URL SANITIZER (Prevents XSS)
+// ====================================================================
+const sanitizeUrl = (url: string): string => {
+  if (!url) return '/placeholder.png';
+  
+  // Trim whitespace
+  const trimmed = url.trim();
+  
+  // ✅ Block javascript: protocol
+  if (/^javascript:/i.test(trimmed)) {
+    console.warn('Blocked javascript: URL in image source');
+    return '/placeholder.png';
+  }
+  
+  // ✅ Block data: protocol (can contain HTML)
+  if (/^data:/i.test(trimmed)) {
+    console.warn('Blocked data: URL in image source');
+    return '/placeholder.png';
+  }
+  
+  // ✅ Block vbscript: protocol
+  if (/^vbscript:/i.test(trimmed)) {
+    console.warn('Blocked vbscript: URL in image source');
+    return '/placeholder.png';
+  }
+  
+  // ✅ Block file: protocol
+  if (/^file:/i.test(trimmed)) {
+    console.warn('Blocked file: URL in image source');
+    return '/placeholder.png';
+  }
+  
+  // ✅ For http/https, validate URL structure
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+    try {
+      new URL(trimmed); // ✅ Validates URL structure
+      return trimmed;
+    } catch {
+      console.warn('Invalid URL structure:', trimmed);
+      return '/placeholder.png';
+    }
+  }
+  
+  // ✅ For relative paths (starting with /), allow
+  if (trimmed.startsWith('/')) {
+    return trimmed;
+  }
+  
+  // ✅ For Sanity image references (image-...), allow
+  if (trimmed.startsWith('image-')) {
+    return trimmed;
+  }
+  
+  // ❌ Unknown/unsafe format
+  console.warn('Unrecognized URL format:', trimmed);
+  return '/placeholder.png';
+};
+
+// UNIVERSAL MOCK BUILDER IMPLEMENTATION
+const createMockBuilder = (finalUrl: string): ImageUrlBuilderMock => {
+  // ✅ Sanitize the URL before creating mock
+  const safeUrl = sanitizeUrl(finalUrl);
+  
+  const mockBuilder: ImageUrlBuilderMock = {
     width: () => mockBuilder,
     height: () => mockBuilder,
     fit: () => mockBuilder,
@@ -51,46 +102,52 @@ const createMockBuilder = (finalUrl: string) => {
     auto: () => mockBuilder,
     format: () => mockBuilder,
     quality: () => mockBuilder,
-    url: () => finalUrl, // Aakhir mein hamesha ye URL return karega
+    url: () => safeUrl, 
   };
   return mockBuilder;
 };
 
-// ✅ THE BULLETPROOF PAYLOAD ADAPTER
-export const urlFor = (source: any) => {
-  // 1. Agar source bilkul undefined ya null hai
+// ====================================================================
+// ✅ THE BULLETPROOF TYPE-SAFE ADAPTER (WITH SECURITY FIX)
+// ====================================================================
+export const urlFor = (source: unknown): ImageUrlBuilderMock | ReturnType<typeof builder.image> => {
+  // 1. Agar source undefined, null, ya empty hai
   if (!source) {
     return createMockBuilder('/placeholder.png');
   }
 
-  // 2. Agar source aik string hai (e.g., Direct Cloudinary URL aagaya Payload Query se)
+  // 2. String check (e.g. direct Cloudinary URL ya Sanity image ID reference)
   if (typeof source === 'string') {
-    // Agar wo ghalti se Sanity ka _ref string hai, to use pass hone do
-    if (source.startsWith('image-')) {
-       return builder.image(source as SanityImageSource);
+    // ✅ Sanitize before using
+    const sanitized = sanitizeUrl(source);
+    
+    if (sanitized.startsWith('image-')) {
+       return builder.image(sanitized as SanityImageSource);
     }
-    // Warna wo Cloudinary ka URL hai, usay mock builder mein daal do
-    return createMockBuilder(source);
+    return createMockBuilder(sanitized);
   }
 
-  // 3. Agar source ke andar url pehle se hai (Payload Object hai)
-  if (typeof source === 'object' && 'url' in source && source.url) {
-    return createMockBuilder(source.url);
-  }
-
-  // 4. Agar source mein asset._ref hai lekin wo Payload ki ID hai (image- se shuru nahi ho rahi)
-  if (source?.asset?._ref && !source.asset._ref.startsWith('image-')) {
-    if (source.url) {
-      return createMockBuilder(source.url);
+  // 3. Structured objects handling safely (Payload CMS images mappings)
+  if (typeof source === 'object' && source !== null) {
+    const obj = source as PayloadImagePayload;
+    
+    if (obj.url) {
+      // ✅ Sanitize the URL from Payload
+      const sanitized = sanitizeUrl(obj.url);
+      return createMockBuilder(sanitized);
     }
-    return createMockBuilder('/placeholder.png');
+
+    if (obj.asset?._ref && !obj.asset._ref.startsWith('image-')) {
+      return createMockBuilder('/placeholder.png');
+    }
   }
 
-  // 🛑 THE SANITY ORIGINAL (Sirf tab chalega jab asli Sanity ID ya Object ho)
+  // Fallback to native builder if compatible with Sanity sources schema structures
   try {
     return builder.image(source as SanityImageSource);
-  } catch (error) {
-    console.error("Sanity URL Builder Error (Ignored):", error);
+  } catch (error: unknown) {
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    console.error("Sanity URL Builder Error (Ignored, falling back):", errorMsg);
     return createMockBuilder('/placeholder.png');
   }
-}
+};

@@ -1,8 +1,8 @@
 
-// /src/app/checkout/page.tsx (VERIFIED - NO CHANGES NEEDED)
+// /src/app/(main))/checkout/page.tsx (VERIFIED - NO CHANGES NEEDED)
 
 import type { Metadata } from "next";
-import CheckoutForm from "./_components/CheckoutForm"; // Imports the interactive client component
+import  CheckoutForm  from '@/app/features/storefront/cart-checkout/components/checkout/CheckoutForm';
 
 // Metadata for the shipping page
 export const metadata: Metadata = {

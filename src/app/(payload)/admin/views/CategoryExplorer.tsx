@@ -1,9 +1,9 @@
 // src/app/(payload)/admin/views/CategoryExplorer.tsx
 import { Suspense } from 'react';
 import { DefaultTemplate } from '@payloadcms/next/templates';
-import { getPaginatedAdminCategoriesPayload } from "@/app/actions/payloadCategoryAdminActions";
-import CategoryExplorerClientPage from "@/app/components/payload-categories/CategoryExplorerClientPage";
-import CategoryExplorerLoadingSkeleton from "@/app/components/payload-categories/CategoryExplorerLoadingSkeleton";
+import { getPaginatedAdminCategoriesPayload } from "@/app/features/admin/inventory-cms/actions/payloadCategoryAdminActions";
+import CategoryExplorerClientPage from "@/app/features/admin/inventory-cms/components/categories/CategoryExplorerClientPage";
+import CategoryExplorerLoadingSkeleton from "@/app/features/admin/inventory-cms/components/categories/CategoryExplorerLoadingSkeleton";
 
 export default async function CategoryExplorerView(props: any) {
   const { initPageResult, params, searchParams } = props;

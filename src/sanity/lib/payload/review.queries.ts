@@ -1,115 +1,36 @@
-// import { getPayload } from 'payload'
-// import configPromise from '@payload-config'
-// // ✅ ProductReview type direct import ho raha hai aur use bhi hoga
-// import { ProductReview, SanityImageObject } from '../../types/product_types'
+// 📂 src/sanity/lib/payload/review.queries.ts
 
-// // 🔥 NAYI INTERFACE: SanityImageObject ko extend karein sirf yahan ke liye
-// interface PayloadCompatibleSanityImageObject extends SanityImageObject {
-//   url?: string; // Payload se aane wala direct URL
-// }
+import { getSafePayload } from "@/app/shared/lib/payloadInstance";
+import { ProductReview } from "../../../types";
+import { unstable_cache } from "next/cache";
 
-// // 🔥 NAYI INTERFACE: Review ko SanityProductReview type mein map karna
-// interface PayloadCompatibleProductReview extends ProductReview {
-//     reviewImage?: PayloadCompatibleSanityImageObject; // Ab ye 'url' ko accept karega
-//     isApproved?: boolean; // ✅ FIX: isApproved field yahan add kiya
-// }
-
-// // Helper: Payload reviews ko Sanity ProductReview type mein map karna
-// // ✅ FIX: mapPayloadReviewToSanityReview ki return type ko update karein
-// const mapPayloadReviewToSanityReview = (payloadReview: any): PayloadCompatibleProductReview => {
-//   return {
-//     _id: payloadReview.id,
-//     _createdAt: payloadReview.createdAt,
-//     rating: payloadReview.rating,
-//     comment: payloadReview.comment,
-//     isApproved: payloadReview.isApproved,
-//     // User object ko map karna
-//     user: {
-//       name: payloadReview.user.name || 'Anonymous', // Payload mein user object expand hoga
-//       image: payloadReview.user.image?.url || undefined, // ✅ FIX: User image bhi url se len
-//     },
-//     // reviewImage ko map karna
-//     reviewImage: payloadReview.reviewImage?.url ? {
-//       _type: 'image',
-//       url: payloadReview.reviewImage.url, // ✅ Ab 'url' ko accept karega
-//       asset: { _ref: payloadReview.reviewImage.id, _type: 'reference' }
-//     } : undefined,
-//   }
-// }
-
-// // GET ALL REVIEWS FOR A PRODUCT (PRODUCT DETAIL PAGE KE LIYE)
-// export const getPayloadReviewsForProduct = async (productId: string): Promise<ProductReview[]> => {
-//   const payload = await getPayload({ config: configPromise })
-
-//   const result = await payload.find({
-//     collection: 'reviews',
-//     where: {
-//       product: {
-//         equals: productId,
-//       },
-//       isApproved: {
-//         equals: true, // Frontend par sirf approved reviews dikhenge
-//       },
-//     },
-//     depth: 1, // User data ko expand karein
-//     sort: '-createdAt', // Naye reviews pehle
-//   })
-
-//   // Data ko map karke ProductReview type mein convert karein
-//   // ✅ FIX: mapPayloadReviewToSanityReview ki return ko ProductReview mein cast karein
-//   return result.docs.map(mapPayloadReviewToSanityReview) as ProductReview[];
-// }
-
-// // TODO: Pagination ke liye future mein ye functions update honge
-// export const getPayloadPaginatedReviews = async (productId: string, page: number, limit: number): Promise<{ reviews: ProductReview[], totalDocs: number }> => {
-//   const payload = await getPayload({ config: configPromise })
-
-//   const result = await payload.find({
-//     collection: 'reviews',
-//     where: {
-//       product: { equals: productId },
-//       isApproved: { equals: true },
-//     },
-//     depth: 1,
-//     sort: '-createdAt',
-//     page: page,
-//     limit: limit,
-//   });
-
-//   return {
-//     reviews: result.docs.map(mapPayloadReviewToSanityReview) as ProductReview[], // ✅ Cast here
-//     totalDocs: result.totalDocs,
-//   };
-// };
-// src/sanity/lib/payload/review.queries.ts
-
-import { getPayload } from "payload";
-import configPromise from "@payload-config";
-import { ProductReview, SanityImageObject } from "../../types/product_types";
-
-// 🔥 THE FIX: Faltu interfaces hata di hain. TypeScript seedha 'ProductReview' ko samajh jayega
-// aur humne inline intersection '&' use kiya hai isApproved ke liye.
-
+// ================================================================
+// 🔧 HELPER: Map Payload Review to Sanity Review
+// ================================================================
 const mapPayloadReviewToSanityReview = (
   payloadReview: any,
 ): ProductReview & { isApproved?: boolean } => {
+  // ✅ Safe user extraction with proper fallback
+  const user = payloadReview.user;
+  const userName = user?.name || "Anonymous";
+  const userImage = user?.image?.url || user?.image || undefined;
+
   return {
     _id: payloadReview.id,
     _createdAt: payloadReview.createdAt,
     rating: payloadReview.rating,
     comment: payloadReview.comment,
     isApproved: payloadReview.isApproved,
+    isVerifiedPurchase: payloadReview.isVerifiedPurchase || false,
 
-    // User object ko map karna (Safe Optional Chaining ke sath)
     user: {
-      name: payloadReview.user?.name || "Anonymous",
-      image: payloadReview.user?.image?.url || undefined,
+      name: userName,
+      image: userImage,
     },
 
-    // reviewImage ko map karna (url required hai, wo hum de rahe hain)
     reviewImage: payloadReview.reviewImage?.url
       ? {
-          _type: "image" as const, // 🔥 Literal type casting taake TS khush rahe
+          _type: "image" as const,
           url: payloadReview.reviewImage.url,
           asset: { _ref: payloadReview.reviewImage.id, _type: "reference" },
         }
@@ -117,51 +38,53 @@ const mapPayloadReviewToSanityReview = (
   };
 };
 
-// GET ALL REVIEWS FOR A PRODUCT
+// ================================================================
+// 🚀 CACHED REVIEWS FETCHER (Edge Cache + On-Demand Revalidation)
+// ================================================================
+const getCachedReviewsForProduct = async (productId: string) => {
+  const cacheKey = `reviews-product-${productId}`;
+
+  return unstable_cache(
+    async () => {
+      try {
+        const payload = await getSafePayload();
+
+        const result = await payload.find({
+          collection: "reviews",
+          where: {
+            product: { equals: productId },
+            isApproved: { equals: true },
+          },
+          depth: 1,
+          sort: "-createdAt",
+        });
+
+        return result.docs.map(mapPayloadReviewToSanityReview) as ProductReview[];
+      } catch (error) {
+        // ✅ ENTERPRISE FIX: Graceful failure — return empty array if reviews fail
+        console.error(`⚠️ Failed to fetch reviews for product ${productId}:`, error);
+        return [];
+      }
+    },
+    [cacheKey],
+    {
+      tags: [`reviews-product-${productId}`],
+      revalidate: false, // ✅ Only on-demand via revalidateTag
+    }
+  )();
+};
+
+// ================================================================
+// 🚀 MAIN EXPORT (with caching + graceful failure)
+// ================================================================
 export const getPayloadReviewsForProduct = async (
   productId: string,
 ): Promise<ProductReview[]> => {
-  const payload = await getPayload({ config: configPromise });
-
-  const result = await payload.find({
-    collection: "reviews",
-    where: {
-      product: {
-        equals: productId,
-      },
-      isApproved: {
-        equals: true,
-      },
-    },
-    depth: 1,
-    sort: "-createdAt",
-  });
-
-  return result.docs.map(mapPayloadReviewToSanityReview) as ProductReview[];
-};
-
-// TODO: Pagination ke liye future mein ye functions update honge
-export const getPayloadPaginatedReviews = async (
-  productId: string,
-  page: number,
-  limit: number,
-): Promise<{ reviews: ProductReview[]; totalDocs: number }> => {
-  const payload = await getPayload({ config: configPromise });
-
-  const result = await payload.find({
-    collection: "reviews",
-    where: {
-      product: { equals: productId },
-      isApproved: { equals: true },
-    },
-    depth: 1,
-    sort: "-createdAt",
-    page: page,
-    limit: limit,
-  });
-
-  return {
-    reviews: result.docs.map(mapPayloadReviewToSanityReview) as ProductReview[],
-    totalDocs: result.totalDocs,
-  };
+  try {
+    return await getCachedReviewsForProduct(productId);
+  } catch (error) {
+    // ✅ ULTIMATE SAFETY NET: Agar kuch bhi fail ho, toh empty array return karo
+    console.error(`⚠️ CRITICAL: Failed to get reviews for product ${productId}:`, error);
+    return [];
+  }
 };

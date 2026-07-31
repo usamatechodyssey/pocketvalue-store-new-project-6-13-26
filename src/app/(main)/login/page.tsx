@@ -3,7 +3,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react"; // <-- Naya Import
 import { Loader2 } from "lucide-react"; // <-- Naya Import
-import LoginClient from "./LoginClient";
+import LoginClient from "../../features/storefront/auth/components/LoginClient";
 
 export const metadata: Metadata = {
   title: "Login | PocketValue",

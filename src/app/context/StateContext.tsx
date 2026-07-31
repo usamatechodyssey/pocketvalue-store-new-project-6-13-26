@@ -2,9 +2,9 @@
 "use client";
 
 import { createContext, useContext, ReactNode, useState, useMemo, useCallback } from "react";
-import { useCart } from "./hooks/useCart";
-import { useWishlist } from "./hooks/useWishlist";
-import { useCheckout } from "./hooks/useCheckout";
+import { useCart } from "../features/storefront/cart-checkout/hooks/useCart";
+import { useWishlist } from "../features/storefront/customer-account/hooks/useWishlist";
+import { useCheckout } from "../features/storefront/cart-checkout/hooks/useCheckout";
 
 type StateContextType = ReturnType<typeof useCart> &
   ReturnType<typeof useWishlist> &

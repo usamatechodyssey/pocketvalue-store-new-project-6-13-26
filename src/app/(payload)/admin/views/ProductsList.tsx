@@ -1,8 +1,8 @@
 import { Suspense } from 'react';
 import { DefaultTemplate } from '@payloadcms/next/templates';
-import { getPaginatedAdminProductsPayload } from "@/app/actions/payloadProductExplorerActions";
-import ProductsClientPage from "@/app/components/payload-products/ProductsClientPage"; 
-import ProductsLoadingSkeleton from "@/app/components/payload-products/ProductsLoadingSkeleton"; 
+import { getPaginatedAdminProductsPayload } from "@/app/features/admin/inventory-cms/actions/payloadProductExplorerActions";
+import ProductsClientPage from "@/app/features/admin/inventory-cms/components/payload-products/ProductsClientPage"; 
+import ProductsLoadingSkeleton from "@/app/features/admin/inventory-cms/components/payload-products/ProductsLoadingSkeleton"; 
 
 async function ProductsListFetcher({ searchParams }: { searchParams: any }) {
   const page = Number(searchParams?.page) || 1;

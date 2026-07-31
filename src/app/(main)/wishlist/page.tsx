@@ -1,17 +1,19 @@
-// /src/app/wishlist/page.tsx
 import type { Metadata } from "next";
-import WishlistClientPage from "./_components/WishlistClientPage";
+import WishlistClientPage from "../../features/storefront/customer-account/components/WishlistClientPage";
 
-// 🔥 SEO: Wishlist pages should NOT be indexed by Google
+// ✅ Centralized Settings Cache
+import { getCachedSettings } from "@/app/shared/lib/cache/settings";
+
 export const metadata: Metadata = {
   title: "My Wishlist | PocketValue",
   description: "View and manage your saved items.",
-  robots: {
-    index: false,
-    follow: false,
-  },
+  robots: { index: false, follow: false },
 };
 
-export default function WishlistPage() {
-  return <WishlistClientPage />;
+export default async function WishlistPage() {
+  // ✅ Using centralized cached settings (Redis already handles caching)
+  const settings = await getCachedSettings();
+  const lowStockThreshold = settings.inventorySettings?.lowStockThreshold || 5;
+
+  return <WishlistClientPage lowStockThreshold={lowStockThreshold} />;
 }

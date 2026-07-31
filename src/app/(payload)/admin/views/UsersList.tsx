@@ -1,8 +1,12 @@
-import  { Suspense } from 'react';
+
+// src/app/(payload)/admin/views/UsersList.tsx
+
+import { Suspense } from 'react';
 import { DefaultTemplate } from '@payloadcms/next/templates';
-import { getPaginatedUsersPayload } from "@/app/actions/payloadUserAdminActions";
-import UsersClientPage from "@/app/components/payload-users/UsersClientPage"; 
-import UsersLoadingSkeleton from "@/app/components/payload-users/UsersLoadingSkeleton"; 
+// ✅ NEW: Mapped to the new decoupled customer actions helper
+import { getPaginatedUsersPayload } from "@/app/features/admin/inventory-cms/actions/payloadCustomerActions";
+import UsersClientPage from "@/app/features/admin/inventory-cms/components/payload-users/UsersClientPage"; 
+import UsersLoadingSkeleton from "@/app/features/admin/inventory-cms/components/payload-users/UsersLoadingSkeleton"; 
 
 async function UsersFetcher({ searchParamsPromise }: { searchParamsPromise: any }) {
   const searchParams = await searchParamsPromise;

@@ -5,17 +5,17 @@ import { auth } from "@/app/auth";
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-import connectMongoose from "@/app/lib/mongoose";
+import connectMongoose from "@/app/shared/lib/checkout/mongoose";
 import Order, { IOrder } from "@/models/Order";
-import { ClientOrder } from "@/app/actions/orderActions";
+import { ClientOrder } from "@/models/Order";
 
-import StatusTimeline from "./_components/StatusTimeline";
-import OrderItemsList from "./_components/OrderItemsList";
+import StatusTimeline from "../../../../features/storefront/customer-account/components/orders/StatusTimeline";
+import OrderItemsList from "../../../../features/storefront/customer-account/components/orders/OrderItemsList";
 import {
   ShippingAddressCard,
   PaymentDetailsCard,
-} from "./_components/OrderInfoCards";
-import OrderActions from "./_components/OrderActions";
+} from "../../../../features/storefront/customer-account/components/orders/OrderInfoCards";
+import OrderActions from "@/app/features/storefront/customer-account/components/orders/OrderActions";
 
 // This function returns a plain, safe ClientOrder object
 async function getSingleUserOrder(

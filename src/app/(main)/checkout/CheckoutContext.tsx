@@ -3,7 +3,7 @@
 "use client";
 
 import { createContext, useContext, ReactNode } from "react";
-import { ClientAddress } from "@/app/actions/addressActions";
+import { ClientAddress } from "@/app/features/storefront/cart-checkout/actions/addressActions";
 
 // Defines the shape of the data that this context will provide.
 interface CheckoutContextType {

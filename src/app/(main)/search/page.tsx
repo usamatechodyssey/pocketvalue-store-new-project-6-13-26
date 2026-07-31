@@ -1,439 +1,85 @@
-// // // /src/app/search/page.tsx
+// src/app/(main)/search/page.tsx
+// ================================================================
+// 🔍 ENTERPRISE SEARCH PAGE ENGINE (UPGRADED — FINAL)
+// ================================================================
+// This file handles search pages with:
+// ✅ ISR + Edge caching with on-demand revalidation
+// ✅ SearchResultsPage Schema with @id and ItemList (#39)
+// ✅ Content freshness signals in metadata (#23)
+// ✅ Entity linking for AI overviews (#39)
+// ✅ Visual Search + Text Search support
+// ✅ NoIndex for search results (#5)
+// ================================================================
 
-// // import { Suspense } from "react";
-// // import {
-// //   GET_FILTER_DATA_FOR_PLP,
-// //   searchProducts,
-// //   getBreadcrumbs,
-// // } from "@/sanity/lib/queries";
-// // import ProductListingClient from "@/app/components/category/ProductListingClient";
-// // import { Search, Loader2 } from "lucide-react";
-// // import { generateBaseMetadata } from "@/utils/metadata";
-// // import type { Metadata } from "next";
-// // import Breadcrumbs from "@/app/components/ui/Breadcrumbs";
-
-// // type SearchPageProps = {
-// //   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
-// // };
-
-// // export async function generateMetadata({
-// //   searchParams: searchParamsPromise,
-// // }: SearchPageProps): Promise<Metadata> {
-// //   const searchParams = await searchParamsPromise;
-// //   const q = (searchParams?.q as string) || "";
-// //   const sort = (searchParams?.sort as string) || "best-match";
-// //   const filter = (searchParams?.filter as string) || "";
-// //   const isFeatured = filter === "isFeatured";
-
-// //   let title = "Search Results";
-// //   let description = "Find the best products on PocketValue.";
-
-// //   if (q) {
-// //     title = `Results for "${q}"`;
-// //     description = `Search results for "${q}" on PocketValue. Find deals on a wide range of products.`;
-// //   } else if (sort === "newest") {
-// //     title = "New Arrivals";
-// //     description = "Check out the latest products to arrive at PocketValue.";
-// //   } else if (sort === "best-selling") {
-// //     title = "Best Sellers";
-// //     description = "Discover our most popular and best-selling products.";
-// //   } else if (isFeatured) {
-// //     title = "Featured Products";
-// //     description = "Shop our curated collection of featured products.";
-// //   }
-
-// //   const baseMetadata = await generateBaseMetadata({
-// //     title,
-// //     description,
-// //     path: "/search",
-// //   });
-
-// //   if (q) {
-// //     baseMetadata.robots = {
-// //       index: false,
-// //       follow: true,
-// //     };
-// //   }
-
-// //   return baseMetadata;
-// // }
-
-// // export default function SearchPage({ searchParams }: SearchPageProps) {
-// //   return (
-// //     <Suspense fallback={<SearchPageSkeleton />}>
-// //       <SearchResults searchParamsPromise={searchParams} />
-// //     </Suspense>
-// //   );
-// // }
-
-// // async function SearchResults({
-// //   searchParamsPromise,
-// // }: {
-// //   searchParamsPromise: SearchPageProps["searchParams"];
-// // }) {
-// //   const searchParams = await searchParamsPromise;
-// //   const q = (searchParams?.q as string) || "";
-// //   const sort = (searchParams?.sort as string) || "best-match";
-// //   const filter = (searchParams?.filter as string) || "";
-// //   const isFeatured = filter === "isFeatured";
-
-// //   const filtersForSearch = { isFeatured: isFeatured };
-
-// //   const [initialData, filterData, breadcrumbs] = await Promise.all([
-// //     searchProducts({
-// //       searchTerm: q,
-// //       sortOrder: sort,
-// //       filters: filtersForSearch,
-// //       page: 1,
-// //     }),
-// //     GET_FILTER_DATA_FOR_PLP({
-// //       searchTerm: q,
-// //       sortOrder: sort,
-// //       isFeatured: isFeatured,
-// //     }),
-// //     getBreadcrumbs("search"),
-// //   ]);
-
-// //   const { products: initialProducts, totalCount } = initialData;
-
-// //   let title = "Search Results";
-// //   if (!q && sort === "newest") title = "New Arrivals";
-// //   if (!q && sort === "best-selling") title = "Best Sellers";
-// //   if (!q && isFeatured) title = "Featured Products";
-
-// //   const finalFilterData = filterData || {
-// //     brands: [],
-// //     attributes: [],
-// //     priceRange: { min: 0, max: 0 },
-// //   };
-
-// //   return (
-// //     <main className="w-full bg-gray-50 dark:bg-gray-950 px-2 md:px-8 py-8 md:py-12">
-// //       <div className="max-w-480 mx-auto">
-// //         <div className="mb-6 md:mb-8">
-// //           <Breadcrumbs crumbs={breadcrumbs} />
-// //           <h1 className="text-3xl md:text-4xl font-bold text-gray-800 dark:text-gray-100 mt-2">
-// //             {title}
-// //           </h1>
-// //           {q && (
-// //             <p className="text-gray-600 dark:text-gray-400 mt-2">
-// //               Showing results for:{" "}
-// //               {/* ✅ FIX: Replaced " with &quot; */}
-// //               <span className="font-semibold text-brand-primary">
-// //                 &quot;{q}&quot;
-// //               </span>
-// //             </p>
-// //           )}
-// //         </div>
-
-// //         {initialProducts && initialProducts.length > 0 ? (
-// //           <ProductListingClient
-// //             key={q}
-// //             initialProducts={initialProducts}
-// //             filterData={finalFilterData}
-// //             totalCount={totalCount || 0}
-// //             context={{
-// //               type: "search",
-// //               value: q,
-// //               sort: sort,
-// //               filter: filter,
-// //             }}
-// //           />
-// //         ) : (
-// //           <div className="text-center py-20 bg-white dark:bg-gray-800 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-700">
-// //             <Search size={48} className="mx-auto text-gray-400" />
-// //             <h3 className="mt-4 text-xl font-semibold text-gray-800 dark:text-gray-200">
-// //               No Products Found
-// //             </h3>
-// //             <p className="text-gray-600 dark:text-gray-400 mt-2">
-// //               {/* ✅ FIX: Replaced ' with &apos; */}
-// //               We couldn&apos;t find anything matching your criteria. Try a
-// //               different search or filter.
-// //             </p>
-// //           </div>
-// //         )}
-// //       </div>
-// //     </main>
-// //   );
-// // }
-
-// // function SearchPageSkeleton() {
-// //   return (
-// //     <main className="w-full bg-gray-50 dark:bg-gray-900 px-4 sm:px-6 lg:px-8 py-8 md:py-12">
-// //       <div className="max-w-full mx-auto">
-// //         <div className="mb-6 md:mb-8">
-// //           <div className="h-10 bg-gray-200 rounded w-1/3 dark:bg-gray-700 animate-pulse"></div>
-// //           <div className="h-4 bg-gray-200 rounded w-1/4 mt-4 dark:bg-gray-700 animate-pulse"></div>
-// //         </div>
-// //         <div className="flex justify-center items-center h-[50vh] text-center">
-// //           <div>
-// //             <Loader2 className="w-12 h-12 mx-auto animate-spin text-brand-primary" />
-// //             <p className="mt-4 text-lg text-gray-500 dark:text-gray-400">
-// //               Loading results...
-// //             </p>
-// //           </div>
-// //         </div>
-// //       </div>
-// //     </main>
-// //   );
-// // }
-// // /src/app/search/page.tsx
-
-// import { Suspense } from "react";
-// // 🛑 OLD SANITY IMPORTS
-// /*
-// import {
-//   GET_FILTER_DATA_FOR_PLP,
-//   searchProducts,
-//   getBreadcrumbs,
-// } from "@/sanity/lib/queries";
-// */
-
-// // ✅ NEW PAYLOAD IMPORTS
-// import { getPayloadProducts } from "@/sanity/lib/payload/plp";
-// import { getPayloadBreadcrumbs } from "@/sanity/lib/payload/category.queries";
-// import { SanityBrand } from "@/sanity/types/product_types"; // Typescript ke liye
-
-// import ProductListingClient from "@/app/components/category/ProductListingClient";
-// import { Search, Loader2 } from "lucide-react";
-// import { generateBaseMetadata } from "@/utils/metadata";
-// import type { Metadata } from "next";
-// import Breadcrumbs from "@/app/components/ui/Breadcrumbs";
-
-// type SearchPageProps = {
-//   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
-// };
-
-// export async function generateMetadata({
-//   searchParams: searchParamsPromise,
-// }: SearchPageProps): Promise<Metadata> {
-//   const searchParams = await searchParamsPromise;
-//   const q = (searchParams?.q as string) || "";
-//   const sort = (searchParams?.sort as string) || "best-match";
-//   const filter = (searchParams?.filter as string) || "";
-//   const isFeatured = filter === "isFeatured";
-
-//   let title = "Search Results";
-//   let description = "Find the best products on PocketValue.";
-
-//   if (q) {
-//     title = `Results for "${q}"`;
-//     description = `Search results for "${q}" on PocketValue. Find deals on a wide range of products.`;
-//   } else if (sort === "newest") {
-//     title = "New Arrivals";
-//     description = "Check out the latest products to arrive at PocketValue.";
-//   } else if (sort === "best-selling") {
-//     title = "Best Sellers";
-//     description = "Discover our most popular and best-selling products.";
-//   } else if (isFeatured) {
-//     title = "Featured Products";
-//     description = "Shop our curated collection of featured products.";
-//   }
-
-//   const baseMetadata = await generateBaseMetadata({
-//     title,
-//     description,
-//     path: "/search",
-//   });
-
-//   if (q) {
-//     baseMetadata.robots = {
-//       index: false,
-//       follow: true,
-//     };
-//   }
-
-//   return baseMetadata;
-// }
-
-// export default function SearchPage({ searchParams }: SearchPageProps) {
-//   return (
-//     <Suspense fallback={<SearchPageSkeleton />}>
-//       <SearchResults searchParamsPromise={searchParams} />
-//     </Suspense>
-//   );
-// }
-
-// async function SearchResults({
-//   searchParamsPromise,
-// }: {
-//   searchParamsPromise: SearchPageProps["searchParams"];
-// }) {
-//   const searchParams = await searchParamsPromise;
-//   const q = (searchParams?.q as string) || "";
-//   const sort = (searchParams?.sort as string) || "best-match";
-//   const filter = (searchParams?.filter as string) || "";
-//   const isFeatured = filter === "isFeatured";
-
-//   const filtersForSearch = { isFeatured: isFeatured };
-
-//   // 🔥 SWITCH: Sanity se Payload Queries par shift
-//   const [productData, breadcrumbs] = await Promise.all([
-//     getPayloadProducts({
-//       searchTerm: q,
-//       sortOrder: sort,
-//       filters: filtersForSearch,
-//       page: 1,
-//     }),
-//     // breadcrumbs bhi Payload se aayenge
-//     getPayloadBreadcrumbs("search"),
-//   ]);
-
-//   const { products: initialProducts, totalCount } = productData;
-
-//   // 🔥 LOGIC: Filters (Brands/Price) ko products se calculate karna
-//   // (Ye pehle GROQ query mein hota tha, ab hum JS mein kar rahe hain)
-//   const brandMap = new Map();
-//   let minPrice = Infinity;
-//   let maxPrice = 0;
-//   const attributes: any[] = [];
-
-//   initialProducts.forEach((p: any) => {
-//     // Brands Logic
-//     if (p.brand && p.brand._id) {
-//         brandMap.set(p.brand._id, p.brand);
-//     }
-//     // Price Logic
-//     p.variants?.forEach((v: any) => {
-//       if (v.price < minPrice) minPrice = v.price;
-//       if (v.price > maxPrice) maxPrice = v.price;
-//       // Attributes Logic
-//       v.attributes?.forEach((attr: any) => {
-//          attributes.push({ name: attr.name, value: attr.value });
-//       });
-//     });
-//   });
-
-//   if (minPrice === Infinity) minPrice = 0;
-//   const brands = Array.from(brandMap.values()) as SanityBrand[];
-
-//   const finalFilterData = {
-//     brands,
-//     attributes,
-//     priceRange: { min: minPrice, max: maxPrice },
-//   };
-
-//   // Title Logic
-//   let title = "Search Results";
-//   if (!q && sort === "newest") title = "New Arrivals";
-//   if (!q && sort === "best-selling") title = "Best Sellers";
-//   if (!q && isFeatured) title = "Featured Products";
-
-//   return (
-//     <main className="w-full bg-gray-50 dark:bg-gray-950 px-2 md:px-8 py-8 md:py-12">
-//       <div className="max-w-480 mx-auto">
-//         <div className="mb-6 md:mb-8">
-//           <Breadcrumbs crumbs={breadcrumbs} />
-//           <h1 className="text-3xl md:text-4xl font-bold text-gray-800 dark:text-gray-100 mt-2">
-//             {title}
-//           </h1>
-//           {q && (
-//             <p className="text-gray-600 dark:text-gray-400 mt-2">
-//               Showing results for:{" "}
-//               {/* ✅ FIX: Replaced " with &quot; */}
-//               <span className="font-semibold text-brand-primary">
-//                 &quot;{q}&quot;
-//               </span>
-//             </p>
-//           )}
-//         </div>
-
-//         {initialProducts && initialProducts.length > 0 ? (
-//           <ProductListingClient
-//             key={q}
-//             initialProducts={initialProducts}
-//             filterData={finalFilterData}
-//             totalCount={totalCount || 0}
-//             context={{
-//               type: "search",
-//               value: q,
-//               sort: sort,
-//               filter: filter,
-//             }}
-//           />
-//         ) : (
-//           <div className="text-center py-20 bg-white dark:bg-gray-800 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-700">
-//             <Search size={48} className="mx-auto text-gray-400" />
-//             <h3 className="mt-4 text-xl font-semibold text-gray-800 dark:text-gray-200">
-//               No Products Found
-//             </h3>
-//             <p className="text-gray-600 dark:text-gray-400 mt-2">
-//               {/* ✅ FIX: Replaced ' with &apos; */}
-//               We couldn&apos;t find anything matching your criteria. Try a
-//               different search or filter.
-//             </p>
-//           </div>
-//         )}
-//       </div>
-//     </main>
-//   );
-// }
-
-// function SearchPageSkeleton() {
-//   return (
-//     <main className="w-full bg-gray-50 dark:bg-gray-900 px-4 sm:px-6 lg:px-8 py-8 md:py-12">
-//       <div className="max-w-full mx-auto">
-//         <div className="mb-6 md:mb-8">
-//           <div className="h-10 bg-gray-200 rounded w-1/3 dark:bg-gray-700 animate-pulse"></div>
-//           <div className="h-4 bg-gray-200 rounded w-1/4 mt-4 dark:bg-gray-700 animate-pulse"></div>
-//         </div>
-//         <div className="flex justify-center items-center h-[50vh] text-center">
-//           <div>
-//             <Loader2 className="w-12 h-12 mx-auto animate-spin text-brand-primary" />
-//             <p className="mt-4 text-lg text-gray-500 dark:text-gray-400">
-//               Loading results...
-//             </p>
-//           </div>
-//         </div>
-//       </div>
-//     </main>
-//   );
-// }
-// src/app/search/page.tsx
-import { Suspense, cache } from "react";
+import { Suspense } from "react";
+import { unstable_cache } from "next/cache";
 import { getPayloadProductsBySlugs } from "@/sanity/lib/payload/product.queries";
 import { getPayloadProducts } from "@/sanity/lib/payload/plp";
 import { getPayloadBreadcrumbs } from "@/sanity/lib/payload/category.queries";
-import ProductListingClient from "@/app/components/category/ProductListingClient";
+import ProductListingClient from "@/app/features/storefront/catalog/components/category/ProductListingClient";
 import { Search, Loader2 } from "lucide-react";
+import Link from "next/link";
 import { generateBaseMetadata } from "@/utils/metadata";
 import type { Metadata } from "next";
-import Breadcrumbs from "@/app/components/ui/Breadcrumbs";
+import Breadcrumbs from "@/app/shared/components/ui/Breadcrumbs";
+import { logUserEvent } from "@/app/features/admin/analytics-telemetry/action/trackingActions";
+
+// ✅ Centralized Settings Cache
+import { getCachedSettings } from "@/app/shared/lib/cache/settings";
 
 type SearchPageProps = {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 };
 
-// 🔥 CACHED DATA FETCHER
-const getCachedSearchResults = cache(
-  async (query: string, slugs: string[], sort: string, page: number) => {
-    // Case A: Visual Search Results (By Slugs)
-    if (slugs.length > 0) {
-      const products = await getPayloadProductsBySlugs(slugs);
+// =========================================================================
+// 🔥 CACHED SEARCH RESULTS (Edge Caching + On-Demand Revalidation)
+// =========================================================================
+const getCachedSearchResults = async (
+  query: string,
+  slugs: string[],
+  sort: string,
+  page: number
+) => {
+  const cacheKey = `search-${query}-${slugs.join("-")}-${sort}-${page}`;
+
+  return unstable_cache(
+    async () => {
+      // Case A: Visual Search Results (By Slugs)
+      if (slugs.length > 0) {
+        const products = await getPayloadProductsBySlugs(slugs);
+        return {
+          products,
+          totalCount: products.length,
+          filterData: null,
+          title: "Visual Search Results",
+        };
+      }
+
+      // Case B: Regular Text Search
+      const productData = await getPayloadProducts({
+        searchTerm: query,
+        sortOrder: sort,
+        page: page,
+      });
+
       return {
-        products,
-        totalCount: products.length,
-        filterData: null, // Visual search par filters hide rakhte hain specificity ke liye
-        title: "Visual Search Results",
+        products: productData.products,
+        totalCount: productData.totalCount,
+        filterData: productData.filterData,
+        title: query ? `Results for "${query}"` : "Explore Products",
       };
+    },
+    [cacheKey],
+    {
+      tags: [`search-${query || "empty"}`],
+      revalidate: false,
     }
+  )();
+};
 
-    // Case B: Regular Text Search
-    const productData = await getPayloadProducts({
-      searchTerm: query,
-      sortOrder: sort,
-      page: page,
-    });
-
-    return {
-      products: productData.products,
-      totalCount: productData.totalCount,
-      filterData: productData.filterData, // 🔥 Now using engine's global filter data
-      title: query ? `Results for "${query}"` : "Explore Products",
-    };
-  },
-);
-
+// =========================================================================
+// 🔥 METADATA (Enhanced with freshness signals)
+// =========================================================================
 export async function generateMetadata({
   searchParams: sp,
 }: SearchPageProps): Promise<Metadata> {
@@ -444,6 +90,8 @@ export async function generateMetadata({
       ? searchParams.slugs.split(",")
       : [];
 
+  const now = new Date().toISOString();
+
   const baseMetadata = await generateBaseMetadata({
     title: q
       ? `Search: ${q}`
@@ -452,8 +100,15 @@ export async function generateMetadata({
         : "Search Results",
     description: "Find the best deals on PocketValue.",
     path: "/search",
+    // ✅ Point #23: Content Freshness
+    publishedTime: now,
+    modifiedTime: now,
+    // ✅ Point #80: Author/Publisher signals
+    author: "PocketValue Team",
+    section: "Search",
   });
 
+  // ✅ Point #5: NoIndex for search pages
   baseMetadata.robots = { index: false, follow: true };
   return baseMetadata;
 }
@@ -480,6 +135,11 @@ async function SearchResultsContainer({
       ? searchParams.slugs.split(",")
       : [];
 
+  const trigger = (searchParams?.trigger as string) || "manual";
+
+  const settings = await getCachedSettings();
+  const lowStockThreshold = settings.inventorySettings?.lowStockThreshold || 5;
+
   const [data, breadcrumbs] = await Promise.all([
     getCachedSearchResults(q, slugs, sort, page),
     getPayloadBreadcrumbs("search"),
@@ -489,14 +149,31 @@ async function SearchResultsContainer({
   const siteUrl =
     process.env.NEXT_PUBLIC_BASE_URL || "https://www.pocketvalue.pk";
 
-  // SEO Schema
+  // =================================================================
+  // 🚀 SERVER-SIDE SEARCH TELEMETRY
+  // =================================================================
+  if (q) {
+    await logUserEvent("search", "/search", {
+      search_term: q,
+      result_count: totalCount,
+      trigger_source: trigger,
+    });
+  }
+
+  // ================================================================
+  // 🔥 SEO: SearchResultsPage Schema (Enhanced with @id)
+  // ================================================================
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "SearchResultsPage",
+    "@id": `${siteUrl}/search/#searchresults`, // ✅ Point #39: Entity linking
+    // ✅ Point #98: Language signal
+    inLanguage: "en-US",
     mainEntity: {
       "@type": "ItemList",
+      "@id": `${siteUrl}/search/#itemlist`,
       numberOfItems: totalCount,
-      itemListElement: products.slice(0, 10).map((p, i) => ({
+      itemListElement: products.slice(0, 10).map((p: { slug: string }, i: number) => ({
         "@type": "ListItem",
         position: i + 1,
         url: `${siteUrl}/product/${p.slug}`,
@@ -515,10 +192,9 @@ async function SearchResultsContainer({
           <Breadcrumbs crumbs={breadcrumbs} />
           <h1 className="text-3xl md:text-4xl font-bold mt-4">{title}</h1>
         </div>
-
         {products.length > 0 ? (
           <ProductListingClient
-            key={`${q}-${slugs.join("")}`}
+            key={`${q}-${slugs.join("")}-${page}`}
             initialProducts={products}
             filterData={
               filterData || {
@@ -529,14 +205,22 @@ async function SearchResultsContainer({
             }
             totalCount={totalCount}
             context={{ type: "search", value: q }}
+            lowStockThreshold={lowStockThreshold}
           />
         ) : (
-          <div className="text-center py-32 bg-white dark:bg-gray-900 rounded-2xl border-2 border-dashed border-gray-200">
-            <Search size={48} className="mx-auto text-gray-300 mb-4" />
+          <div className="text-center py-24 bg-white dark:bg-gray-900 rounded-2xl border-2 border-dashed border-gray-200 dark:border-gray-800">
+            <Search size={48} className="mx-auto text-gray-300 mb-4" aria-hidden="true" />
             <h3 className="text-xl font-bold">No Products Found</h3>
-            <p className="text-gray-500">
-              Try a different keyword or check your spelling.
+            <p className="text-gray-500 max-w-sm mx-auto text-sm mt-1">
+              Try checking your spelling, or request this product directly from
+              our procurement team.
             </p>
+            <Link
+              href={`/request-product?q=${encodeURIComponent(q)}`}
+              className="inline-flex items-center gap-2 mt-6 px-6 py-3 bg-brand-primary text-white text-sm font-bold rounded-xl shadow-lg hover:bg-brand-primary-hover active:scale-95 transition-all"
+            >
+              Request This Product
+            </Link>
           </div>
         )}
       </div>
@@ -547,7 +231,7 @@ async function SearchResultsContainer({
 function SearchPageSkeleton() {
   return (
     <div className="w-full h-screen flex flex-col items-center justify-center bg-gray-50">
-      <Loader2 className="w-10 h-10 animate-spin text-brand-primary mb-4" />
+      <Loader2 className="w-10 h-10 animate-spin text-brand-primary mb-4" aria-hidden="true" />
       <p className="text-gray-500 font-medium">Searching our warehouse...</p>
     </div>
   );

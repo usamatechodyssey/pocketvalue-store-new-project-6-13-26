@@ -1,248 +1,32 @@
-// // src/app/(main)/product/[slug]/page.tsx
-// import { notFound } from "next/navigation";
-// import ProductSectionWithBanner from "@/app/components/home/ProductCarousel";
-// import ProductClientManager from "@/app/components/product/ProductClientManager";
-// import Breadcrumbs from "@/app/components/ui/Breadcrumbs";
-// import { portableTextToString } from "@/utils/portableTextToString";
-// import { urlFor } from "@/sanity/lib/image";
-// import { generateBaseMetadata } from "@/utils/metadata";
-// import { Metadata } from "next";
-// import SanityProduct from "@/sanity/types/product_types"; // Import type
-
-// // --- 🛑 OLD SANITY IMPORTS (Commented) ---
-// /*
-// import {
-//   getSingleProduct,
-//   getRelatedProducts,
-//   getBreadcrumbs,
-// } from "@/sanity/lib/queries";
-// */
-
-// // --- ✅ NEW PAYLOAD IMPORTS ---
-// import {
-//   getPayloadSingleProduct,
-//   getPayloadRelatedProducts, // Related products ke liye alag function bana rahe hain jo categoryIds ke basis pe fetch karega
-// } from "@/sanity/lib/payload/product.queries";
-// import { getPayloadBreadcrumbs } from "@/sanity/lib/payload/category.queries";
-
-// export const dynamic = "force-dynamic";
-
-// type ProductDetailPageProps = {
-//   params: Promise<{ slug: string }>;
-// };
-
-// // 🔥 LOCAL FIX: TypeScript ko shant karne ke liye
-// // Hum bata rahe hain ke Product mein SEO field bhi ho sakti hai
-// interface ProductWithSEO extends SanityProduct {
-//   seo?: {
-//     metaTitle?: string;
-//     metaDescription?: string;
-//     ogImage?: any;
-//   };
-// }
-
-// // =====================================================
-// // 🔥 METADATA GENERATION
-// // =====================================================
-// export async function generateMetadata({
-//   params: paramsPromise,
-// }: ProductDetailPageProps): Promise<Metadata> {
-//   const { slug } = await paramsPromise;
-
-//   // ✅ Fetch & Cast (Is 'as' ki waja se error khatam ho jayega)
-//   const rawProduct = await getPayloadSingleProduct(slug);
-//   const product = rawProduct as ProductWithSEO | null;
-
-//   if (!product) {
-//     return {};
-//   }
-
-//   const title = product.seo?.metaTitle || product.title;
-//   const description =
-//     product.seo?.metaDescription ||
-//     (product.description
-//       ? portableTextToString(product.description).substring(0, 160)
-//       : "");
-
-//   const rawImage = product.seo?.ogImage || product.defaultVariant?.images?.[0];
-//   const imageUrlString = rawImage
-//     ? urlFor(rawImage).width(1200).height(630).url()
-//     : "";
-
-//   const price =
-//     product.defaultVariant?.salePrice || product.defaultVariant?.price || 0;
-//   const brand = product.brand?.name || "PocketValue";
-
-//   const ogEndpoint = `${process.env.NEXT_PUBLIC_BASE_URL || "https://www.pocketvalue.pk"}/api/og`;
-//   const ogUrl = new URL(ogEndpoint);
-
-//   ogUrl.searchParams.set("title", title);
-//   ogUrl.searchParams.set("price", price.toLocaleString());
-//   ogUrl.searchParams.set("brand", brand);
-//   if (imageUrlString) ogUrl.searchParams.set("image", imageUrlString);
-
-//   const baseMetadata = await generateBaseMetadata({
-//     title,
-//     description,
-//     image: rawImage,
-//     path: `/product/${product.slug}`,
-//   });
-
-//   return {
-//     ...baseMetadata,
-//     openGraph: {
-//       ...baseMetadata.openGraph,
-//       title: title,
-//       description: description,
-//       images: [
-//         {
-//           url: ogUrl.toString(),
-//           width: 1200,
-//           height: 630,
-//           alt: title,
-//         },
-//       ],
-//     },
-//     twitter: {
-//       ...baseMetadata.twitter,
-//       card: "summary_large_image",
-//       images: [ogUrl.toString()],
-//     },
-//   };
-// }
-
-// // =====================================================
-// // 🛒 PRODUCT PAGE COMPONENT
-// // =====================================================
-// export default async function ProductDetailPage({
-//   params: paramsPromise,
-// }: ProductDetailPageProps) {
-//   const { slug } = await paramsPromise;
-
-//   // ✅ Fetch & Cast
-//   const rawProduct = await getPayloadSingleProduct(slug);
-//   const product = rawProduct as ProductWithSEO | null;
-
-//   if (!product) {
-//     notFound();
-//   }
-
-//   const [relatedProducts, breadcrumbs] = await Promise.all([
-//     getPayloadRelatedProducts(product._id, product.categoryIds || []),
-//     getPayloadBreadcrumbs("product", slug),
-//   ]);
-//   const jsonLd = {
-//     "@context": "https://schema.org/",
-//     "@type": "Product",
-//     name: product.title,
-//     description: portableTextToString(product.description),
-//     image: product.defaultVariant?.images?.[0]
-//       ? urlFor(product.defaultVariant.images[0]).url()
-//       : "",
-//     sku: product.defaultVariant?.sku || product._id,
-
-//     // 🏷️ Brand with Logo (Fixed)
-//     brand: {
-//       "@type": "Brand",
-//       name: product.brand?.name || "PocketValue",
-//       ...(product.brand?.logo && {
-//         logo: urlFor(product.brand.logo).url(),
-//       }),
-//     },
-
-//     // 🍞 BREADCRUMBS SCHEMA (New Addition)
-//     // Isse Google Search mein "Home > Category > Product" wala path dikhega
-//     breadcrumb: {
-//       "@type": "BreadcrumbList",
-//       itemListElement: breadcrumbs.map((crumb, index) => ({
-//         "@type": "ListItem",
-//         position: index + 1,
-//         name: crumb.name,
-//         item: `${process.env.NEXT_PUBLIC_BASE_URL || "https://www.pocketvalue.pk"}${crumb.href.startsWith("/") ? crumb.href : "/" + crumb.href}`,
-//       })),
-//     },
-
-//     // ⭐ Reviews Schema
-//     ...(product.reviewCount &&
-//       product.reviewCount > 0 && {
-//         aggregateRating: {
-//           "@type": "AggregateRating",
-//           ratingValue: product.rating?.toFixed(1) || "5",
-//           reviewCount: product.reviewCount,
-//         },
-//       }),
-
-//     // 💰 Pricing & Availability Schema
-//     offers: {
-//       "@type": "Offer",
-//       priceCurrency: "PKR",
-//       price: product.defaultVariant?.salePrice || product.defaultVariant?.price,
-//       availability: product.defaultVariant?.inStock
-//         ? "https://schema.org/InStock"
-//         : "https://schema.org/OutOfStock",
-//       url: `${process.env.NEXT_PUBLIC_BASE_URL || "https://www.pocketvalue.pk"}/product/${product.slug}`,
-//       priceValidUntil: new Date(
-//         new Date().setFullYear(new Date().getFullYear() + 1),
-//       )
-//         .toISOString()
-//         .split("T")[0], // Next year same date
-//     },
-
-//     // 🎥 Video Object for Rich Results
-//     ...(product.videoUrl && {
-//       subjectOf: {
-//         "@type": "VideoObject",
-//         name: `${product.title} - Official Video`,
-//         description: `Watch the features and demo of ${product.title} on PocketValue.`,
-//         thumbnailUrl: product.defaultVariant?.images?.[0]
-//           ? urlFor(product.defaultVariant.images[0]).url()
-//           : "",
-//         contentUrl: product.videoUrl,
-//         uploadDate: product._createdAt || new Date().toISOString(),
-//       },
-//     }),
-//   };
-//   return (
-//     <>
-//       <script
-//         type="application/ld+json"
-//         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-//       />
-
-//       <main className="w-full bg-gray-50 dark:bg-gray-950 pb-20">
-//         <div className="max-w-480 mx-auto px-4 md:px-8 py-8 md:py-12">
-//           <div className="mb-6 md:mb-8">
-//             <Breadcrumbs crumbs={breadcrumbs} />
-//           </div>
-
-//           <ProductClientManager product={product} />
-//         </div>
-
-//         {relatedProducts && relatedProducts.length > 0 && (
-//           <div className="w-full mt-10 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800">
-//             <ProductSectionWithBanner
-//               products={relatedProducts}
-//               title="You Might Also Like"
-//             />
-//           </div>
-//         )}
-//       </main>
-//     </>
-//   );
-// }
-
 // src/app/(main)/product/[slug]/page.tsx
+// ================================================================
+// 🛒 ENTERPRISE PRODUCT DETAIL PAGE ENGINE (UPGRADED — FINAL)
+// ================================================================
+// This file handles individual product pages with:
+// ✅ ISR + Edge caching with on-demand revalidation
+// ✅ ProductGroup + MerchantListing + VideoKeyMoments Schema (#38, #88, #134)
+// ✅ Content freshness signals in metadata (#23)
+// ✅ Entity linking for AI overviews (#39)
+// ✅ Dynamic OG images with sale price, rating, stock, video badge
+// ✅ Related products with low stock threshold
+// ================================================================
 
 import { notFound } from "next/navigation";
-import { cache } from "react"; // 🔥 Added for Deduplication
-import ProductSectionWithBanner from "@/app/components/home/ProductCarousel";
-import ProductClientManager from "@/app/components/product/ProductClientManager";
-import Breadcrumbs from "@/app/components/ui/Breadcrumbs";
-import { portableTextToString } from "@/utils/portableTextToString";
+import { unstable_cache } from "next/cache";
+import { Metadata } from "next";
+
+import ProductSectionWithBanner from "@/app/features/storefront/catalog/components/home/ProductCarousel";
+import ProductClientManager from "@/app/features/storefront/catalog/components/product/ProductClientManager";
+import Breadcrumbs from "@/app/shared/components/ui/Breadcrumbs";
 import { urlFor } from "@/sanity/lib/image";
 import { generateBaseMetadata } from "@/utils/metadata";
-import { Metadata } from "next";
-import SanityProduct from "@/sanity/types/product_types";
+
+
+// ✅ PAYLOAD IMPORTS
+import { getSafePayload } from "@/app/shared/lib/payloadInstance";
+
+// ✅ Centralized Settings Cache
+import { getCachedSettings } from "@/app/shared/lib/cache/settings";
 
 import {
   getPayloadSingleProduct,
@@ -250,167 +34,216 @@ import {
 } from "@/sanity/lib/payload/product.queries";
 import { getPayloadBreadcrumbs } from "@/sanity/lib/payload/category.queries";
 
-// 🔥 STEP 1: Deduplication Fix
-// Is se Metadata aur Page dono aik hi request share karenge
-const getProductCached = cache(async (slug: string) => {
-  return await getPayloadSingleProduct(slug);
-});
-
-export const dynamic = "force-dynamic";
+// ✅ Structured Data Utilities (#38, #88, #134)
+import { generateProductStructuredData } from "@/app/shared/lib/seo/structuredData";
 
 type ProductDetailPageProps = {
   params: Promise<{ slug: string }>;
 };
 
-interface ProductWithSEO extends SanityProduct {
-  seo?: {
-    metaTitle?: string;
-    metaDescription?: string;
-    ogImage?: any;
-  };
-}
+// =====================================================
+// ✅ ISR: Page will be statically generated on first request,
+//    then served from CDN for all subsequent requests.
+// =====================================================
+export const revalidate = false;
 
 // =====================================================
-// 🔥 METADATA GENERATION (Deduplicated)
+// 🔥 LIGHTWEIGHT METADATA FETCH (No variants, no reviews, no attributes)
+// =====================================================
+const getCachedProductMetadata = async (slug: string) => {
+  return unstable_cache(
+    async () => {
+      const payload = await getSafePayload();
+
+      const result = await payload.find({
+        collection: "products",
+        where: { slug: { equals: slug } },
+        depth: 1,
+        limit: 1,
+        select: {
+          id: true,
+          slug: true,
+          title: true,
+          seo: true,
+          brand: {
+            name: true,
+          },
+          variants: {
+            price: true,
+            salePrice: true,
+            images: true,
+            stock: true,
+            inStock: true,
+          },
+          // ✅ Added: isOnDeal, rating, reviewCount, videoUrl, updatedAt
+          isOnDeal: true,
+          rating: true,
+          reviewCount: true,
+          videoUrl: true,
+          updatedAt: true,
+          createdAt: true,
+        },
+      });
+
+      const doc = result.docs[0];
+      if (!doc) return null;
+
+      const defaultVariant = doc.variants?.[0] || null;
+
+      return {
+        title: doc.title,
+        slug: doc.slug,
+        seo: doc.seo || {},
+        image: defaultVariant?.images?.[0] || null,
+        price: defaultVariant?.salePrice || defaultVariant?.price || 0,
+        salePrice: defaultVariant?.salePrice || null,
+        brandName: doc.brand?.name || "PocketValue",
+        isOnDeal: doc.isOnDeal || false,
+        rating: doc.rating || 0,
+        reviewCount: doc.reviewCount || 0,
+        videoUrl: doc.videoUrl || null,
+        stock: defaultVariant?.stock || 0,
+        inStock: defaultVariant?.inStock || false,
+        updatedAt: doc.updatedAt || new Date().toISOString(),
+        createdAt: doc.createdAt || new Date().toISOString(),
+      };
+    },
+    [`product-meta-${slug}`],
+    {
+      tags: [`product-${slug}`],
+      revalidate: false,
+    }
+  )();
+};
+
+// =====================================================
+// 🔥 METADATA GENERATION (Enhanced with all product data)
 // =====================================================
 export async function generateMetadata({
   params: paramsPromise,
 }: ProductDetailPageProps): Promise<Metadata> {
   const { slug } = await paramsPromise;
-  const rawProduct = await getProductCached(slug); // ✅ Using Cached Version
-  const product = rawProduct as ProductWithSEO | null;
 
-  if (!product) return {};
+  const metaData = await getCachedProductMetadata(slug);
+  if (!metaData) return {};
 
-  const title = product.seo?.metaTitle || product.title;
-  const description =
-    product.seo?.metaDescription ||
-    (product.description
-      ? portableTextToString(product.description).substring(0, 160)
-      : "");
+  const { title, seo, image, price, salePrice, brandName, rating, reviewCount, videoUrl, isOnDeal, stock, inStock } =
+    metaData;
+  const metaTitle = seo.metaTitle || title;
+  const metaDescription =
+    seo.metaDescription || `Shop for ${title} at PocketValue. Best price and quality.`;
 
-  const rawImage = product.seo?.ogImage || product.defaultVariant?.images?.[0];
-  const imageUrlString = rawImage
-    ? urlFor(rawImage).width(1200).height(630).url()
-    : "";
+  const imageUrlString = image ? urlFor(image).width(1200).height(630).url() : "";
 
-  const price =
-    product.defaultVariant?.salePrice || product.defaultVariant?.price || 0;
-  const brand = product.brand?.name || "PocketValue";
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://www.pocketvalue.pk";
 
-  const ogUrl = new URL(
-    `${process.env.NEXT_PUBLIC_BASE_URL || "https://www.pocketvalue.pk"}/api/og`,
-  );
-  ogUrl.searchParams.set("title", title);
+  // ✅ UPGRADED: OG URL with ALL dynamic parameters (#38, #88, #134)
+  const ogUrl = new URL(`${baseUrl}/api/og`);
+  ogUrl.searchParams.set("title", metaTitle);
   ogUrl.searchParams.set("price", price.toLocaleString());
-  ogUrl.searchParams.set("brand", brand);
+  ogUrl.searchParams.set("brand", brandName);
   if (imageUrlString) ogUrl.searchParams.set("image", imageUrlString);
 
+  // ✅ NEW: Sale Price
+  if (salePrice) {
+    ogUrl.searchParams.set("salePrice", salePrice.toLocaleString());
+  }
+
+  // ✅ NEW: Rating & Review Count
+  if (rating && rating > 0) {
+    ogUrl.searchParams.set("rating", rating.toString());
+    ogUrl.searchParams.set("reviewCount", (reviewCount || 0).toString());
+  }
+
+  // ✅ NEW: Video Badge
+  if (videoUrl) {
+    ogUrl.searchParams.set("videoUrl", videoUrl);
+  }
+
+  // ✅ NEW: Deal Badge
+  if (isOnDeal) {
+    ogUrl.searchParams.set("isOnDeal", "true");
+  }
+
+  // ✅ NEW: Stock Status
+  ogUrl.searchParams.set("stock", (stock || 0).toString());
+  ogUrl.searchParams.set("inStock", inStock ? "true" : "false");
+
   const baseMetadata = await generateBaseMetadata({
-    title,
-    description,
-    image: rawImage,
-    path: `/product/${product.slug}`,
+    title: metaTitle,
+    description: metaDescription,
+    image: image,
+    path: `/product/${slug}`,
+    // ✅ Point #23: Content Freshness
+    publishedTime: metaData.createdAt,
+    modifiedTime: metaData.updatedAt,
+    author: brandName,
+    section: "Product",
   });
 
   return {
     ...baseMetadata,
     openGraph: {
       ...baseMetadata.openGraph,
-      title,
-      description,
-      images: [{ url: ogUrl.toString(), width: 1200, height: 630, alt: title }],
+      title: metaTitle,
+      description: metaDescription,
+      images: [{ url: ogUrl.toString(), width: 1200, height: 630, alt: metaTitle }],
     },
     twitter: { ...baseMetadata.twitter, images: [ogUrl.toString()] },
   };
 }
 
 // =====================================================
-// 🛒 PRODUCT PAGE COMPONENT
+// 🛒 PRODUCT DETAIL PAGE COMPONENT
 // =====================================================
 export default async function ProductDetailPage({
   params: paramsPromise,
 }: ProductDetailPageProps) {
   const { slug } = await paramsPromise;
-  const rawProduct = await getProductCached(slug); // ✅ Using Cached Version
-  const product = rawProduct as ProductWithSEO | null;
+
+  // ✅ Fetch product data (Edge cached)
+  const rawProduct = await getPayloadSingleProduct(slug);
+  const product = rawProduct as any | null;
+
+  // ✅ Centralized cached settings
+  const settings = await getCachedSettings();
+  const lowStockThreshold = settings.inventorySettings?.lowStockThreshold || 5;
 
   if (!product) notFound();
 
+  // ✅ Concurrent fetch: Related products and breadcrumbs
   const [relatedProducts, breadcrumbs] = await Promise.all([
     getPayloadRelatedProducts(product._id, product.categoryIds || []),
     getPayloadBreadcrumbs("product", slug),
   ]);
 
-  const jsonLd = {
-    "@context": "https://schema.org/",
-    "@type": "Product",
-    name: product.title,
-    description: portableTextToString(product.description),
-    image: product.defaultVariant?.images?.[0]
-      ? urlFor(product.defaultVariant.images[0]).url()
-      : "",
-    sku: product.defaultVariant?.sku || product._id,
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://www.pocketvalue.pk";
+  const siteName = settings.siteName || "PocketValue";
+  const siteLogo = settings.siteLogo ? urlFor(settings.siteLogo).url() : undefined;
 
-    brand: {
-      "@type": "Brand",
-      name: product.brand?.name || "PocketValue",
-      ...(product.brand?.logo && { logo: urlFor(product.brand.logo).url() }), // ✅ Fixed Brand Logo
-    },
+  // ✅ Fetch reviews (already attached to product via getPayloadSingleProduct)
+  const reviews = product.reviews || [];
 
-    breadcrumb: {
-      "@type": "BreadcrumbList",
-      itemListElement: breadcrumbs.map((crumb, index) => ({
-        "@type": "ListItem",
-        position: index + 1,
-        name: crumb.name,
-        item: `${process.env.NEXT_PUBLIC_BASE_URL || "https://www.pocketvalue.pk"}${crumb.href.startsWith("/") ? crumb.href : "/" + crumb.href}`,
-      })),
-    },
-
-    ...(product.reviewCount &&
-      product.reviewCount > 0 && {
-        aggregateRating: {
-          "@type": "AggregateRating",
-          ratingValue: product.rating?.toFixed(1) || "5",
-          reviewCount: product.reviewCount,
-        },
-      }),
-
-    offers: {
-      "@type": "Offer",
-      priceCurrency: "PKR",
-      price: product.defaultVariant?.salePrice || product.defaultVariant?.price,
-      availability: product.defaultVariant?.inStock
-        ? "https://schema.org/InStock"
-        : "https://schema.org/OutOfStock",
-      url: `${process.env.NEXT_PUBLIC_BASE_URL || "https://www.pocketvalue.pk"}/product/${product.slug}`,
-      priceValidUntil: new Date(
-        new Date().setFullYear(new Date().getFullYear() + 1),
-      )
-        .toISOString()
-        .split("T")[0],
-    },
-
-    ...(product.videoUrl && {
-      subjectOf: {
-        "@type": "VideoObject",
-        name: `${product.title} - Official Video`,
-        description: `Watch features of ${product.title}`,
-        thumbnailUrl: product.defaultVariant?.images?.[0]
-          ? urlFor(product.defaultVariant.images[0]).url()
-          : "",
-        contentUrl: product.videoUrl,
-        uploadDate: product._createdAt || new Date().toISOString(),
-      },
-    }),
-  };
+  // ================================================================
+  // 🔥 STRUCTURED DATA — Using generateProductStructuredData
+  //      Covers: #38, #71, #77, #88, #125, #134
+  // ================================================================
+  const structuredData = generateProductStructuredData({
+    product: product,
+    baseUrl: baseUrl,
+    seo: product.seo || {},
+    reviews: reviews,
+    breadcrumbs: breadcrumbs,
+    siteName: siteName,
+    siteLogo: siteLogo,
+    selectedVariant: product.defaultVariant,
+  });
 
   return (
     <>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
       />
 
       <main className="w-full bg-gray-50 dark:bg-gray-950 pb-20">
@@ -418,14 +251,23 @@ export default async function ProductDetailPage({
           <div className="mb-6 md:mb-8">
             <Breadcrumbs crumbs={breadcrumbs} />
           </div>
-          <ProductClientManager product={product} />
+
+          <ProductClientManager
+            product={product}
+            lowStockThreshold={lowStockThreshold}
+          />
         </div>
 
         {relatedProducts && relatedProducts.length > 0 && (
-          <div className="w-full mt-10 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800">
+          <div
+            className="w-full mt-10 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800"
+            aria-label="Related products"
+            role="region"
+          >
             <ProductSectionWithBanner
               products={relatedProducts}
               title="You Might Also Like"
+              lowStockThreshold={lowStockThreshold}
             />
           </div>
         )}

@@ -3,7 +3,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react"; // <-- Naya Import
 import { Loader2 } from "lucide-react"; // <-- Naya Import
-import ResetPasswordClient from "./ResetPasswordClient";
+import ResetPasswordClient from "../../features/storefront/auth/components/ResetPasswordClient";
 
 export const metadata: Metadata = {
   title: "Reset Password | PocketValue",

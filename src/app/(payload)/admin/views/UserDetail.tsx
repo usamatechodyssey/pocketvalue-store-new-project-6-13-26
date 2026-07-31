@@ -1,12 +1,18 @@
-// src/app/(payload)/admin/views/UserDetail.tsx
+
 import { DefaultTemplate } from '@payloadcms/next/templates';
 import { notFound } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowLeft, Mail, Phone, ShoppingCart, DollarSign, Power, MapPin, Calendar } from "lucide-react";
-import { getSingleUserPayload } from "@/app/actions/payloadUserAdminActions";
+import { 
+  ArrowLeft, Mail, Phone, DollarSign, Power, MapPin, Calendar, 
+  Award
+} from "lucide-react";
 
-// Reusable InfoCard
+import { getSingleUserPayload } from "@/app/features/admin/inventory-cms/actions/payloadCustomerActions";
+
+// ================================================================
+// 🧩 REUSABLE INFO CARD
+// ================================================================
 const InfoCard = ({ icon, title, children }: any) => (
   <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md border dark:border-gray-700">
     <h2 className="text-lg font-bold mb-4 text-gray-800 dark:text-gray-100 flex items-center gap-3">
@@ -16,6 +22,9 @@ const InfoCard = ({ icon, title, children }: any) => (
   </div>
 );
 
+// ================================================================
+// 🎨 STATUS COLOR HELPER
+// ================================================================
 const getStatusColor = (status: string) => {
   switch (status?.toLowerCase()) {
     case "delivered": return "bg-green-100 text-green-700";
@@ -26,11 +35,13 @@ const getStatusColor = (status: string) => {
   }
 };
 
+// ================================================================
+// 🚀 MAIN PAGE COMPONENT
+// ================================================================
 export default async function UserDetailView(props: any) {
   const { initPageResult, params: paramsPromise } = props;
   const params = await paramsPromise;
   
-  // Extract ID from segments or params
   const segments = params?.segments || [];
   const userId = params?.id || (segments.length > 1 ? segments[segments.length - 1] : null);
 
@@ -41,7 +52,7 @@ export default async function UserDetailView(props: any) {
 
   const { user, stats, recentOrders } = data;
 
-  // Safe Props for Dashboard
+  // Safe Props for Payload Dashboard
   const i18n = props.i18n || initPageResult?.req?.i18n;
   const locale = props.locale || initPageResult?.locale;
   const payload = props.payload || initPageResult?.req?.payload;
@@ -57,14 +68,16 @@ export default async function UserDetailView(props: any) {
     >
       <div className="tw-admin-wrapper p-4 md:p-8 space-y-8">
         
-        {/* HEADER */}
+        {/* ================================================================
+        // 🔙 HEADER WITH BACK BUTTON & USER AVATAR
+        // ================================================================ */}
         <div className="animate-in fade-in slide-in-from-top-4 duration-500">
           <Link href="/admin/users-explorer" className="flex items-center gap-2 text-sm font-bold text-brand-primary hover:underline mb-4">
             <ArrowLeft size={16}/> Back to Customers
           </Link>
           <div className="flex flex-col sm:flex-row sm:items-center gap-5">
               <div className="relative h-20 w-20 shrink-0 rounded-full border-4 border-white dark:border-gray-700 shadow-lg overflow-hidden bg-gray-200">
-                  <Image src={user.image || '/default-avatar.png'} alt="" fill className="object-cover"/>
+                  <Image unoptimized src={user.image || '/default-avatar.png'} alt="" fill className="object-cover"/>
               </div>
               <div>
                   <h1 className="text-3xl font-bold text-gray-900 dark:text-white tracking-tight">{user.name}</h1>
@@ -75,10 +88,12 @@ export default async function UserDetailView(props: any) {
           </div>
         </div>
 
-        {/* CONTENT GRID */}
+        {/* ================================================================
+        // 📊 CONTENT GRID (Left: Orders, Right: Sidebar Info)
+        // ================================================================ */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
           
-          {/* LEFT: ORDER HISTORY */}
+          {/* ============ LEFT COLUMN: ORDER HISTORY ============ */}
           <div className="lg:col-span-2 space-y-8 animate-in fade-in slide-in-from-left-4 duration-700">
               <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md border dark:border-gray-700">
                   <div className="flex justify-between items-center mb-6">
@@ -103,7 +118,6 @@ export default async function UserDetailView(props: any) {
                                   {recentOrders.map((order: any) => (
                                       <tr key={order._id} className="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
                                           <td className="p-3 font-mono">
-                                              {/* ✅ Path Points to our Payload Orders View */}
                                               <Link href={`/admin/orders/${order._id}`} className="text-brand-primary font-bold hover:underline">
                                                 #{order._id.slice(-6).toUpperCase()}
                                               </Link>
@@ -128,10 +142,10 @@ export default async function UserDetailView(props: any) {
               </div>
           </div>
 
-          {/* RIGHT: SIDEBAR INFO */}
+          {/* ============ RIGHT COLUMN: SIDEBAR INFO ============ */}
           <div className="space-y-8 lg:sticky lg:top-24 animate-in fade-in slide-in-from-right-4 duration-700">
               
-              {/* Overview */}
+              {/* --- CARD 1: CUSTOMER OVERVIEW --- */}
               <InfoCard icon={<DollarSign size={20} className="text-brand-primary"/>} title="Customer Overview">
                   <div className="space-y-4 text-sm">
                       <div className="flex items-center gap-3 bg-gray-50 dark:bg-gray-900/50 p-3 rounded-lg border dark:border-gray-700">
@@ -156,7 +170,81 @@ export default async function UserDetailView(props: any) {
                   </div>
               </InfoCard>
 
-              {/* Addresses */}
+              {/* --- CARD 2: LOYALTY & REFERRALS CRM PORTAL --- */}
+              <InfoCard icon={<Award size={20} className="text-brand-primary"/>} title="Loyalty &amp; Referrals">
+                <div className="space-y-4 text-xs font-semibold">
+                  
+                  {/* Referral Code */}
+                  <div className="flex justify-between items-center py-1.5 border-b dark:border-gray-700/50 pb-2">
+                    <span className="text-gray-450 uppercase tracking-wider text-[10px]">Referral Code:</span>
+                    <span className="font-mono font-bold text-sm text-gray-900 dark:text-white">
+                      {user.referralCode || <span className="italic font-sans text-xs text-gray-400">None</span>}
+                    </span>
+                  </div>
+
+                  {/* Lifetime Spend (VIP Progress) */}
+                  <div className="flex justify-between items-center py-1.5 border-b dark:border-gray-700/50 pb-2">
+                    <span className="text-gray-450 uppercase tracking-wider text-[10px]">Lifetime Spend (VIP):</span>
+                    <span className="font-mono font-bold text-sm text-brand-primary">
+                      Rs. {stats.totalSpend.toLocaleString()}
+                    </span>
+                  </div>
+
+                  {/* Referred By */}
+                  <div className="py-1.5 border-b dark:border-gray-700/50 pb-2.5">
+                    <span className="text-gray-450 uppercase tracking-wider text-[10px] block mb-1.5">Referred By:</span>
+                    {user.referredBy ? (
+                      <div className="p-2.5 bg-gray-50 dark:bg-gray-900/40 rounded-lg border dark:border-gray-700/60 flex justify-between items-center">
+                        <div className="truncate flex-1">
+                          <p className="font-bold text-gray-900 dark:text-zinc-100">{user.referredBy.name}</p>
+                          <p className="text-[10px] text-gray-450 mt-0.5 truncate">{user.referredBy.email}</p>
+                        </div>
+                        <Link
+                          href={`/admin/users-explorer/${user.referredBy._id}`}
+                          className="px-2.5 py-1 bg-brand-primary/10 hover:bg-brand-primary/20 text-brand-primary rounded-md text-[10px] font-bold uppercase transition-colors shrink-0"
+                          title="Open Referrer CRM Profile"
+                        >
+                          View Profile
+                        </Link>
+                      </div>
+                    ) : (
+                      <span className="italic text-gray-400 font-medium">Direct Storefront Registration (No Referrer)</span>
+                    )}
+                  </div>
+
+                  {/* Enterprise Metrics Grid (Clicks, Signups, Conversions, Vouchers) */}
+                  <div className="grid grid-cols-2 gap-3 mt-3">
+                    
+                    {/* Clicks - ✅ Now reads from Redis (same as customer dashboard) */}
+                    <div className="p-2.5 bg-gray-50 dark:bg-gray-900/30 rounded-lg border dark:border-gray-700 text-center">
+                      <p className="text-[9px] uppercase font-bold text-gray-450">Clicks Logged</p>
+                      <p className="text-sm font-black text-gray-900 dark:text-white mt-1">{stats.referralClicks || 0}</p>
+                    </div>
+
+                    {/* Joined Friends */}
+                    <div className="p-2.5 bg-gray-50 dark:bg-gray-900/30 rounded-lg border dark:border-gray-700 text-center">
+                      <p className="text-[9px] uppercase font-bold text-gray-450">Friends Joined</p>
+                      <p className="text-sm font-black text-gray-900 dark:text-white mt-1">{stats.totalSignups || 0}</p>
+                    </div>
+
+                    {/* Verified Purchases */}
+                    <div className="p-2.5 bg-gray-50 dark:bg-gray-900/30 rounded-lg border dark:border-gray-700 text-center">
+                      <p className="text-[9px] uppercase font-bold text-gray-450">Conversions</p>
+                      <p className="text-sm font-black text-emerald-600 dark:text-emerald-400 mt-1">{stats.conversions || 0}</p>
+                    </div>
+
+                    {/* Active Vouchers */}
+                    <div className="p-2.5 bg-gray-50 dark:bg-gray-900/30 rounded-lg border dark:border-gray-700 text-center">
+                      <p className="text-[9px] uppercase font-bold text-gray-450">Active Vouchers</p>
+                      <p className="text-sm font-black text-purple-600 dark:text-purple-400 mt-1">{stats.assignedCouponsCount || 0}</p>
+                    </div>
+
+                  </div>
+
+                </div>
+              </InfoCard>
+
+              {/* --- CARD 3: ADDRESS BOOK --- */}
               <InfoCard icon={<MapPin size={20} className="text-brand-primary"/>} title="Address Book">
                   {user.addresses.length > 0 ? (
                       <div className="space-y-4">
@@ -177,7 +265,7 @@ export default async function UserDetailView(props: any) {
                   )}
               </InfoCard>
 
-              {/* Danger Zone */}
+              {/* --- CARD 4: DANGER ZONE --- */}
               <div className="bg-red-50 dark:bg-red-900/10 p-5 rounded-xl border border-red-100 dark:border-red-900/30">
                   <h3 className="text-red-700 dark:text-red-400 font-bold flex items-center gap-2 mb-3">
                     <Power size={18}/> Danger Zone

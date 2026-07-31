@@ -2,9 +2,12 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "crons": [
+    {"path": "/api/admin/refresh-inventory",
+      "schedule": "0 1 * * *"
+    },
     {
-      "path": "/api/cron/low-stock-alert",
-      "schedule": "0 5 * * *"
+      "path": "/api/cron/update-sitemap",
+      "schedule": "0 0 * * *" 
     }
   ]
 }

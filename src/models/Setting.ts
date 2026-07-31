@@ -2,9 +2,12 @@
 
 import mongoose, { Schema, Document } from 'mongoose';
 
-// ✅ FIXED INTERFACE: Index Signature add kiya aur extra line remove ki
-export interface IGatewayCredentials { // Export kiya taake baqi files use kar saken
-  [key: string]: string | undefined; // <--- YEH HAI ASAL FIX! Allows dynamic key access
+// ================================================================
+// 🏦 PAYMENT GATEWAY CREDENTIALS
+// ================================================================
+
+export interface IGatewayCredentials {
+  [key: string]: string | undefined;
   bankName?: string;
   accountTitle?: string;
   accountNumber?: string;
@@ -16,46 +19,152 @@ export interface IGatewayCredentials { // Export kiya taake baqi files use kar s
   integritySalt?: string;
 }
 
-// Interface for a single gateway object in the array
-export interface IGateway { // Exported for consistent use across components
+export interface IGateway {
   key: string;
   name: string;
   enabled: boolean;
-  credentials?: IGatewayCredentials; // credentials optional bhi ho sakte hain
+  credentials?: IGatewayCredentials;
 }
 
-// Interface for the main settings document
-export interface ISetting extends Document {
-  _id: 'payment_gateways';
-  gateways: IGateway[];
+// ================================================================
+// 📦 COURIER CREDENTIALS & PROVIDER
+// ================================================================
+
+export interface ICourierCredentials {
+  [key: string]: string | undefined;
+  // TCS
+  tcsApiKey?: string;
+  tcsSecret?: string;
+  tcsMerchantId?: string;
+  // Leopards
+  leopardsApiKey?: string;
+  leopardsSecret?: string;
+  // PostEx
+  postExApiKey?: string;
+  postExSecret?: string;
+  postExMerchantId?: string;
+  // Trax
+  traxApiKey?: string;
+  traxSecret?: string;
+  // General
+  apiUrl?: string;
+  username?: string;
+  password?: string;
 }
 
-// Mongoose Schema for the nested credentials object
-const GatewayCredentialsSchema = new Schema({
-  bankName: { type: String },
-  accountTitle: { type: String },
-  accountNumber: { type: String },
-  iban: { type: String },
-  storeId: { type: String },
-  hashKey: { type: String },
-  merchantId: { type: String },
-  password: { type: String },
-  integritySalt: { type: String },
-}, { _id: false }); // No _id for subdocuments
+export interface ICourierProvider {
+  key: 'tcs' | 'leopards' | 'postex' | 'trax' | 'manual';
+  name: string;
+  enabled: boolean;
+  isDefault: boolean; // ✅ REQUIRED — matches Zod schema
+  credentials?: ICourierCredentials;
+}
 
-// Mongoose Schema for a single gateway
-const GatewaySchema = new Schema({
-  key: { type: String, required: true },
-  name: { type: String, required: true },
-  enabled: { type: Boolean, default: true },
-  credentials: { type: GatewayCredentialsSchema, default: {} },
-}, { _id: false }); // No _id for subdocuments in the array
+// ================================================================
+// 🧩 MAIN SETTINGS DOCUMENT (UNION TYPE)
+// ================================================================
 
-// Mongoose Schema for the main settings document
-const SettingSchema = new Schema<ISetting>({
-  _id: { type: String, default: 'payment_gateways' },
-  gateways: { type: [GatewaySchema], required: true },
-});
+export interface ISetting extends Omit<Document, '_id'> {
+  _id: 'payment_gateways' | 'service_settings';
+  gateways?: IGateway[];
+  couriers?: ICourierProvider[];
+}
 
-// Export the model, creating it if it doesn't already exist
+// ================================================================
+// 🗂️ SCHEMAS
+// ================================================================
+
+// ---------- PAYMENT SCHEMAS ----------
+const GatewayCredentialsSchema = new Schema(
+  {
+    bankName: { type: String },
+    accountTitle: { type: String },
+    accountNumber: { type: String },
+    iban: { type: String },
+    storeId: { type: String },
+    hashKey: { type: String },
+    merchantId: { type: String },
+    password: { type: String },
+    integritySalt: { type: String },
+  },
+  { _id: false }
+);
+
+const GatewaySchema = new Schema(
+  {
+    key: { type: String, required: true },
+    name: { type: String, required: true },
+    enabled: { type: Boolean, default: true },
+    credentials: { type: GatewayCredentialsSchema, default: {} },
+  },
+  { _id: false }
+);
+
+// ---------- COURIER SCHEMAS ----------
+const CourierCredentialsSchema = new Schema(
+  {
+    tcsApiKey: { type: String },
+    tcsSecret: { type: String },
+    tcsMerchantId: { type: String },
+    leopardsApiKey: { type: String },
+    leopardsSecret: { type: String },
+    postExApiKey: { type: String },
+    postExSecret: { type: String },
+    postExMerchantId: { type: String },
+    traxApiKey: { type: String },
+    traxSecret: { type: String },
+    apiUrl: { type: String },
+    username: { type: String },
+    password: { type: String },
+  },
+  { _id: false }
+);
+
+const CourierProviderSchema = new Schema(
+  {
+    key: {
+      type: String,
+      required: true,
+      enum: ['tcs', 'leopards', 'postex', 'trax', 'manual'],
+    },
+    name: { type: String, required: true },
+    enabled: { type: Boolean, default: true },
+    isDefault: { type: Boolean, default: false, required: true },
+    credentials: { type: CourierCredentialsSchema, default: {} },
+  },
+  { _id: false }
+);
+
+// ---------- MAIN SETTINGS SCHEMA ----------
+const SettingSchema = new Schema<ISetting>(
+  {
+    _id: {
+      type: String,
+      required: true,
+      default: 'payment_gateways',
+    },
+    gateways: {
+      type: [GatewaySchema],
+      required: false,
+      default: [],
+    },
+    couriers: {
+      type: [CourierProviderSchema],
+      required: false,
+      default: [],
+    },
+  },
+  {
+    timestamps: true,
+    collection: 'settings',
+  }
+);
+
+// ---------- INDEXES ----------
+SettingSchema.index({ _id: 1 });
+
+// ================================================================
+// 🚀 MODEL EXPORT
+// ================================================================
+
 export default mongoose.models.Setting || mongoose.model<ISetting>('Setting', SettingSchema, 'settings');

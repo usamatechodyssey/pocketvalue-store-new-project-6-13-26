@@ -1,8 +1,8 @@
 import { Suspense } from 'react';
 import { DefaultTemplate } from '@payloadcms/next/templates';
-import { getPaginatedOrders } from "@/app/actions/orderActions";
-import OrdersClientPage from "@/app/components/payload-orders/OrdersClientPage"; 
-import OrdersLoadingSkeleton from "@/app/components/payload-orders/OrdersLoadingSkeleton"; 
+import { getPaginatedOrders } from "@/app/features/admin/order-fulfillment/actions/ordersActions";
+import OrdersClientPage from "@/app/features/admin/order-fulfillment/components/orders/OrdersClientPage"; 
+import OrdersLoadingSkeleton from "@/app/features/admin/order-fulfillment/components/orders/OrdersLoadingSkeleton"; 
 
 async function OrdersListFetcher({ searchParams }: { searchParams: any }) {
   const page = Number(searchParams?.page) || 1;

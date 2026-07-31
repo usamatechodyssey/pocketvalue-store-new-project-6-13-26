@@ -1,11 +1,15 @@
-// /src/app/api/payment/initiate/route.ts (FINAL & REFACTORED WITH ZOD)
+// src/app/api/payment/initiate/route.ts
 
 import { NextResponse } from 'next/server';
 import { auth } from '@/app/auth';
-import { initiatePayment } from '@/app/lib/payment/paymentAdapter';
-import connectMongoose from '@/app/lib/mongoose';
+import { initiatePayment, gatewayImplementations } from '@/app/features/storefront/cart-checkout/gateways/paymentAdapter';
+import connectMongoose from '@/app/shared/lib/checkout/mongoose';
 import Order, { IOrder } from '@/models/Order';
-import { InitiatePaymentSchema } from "@/app/lib/zodSchemas";
+import { InitiatePaymentSchema } from "@/app/shared/lib/zodSchemas";
+// ✅ REMOVED: ratelimiter and ipAddress (proxy handles rate limiting)
+
+// ✅ Type for valid gateways
+type GatewayKey = keyof typeof gatewayImplementations;
 
 async function getOrderForPayment(orderId: string, userId: string): Promise<IOrder | null> {
     try {
@@ -14,9 +18,7 @@ async function getOrderForPayment(orderId: string, userId: string): Promise<IOrd
             _id: orderId,
             userId: userId 
         }).lean<IOrder>();
-        
         return order;
-
     } catch (error) {
         console.error("Failed to fetch order for payment:", error);
         return null;
@@ -29,29 +31,28 @@ export async function POST(req: Request) {
         return NextResponse.json({ message: "User not authenticated." }, { status: 401 });
     }
 
+    // ✅ REMOVED: Rate Limiting (already handled by proxy.ts)
+
     try {
         const body = await req.json();
 
-        // --- Step 1: Validate with Zod ---
         const validation = InitiatePaymentSchema.safeParse(body);
         if (!validation.success) {
             return NextResponse.json({ message: validation.error.issues[0].message }, { status: 400 });
         }
         const { orderId, gatewayKey } = validation.data;
 
-        // The old manual 'if' check is now gone.
-
         const order = await getOrderForPayment(orderId, session.user.id);
         if (!order) {
             return NextResponse.json({ message: "Order not found or access denied." }, { status: 404 });
         }
         
-        // This check is business logic, so it stays.
         if (order.status !== 'Pending' && order.status !== 'On Hold') {
             return NextResponse.json({ message: "This order can no longer be paid for." }, { status: 400 });
         }
 
-        const result = await initiatePayment(order, gatewayKey as any);
+        // ✅ FIX 2: Type-safe gatewayKey
+        const result = await initiatePayment(order, gatewayKey as GatewayKey);
 
         if (result.success) {
             return NextResponse.json({ 

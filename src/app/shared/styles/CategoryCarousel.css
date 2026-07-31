@@ -1,0 +1,52 @@
+/* src/app/shared/styles/CategoryCarousel.css */
+
+.category-carousel-container {
+  overflow: hidden;
+}
+
+.category-carousel-scroller {
+  display: flex;
+  width: max-content;
+  flex-wrap: nowrap;
+  /* 🔥 PERFORMANCE: will-change: transform add kiya taake animation fast ho */
+  will-change: transform; 
+  /* Speed ab 30s kar di taake bahut zyada fast na lage */
+  animation: scroll-cat 30s linear infinite; 
+  gap: 1.5rem; /* 24px */
+}
+
+.category-carousel-container:hover .category-carousel-scroller {
+  animation-play-state: paused;
+}
+
+@keyframes scroll-cat {
+  /* 🔥 PERFORMANCE: Transform ki value thori kam ki taake animation smooth ho */
+  to {
+    transform: translateX(calc(-50% - 0.75rem));
+  }
+}
+
+.category-carousel-track {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 1.5rem; /* 24px */
+  /* 🔥 FIX: Padding aur gap se animation ka "jump" theek karne ke liye zaroori */
+  padding-left: 0.75rem; 
+  padding-right: 0.75rem;
+}
+
+/* Category Item Wrapper - Isko CSS mein chala rehne den */
+.category-item-wrapper {
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+
+/* Scrollbar Hiding for WebKit Browsers (Performance + Design) */
+.category-carousel-container::-webkit-scrollbar {
+  display: none;
+}
+/* Scrollbar Hiding for IE/Edge */
+.category-carousel-container {
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
+}
