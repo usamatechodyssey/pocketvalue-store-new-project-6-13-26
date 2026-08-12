@@ -15,7 +15,7 @@ const getImageUrl = (
   globalFetchMode: 'imgbb' | 'r2' | 'both',
   productPrimaryProvider: 'imgbb' | 'r2' | undefined
 ): string => {
-  if (!img) return '/placeholder.png';
+  if (!img) return '/placeholder.svg';
   if (typeof img === 'string') return img;
 
   let selectedUrl: string | null = null;
@@ -42,7 +42,7 @@ const getImageUrl = (
     selectedUrl = img.imageUrl || img.imgbbUrl || img.r2Url || img.url || null;
   }
 
-  return selectedUrl || '/placeholder.png';
+  return selectedUrl || '/placeholder.svg';
 };
 
 export const mapPayloadProductToSanity = (
@@ -63,7 +63,7 @@ export const mapPayloadProductToSanity = (
        * Safely handles and pushes image object to final mapper list without duplicates
        */
       const addImage = (url: string, rawImg: any, isCdn: boolean, idx: number) => {
-        if (!url || url === '/placeholder.png') return;
+        if (!url || url === '/placeholder.svg') return;
         if (seenUrls.has(url)) return;
         seenUrls.add(url);
 
@@ -101,7 +101,7 @@ export const mapPayloadProductToSanity = (
       if (mappedImages.length === 0) {
         mappedImages.push({
           _type: "image" as const,
-          url: '/placeholder.png',
+          url: '/placeholder.svg',
           _imgbbUrl: null,
           _r2Url: null,
           asset: {

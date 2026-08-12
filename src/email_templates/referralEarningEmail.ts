@@ -1,4 +1,4 @@
-// src/email_templates/referralEarningEmail.ts
+// 📂 src/email_templates/referralEarningEmail.ts
 
 import { createMasterEmailLayout } from "./masterLayout";
 
@@ -24,46 +24,47 @@ export const createReferralEarningEmailHtml = ({
 }: ReferralEarningEmailProps): string => {
   const bodyHtml = `
     <div style="margin-bottom: 25px;">
-        <p style="font-size: 16px; color: #1F2937;">Assalamu Alaikum <strong>${customerName}</strong>,</p>
-        <p style="font-size: 15px; color: #4B5563; line-height: 1.6;">
+        <p style="font-size: 16px; color: #1F2937;" class="dark-text">Assalamu Alaikum <strong>${customerName}</strong>,</p>
+        <p style="font-size: 15px; color: #4B5563; line-height: 1.6;" class="dark-text">
             JazakAllah! We have some great news for you. Your friend <strong>${friendName}</strong> has successfully placed their first purchase on our store under order reference <strong style="font-family: monospace;">#${orderId.toUpperCase()}</strong>.
         </p>
     </div>
 
-    <!-- 🏆 THE HIGH-CONTRAST CONVERSIONS MATRIX BLOCK -->
+    <!-- 🏆 THE HIGH-CONTRAST CONVERSIONS MATRIX BLOCK (Accent Color Synced #FF8F32) -->
     <div style="text-align:center; margin: 40px 0;">
-        <div style="display: inline-block; background-color: #F9FAFB; border: 2px dashed #F97316; padding: 25px 45px; border-radius: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.02);">
-            <p style="margin: 0 0 10px; font-size: 11px; color: #9CA3AF; font-weight: bold; text-transform: uppercase; letter-spacing: 2px;">Your Verified Conversions</p>
-            <span style="color: #F97316; font-size: 38px; font-weight: 900; letter-spacing: 2px; font-family: 'Courier New', Courier, monospace;">
+        <div style="display: inline-block; background-color: #F9FAFB; border: 2px dashed #FF8F32; padding: 25px 45px; border-radius: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.02);" class="dark-card dark-border">
+            <p style="margin: 0 0 10px; font-size: 11px; color: #9CA3AF; font-weight: bold; text-transform: uppercase; letter-spacing: 2px;" class="dark-subtext">Your Verified Conversions</p>
+            <span style="color: #FF8F32; font-size: 38px; font-weight: 900; letter-spacing: 2px; font-family: 'Courier New', Courier, monospace;">
                 ${conversions} Friends
             </span>
         </div>
     </div>
 
     <!-- ⏱️ DYNAMIC MILESTONE ADVISORY -->
-    <div style="background-color: #F0FDF4; padding: 15px; border-radius: 12px; border-left: 4px solid #16A34A; margin-bottom: 25px;">
-        <p style="margin: 0; font-size: 13px; color: #14532D; line-height: 1.5;">
+    <div style="background-color: #F0FDF4; padding: 15px; border-radius: 12px; border-left: 4px solid #16A34A; margin-bottom: 25px;" class="dark-card dark-border">
+        <p style="margin: 0; font-size: 13px; color: #14532D; line-height: 1.55;" class="dark-text">
             <strong>Milestone Progress Registered:</strong> This conversion has been successfully audited! You are now closer to unlocking <strong>${nextMilestoneLabel}</strong>. Once our management team verifies the order completion, your milestone reward voucher will be generated and displayed directly on your Loyalty Hub dashboard.
         </p>
     </div>
 
-    <p style="font-size: 14px; color: #9CA3AF; line-height: 1.5; text-align: center;">
+    <p style="font-size: 14px; color: #9CA3AF; line-height: 1.55; text-align: center;" class="dark-subtext">
         Keep sharing your unique referral link! You can view your real-time clicks, referred signups, unlocked milestones progress, and copied vouchers anytime from your customer account page.
     </p>
 
     <!-- 🖋️ OFFICIAL SIGNATURE -->
-    <div style="margin-top: 35px; padding-top: 20px; border-top: 1px solid #F3F4F6;">
-        <p style="margin: 0; font-size: 14px; color: #1F2937; font-weight: bold;">Warm regards,</p>
-        <p style="margin: 5px 0 0; font-size: 16px; color: #F97316; font-weight: 900; text-transform: uppercase; letter-spacing: 1px;">
+    <div style="margin-top: 35px; padding-top: 20px; border-top: 1px solid #F3F4F6;" class="dark-border">
+        <p style="margin: 0; font-size: 14px; color: #1F2937; font-weight: bold;" class="dark-text">Warm regards,</p>
+        <!-- ✅ ACCENT SYNC: Updated to exact brand primary warm orange (#FF8F32) -->
+        <p style="margin: 5px 0 0; font-size: 16px; color: #FF8F32; font-weight: 900; text-transform: uppercase; letter-spacing: 1px;">
             The PocketValue Team
         </p>
-        <p style="margin: 5px 0 0; font-size: 12px; color: #9CA3AF; font-style: italic;">
-            Quality Products. Guaranteed Value.
+        <p style="margin: 5px 0 0; font-size: 11px; color: #9CA3AF; font-style: italic;" class="dark-subtext">
+            Your Pocket. Our Value.
         </p>
     </div>
 
     <div style="margin-top: 40px; text-align: center;">
-        <a href="${process.env.NEXT_PUBLIC_BASE_URL}/account/referrals" style="text-decoration: none; color: #9CA3AF; font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: 2px;">
+        <a href="${process.env.NEXT_PUBLIC_BASE_URL}/account/referrals" style="text-decoration: none; color: #9CA3AF; font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: 2px;" class="dark-subtext">
             View Your Loyalty Hub
         </a>
     </div>

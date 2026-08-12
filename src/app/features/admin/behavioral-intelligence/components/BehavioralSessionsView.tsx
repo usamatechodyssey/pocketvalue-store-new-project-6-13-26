@@ -17,6 +17,7 @@ import {
   MapPin,
   Globe,
   Copy,
+  UserCheck,
 } from "lucide-react";
 import {
   XAxis,
@@ -54,6 +55,18 @@ const CustomLineTooltip = ({ active, payload, label }: any) => {
 };
 
 // ================================================================
+// 🔧 HELPER: User Display Formatter (Fixes Raw BSON ObjectId Bug)
+// ================================================================
+const formatUserDisplay = (userVal?: string): string => {
+  if (!userVal || userVal.trim() === "" || userVal === "Guest") return "Guest";
+  // ✅ FIX: Converts raw 24-character Mongo ObjectIds like "668fa2b10a..." into "User #001234"
+  if (/^[a-fA-F0-9]{24}$/.test(userVal.trim())) {
+    return `User #${userVal.trim().slice(-6).toUpperCase()}`;
+  }
+  return userVal;
+};
+
+// ================================================================
 // 🚀 MAIN COMPONENT
 // ================================================================
 export default function BehavioralSessionsView({ range }: { range: { from: Date; to: Date } }) {
@@ -73,7 +86,7 @@ export default function BehavioralSessionsView({ range }: { range: { from: Date;
       .finally(() => setLoading(false));
   }, [range, currentPage]);
 
-  // ✅ Copy helper (Using workspace standard CustomToasts)
+  // Copy helper
   const copyToClipboard = (text: string, label: string) => {
     navigator.clipboard.writeText(text)
       .then(() => {
@@ -84,7 +97,7 @@ export default function BehavioralSessionsView({ range }: { range: { from: Date;
       });
   };
 
-  // ✅ Quick filter by session ID
+  // Quick filter by session ID
   const filterBySession = useCallback((sessionId: string) => {
     const params = new URLSearchParams(searchParams.toString());
     params.set("sessionId", sessionId);
@@ -161,7 +174,7 @@ export default function BehavioralSessionsView({ range }: { range: { from: Date;
         <div className="p-3.5 bg-zinc-50/80 dark:bg-zinc-900/60 border border-zinc-200/80 dark:border-zinc-800/80 rounded-2xl shadow-2xs flex flex-col justify-between">
           <div className="flex items-center gap-3 mb-1">
             <div className="p-2 bg-emerald-500/10 rounded-xl text-emerald-500">
-              <Clock size={18} />
+              <UserCheck size={18} />
             </div>
             <span className="text-[10px] font-mono font-bold text-zinc-400 uppercase tracking-widest">New Visitors</span>
           </div>
@@ -224,23 +237,27 @@ export default function BehavioralSessionsView({ range }: { range: { from: Date;
             <Laptop size={14} /> Device
           </h4>
           <div className="space-y-3 flex-1 flex flex-col justify-center">
-            {breakdown.device.map((item: any) => {
-              const Icon = ICON_MAP[item.label.toLowerCase()] || Laptop;
-              return (
-                <div key={item.label} className="flex items-center gap-3">
-                  <Icon size={12} className="text-zinc-400 shrink-0" />
-                  <span className="text-[10px] font-mono font-bold text-zinc-600 dark:text-zinc-300 flex-1 capitalize truncate">
-                    {item.label}
-                  </span>
-                  <div className="flex items-center gap-2">
-                    <div className="w-14 h-1.5 bg-zinc-200 dark:bg-zinc-800 rounded-full overflow-hidden shrink-0">
-                      <div className="h-full bg-brand-primary rounded-full" style={{ width: `${item.percentage}%` }} />
+            {breakdown.device && breakdown.device.length > 0 ? (
+              breakdown.device.map((item: any) => {
+                const Icon = ICON_MAP[item.label.toLowerCase()] || Laptop;
+                return (
+                  <div key={item.label} className="flex items-center gap-3">
+                    <Icon size={12} className="text-zinc-400 shrink-0" />
+                    <span className="text-[10px] font-mono font-bold text-zinc-600 dark:text-zinc-300 flex-1 capitalize truncate">
+                      {item.label}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <div className="w-14 h-1.5 bg-zinc-200 dark:bg-zinc-800 rounded-full overflow-hidden shrink-0">
+                        <div className="h-full bg-brand-primary rounded-full" style={{ width: `${item.percentage}%` }} />
+                      </div>
+                      <span className="text-[10px] font-mono font-bold dark:text-zinc-50 w-8 text-right shrink-0">{item.percentage}%</span>
                     </div>
-                    <span className="text-[10px] font-mono font-bold dark:text-zinc-50 w-8 text-right shrink-0">{item.percentage}%</span>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })
+            ) : (
+              <p className="text-[10px] font-mono text-zinc-400 dark:text-zinc-500 italic">No device data available</p>
+            )}
           </div>
         </div>
 
@@ -250,19 +267,23 @@ export default function BehavioralSessionsView({ range }: { range: { from: Date;
             <Monitor size={14} /> OS
           </h4>
           <div className="space-y-3 flex-1 flex flex-col justify-center">
-            {breakdown.os.map((item: any) => (
-              <div key={item.label} className="flex items-center gap-3">
-                <span className="text-[10px] font-mono font-bold text-zinc-600 dark:text-zinc-300 flex-1 truncate">
-                  {item.label}
-                </span>
-                <div className="flex items-center gap-2">
-                  <div className="w-14 h-1.5 bg-zinc-200 dark:bg-zinc-800 rounded-full overflow-hidden shrink-0">
-                    <div className="h-full bg-purple-500 rounded-full" style={{ width: `${item.percentage}%` }} />
+            {breakdown.os && breakdown.os.length > 0 ? (
+              breakdown.os.map((item: any) => (
+                <div key={item.label} className="flex items-center gap-3">
+                  <span className="text-[10px] font-mono font-bold text-zinc-600 dark:text-zinc-300 flex-1 truncate">
+                    {item.label}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <div className="w-14 h-1.5 bg-zinc-200 dark:bg-zinc-800 rounded-full overflow-hidden shrink-0">
+                      <div className="h-full bg-purple-500 rounded-full" style={{ width: `${item.percentage}%` }} />
+                    </div>
+                    <span className="text-[10px] font-mono font-bold dark:text-zinc-50 w-8 text-right shrink-0">{item.percentage}%</span>
                   </div>
-                  <span className="text-[10px] font-mono font-bold dark:text-zinc-50 w-8 text-right shrink-0">{item.percentage}%</span>
                 </div>
-              </div>
-            ))}
+              ))
+            ) : (
+              <p className="text-[10px] font-mono text-zinc-400 dark:text-zinc-500 italic">No OS data available</p>
+            )}
           </div>
         </div>
 
@@ -272,41 +293,49 @@ export default function BehavioralSessionsView({ range }: { range: { from: Date;
             <Globe size={14} /> Browser
           </h4>
           <div className="space-y-3 flex-1 flex flex-col justify-center">
-            {breakdown.browser.map((item: any) => (
-              <div key={item.label} className="flex items-center gap-3">
-                <span className="text-[10px] font-mono font-bold text-zinc-600 dark:text-zinc-300 flex-1 truncate">
-                  {item.label}
-                </span>
-                <div className="flex items-center gap-2">
-                  <div className="w-14 h-1.5 bg-zinc-200 dark:bg-zinc-800 rounded-full overflow-hidden shrink-0">
-                    <div className="h-full bg-amber-500 rounded-full" style={{ width: `${item.percentage}%` }} />
+            {breakdown.browser && breakdown.browser.length > 0 ? (
+              breakdown.browser.map((item: any) => (
+                <div key={item.label} className="flex items-center gap-3">
+                  <span className="text-[10px] font-mono font-bold text-zinc-600 dark:text-zinc-300 flex-1 truncate">
+                    {item.label}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <div className="w-14 h-1.5 bg-zinc-200 dark:bg-zinc-800 rounded-full overflow-hidden shrink-0">
+                      <div className="h-full bg-amber-500 rounded-full" style={{ width: `${item.percentage}%` }} />
+                    </div>
+                    <span className="text-[10px] font-mono font-bold dark:text-zinc-50 w-8 text-right shrink-0">{item.percentage}%</span>
                   </div>
-                  <span className="text-[10px] font-mono font-bold dark:text-zinc-50 w-8 text-right shrink-0">{item.percentage}%</span>
                 </div>
-              </div>
-            ))}
+              ))
+            ) : (
+              <p className="text-[10px] font-mono text-zinc-400 dark:text-zinc-500 italic">No browser data available</p>
+            )}
           </div>
         </div>
 
-        {/* City */}
+        {/* City (✅ FIX 4: Added empty state fallback so box is never blank) */}
         <div className="p-4 bg-zinc-50/80 dark:bg-zinc-900/60 border border-zinc-200/80 dark:border-zinc-800/80 rounded-2xl shadow-2xs flex flex-col justify-between">
           <h4 className="text-[10px] font-mono font-bold text-zinc-400 uppercase tracking-wider mb-4 flex items-center gap-2 border-b border-zinc-200 dark:border-zinc-850 pb-2 shrink-0">
             <MapPin size={14} /> City
           </h4>
           <div className="space-y-3 flex-1 flex flex-col justify-center">
-            {breakdown.city.map((item: any) => (
-              <div key={item.label} className="flex items-center gap-3">
-                <span className="text-[10px] font-mono font-bold text-zinc-600 dark:text-zinc-300 flex-1 truncate">
-                  {item.label}
-                </span>
-                <div className="flex items-center gap-2">
-                  <div className="w-14 h-1.5 bg-zinc-200 dark:bg-zinc-800 rounded-full overflow-hidden shrink-0">
-                    <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${item.percentage}%` }} />
+            {breakdown.city && breakdown.city.length > 0 ? (
+              breakdown.city.map((item: any) => (
+                <div key={item.label} className="flex items-center gap-3">
+                  <span className="text-[10px] font-mono font-bold text-zinc-600 dark:text-zinc-300 flex-1 truncate">
+                    {item.label}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <div className="w-14 h-1.5 bg-zinc-200 dark:bg-zinc-800 rounded-full overflow-hidden shrink-0">
+                      <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${item.percentage}%` }} />
+                    </div>
+                    <span className="text-[10px] font-mono font-bold dark:text-zinc-50 w-8 text-right shrink-0">{item.percentage}%</span>
                   </div>
-                  <span className="text-[10px] font-mono font-bold dark:text-zinc-50 w-8 text-right shrink-0">{item.percentage}%</span>
                 </div>
-              </div>
-            ))}
+              ))
+            ) : (
+              <p className="text-[10px] font-mono text-zinc-400 dark:text-zinc-500 italic">No city data available</p>
+            )}
           </div>
         </div>
 
@@ -338,7 +367,7 @@ export default function BehavioralSessionsView({ range }: { range: { from: Date;
       </div>
 
       {/* ================================================================ */}
-      {/* 🔥 4. SESSIONS TABLE (With Scroll Guard) */}
+      {/* 🔥 4. SESSIONS TABLE */}
       {/* ================================================================ */}
       <div className="bg-zinc-50/60 dark:bg-zinc-900/40 border border-zinc-200/80 dark:border-zinc-800/80 rounded-2xl overflow-hidden shadow-2xs flex flex-col">
         <div className="overflow-x-auto max-h-112.5 custom-scrollbar">
@@ -381,8 +410,9 @@ export default function BehavioralSessionsView({ range }: { range: { from: Date;
                   <td className="py-3 px-4 font-mono text-[10px] text-zinc-500 dark:text-zinc-400 whitespace-nowrap">
                     {session.visitorId.slice(0, 8)}...
                   </td>
+                  {/* ✅ FIX 3: Formats raw ObjectIds ("668fa2...") as "User #001234" instead of raw BSON string */}
                   <td className="py-3 px-4 text-[10px] font-medium text-zinc-600 dark:text-zinc-300 whitespace-nowrap">
-                    {session.userId || "Guest"}
+                    {formatUserDisplay(session.userId)}
                   </td>
                   <td className="py-3 px-4 text-center text-[10px] font-bold capitalize whitespace-nowrap">
                     {session.device}

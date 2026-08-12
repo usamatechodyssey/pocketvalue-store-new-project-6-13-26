@@ -4,10 +4,12 @@
 
 import React from "react";
 import {
-  Funnel,
   FunnelChart,
+  Funnel,
+  LabelList,
   Tooltip,
   ResponsiveContainer,
+  Cell,
 } from "recharts";
 import { Clock, TrendingDown, AlertCircle, Filter } from "lucide-react";
 import { LoyaltyFunnelResponse } from "../actions/getLoyaltyFunnel";
@@ -22,24 +24,16 @@ interface LoyaltyFunnelChartProps {
 // ================================================================
 // 🎨 COLOR PALETTE (Brand Neon + Emerald)
 // ================================================================
-const COLORS = {
-  step1: "#f97316",
-  step2: "#fb923c",
-  step3: "#fbbf24",
-  step4: "#3b82f6",
-  step5: "#10b981",
-};
-
-const colorMap = [
-  COLORS.step1,
-  COLORS.step2,
-  COLORS.step3,
-  COLORS.step4,
-  COLORS.step5,
+const COLOR_MAP = [
+  "#f97316", // Step 1: Brand Orange
+  "#fb923c", // Step 2: Light Orange
+  "#f59e0b", // Step 3: Amber
+  "#3b82f6", // Step 4: Metric Blue
+  "#10b981", // Step 5: Emerald Green
 ];
 
 // ================================================================
-// 🎨 SOLID CYBER-HUD TOOLTIP (PKR Localized)
+// 🎨 CUSTOM TOOLTIP (Aligned with ReportChartSection Standard)
 // ================================================================
 const CustomTooltip = ({ active, payload }: any) => {
   if (active && payload && payload.length > 0) {
@@ -53,14 +47,14 @@ const CustomTooltip = ({ active, payload }: any) => {
           <div className="flex justify-between items-center gap-6">
             <span className="text-zinc-400 font-bold">Step Volume:</span>
             <span className="font-bold text-white font-mono">
-              {(data.count || 0).toLocaleString('en-PK')}
+              {(data.count || 0).toLocaleString("en-PK")}
             </span>
           </div>
           {data.dropOffRate > 0 && (
             <div className="flex justify-between items-center gap-6">
               <span className="text-red-500 font-bold">Stage Drop-off:</span>
               <span className="font-bold text-red-500 font-mono">
-                {data.dropOffRate}% ({(data.dropOff || 0).toLocaleString('en-PK')})
+                {data.dropOffRate}% ({(data.dropOff || 0).toLocaleString("en-PK")})
               </span>
             </div>
           )}
@@ -75,7 +69,7 @@ const CustomTooltip = ({ active, payload }: any) => {
 // 🚀 MAIN COMPONENT
 // ================================================================
 export default function LoyaltyFunnelChart({ data }: LoyaltyFunnelChartProps) {
-  // ✅ Empty State
+  // Empty State
   if (!data || !data.steps || data.steps.length === 0) {
     return (
       <div className="p-8 text-center bg-zinc-50/50 dark:bg-zinc-900/30 border border-zinc-200/80 dark:border-zinc-800/80 rounded-2xl flex flex-col items-center justify-center min-h-50 w-full">
@@ -100,7 +94,7 @@ export default function LoyaltyFunnelChart({ data }: LoyaltyFunnelChartProps) {
     .map((step, index) => ({
       ...step,
       value: step.count,
-      fill: colorMap[index % colorMap.length],
+      fill: COLOR_MAP[index % COLOR_MAP.length],
     }));
 
   if (chartData.length === 0) {
@@ -132,7 +126,7 @@ export default function LoyaltyFunnelChart({ data }: LoyaltyFunnelChartProps) {
       : "N/A";
 
   return (
-    <div className="space-y-6 w-full min-w-0 animate-in fade-in duration-300">
+    <div className="space-y-6 w-full min-w-0 animate-in fade-in duration-300 font-sans">
       
       {/* Header Bar */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-zinc-200/80 dark:border-zinc-800/80 pb-3">
@@ -157,50 +151,31 @@ export default function LoyaltyFunnelChart({ data }: LoyaltyFunnelChartProps) {
         </div>
       </div>
 
-      {/* Chart Canvas Box */}
+      {/* Chart Canvas Box (RESTRUCTURED FUNNEL SHAPE) */}
       <div className="bg-zinc-50/60 dark:bg-zinc-900/40 border border-zinc-200/80 dark:border-zinc-800/80 rounded-2xl p-6 shadow-2xs">
-        <div className="w-full h-80 md:h-96">
+        <div className="w-full h-72 md:h-80">
           <ResponsiveContainer width="100%" height="100%">
-            <FunnelChart
-              margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
-              accessibilityLayer
-            >
-              <Tooltip content={<CustomTooltip />} cursor={{ fill: "transparent" }} />
+            <FunnelChart margin={{ top: 10, right: 30, left: 30, bottom: 10 }}>
+              <Tooltip content={<CustomTooltip />} />
               <Funnel
                 dataKey="value"
                 data={chartData}
-                nameKey="name"
                 isAnimationActive
-                animationDuration={1200}
-                animationEasing="ease-out"
-                shape={(props: any) => {
-                  const { x, y, width, height, index } = props;
-                  // ✅ Guard against NaN values
-                  if (
-                    isNaN(x) ||
-                    isNaN(y) ||
-                    isNaN(width) ||
-                    isNaN(height) ||
-                    height <= 0 ||
-                    width <= 0
-                  ) {
-                    return null;
-                  }
-                  const fill = colorMap[index % colorMap.length];
-                  return (
-                    <rect
-                      x={x}
-                      y={y}
-                      width={width}
-                      height={height}
-                      fill={fill}
-                      rx={4}
-                      ry={4}
-                      className="transition-all duration-300 hover:opacity-80"
-                    />
-                  );
-                }}
-              />
+                animationDuration={1000}
+              >
+                <LabelList
+                  position="right"
+                  fill="#a1a1aa"
+                  stroke="none"
+                  dataKey="name"
+                  fontSize={11}
+                  fontFamily="monospace"
+                  fontWeight="bold"
+                />
+                {chartData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={entry.fill} />
+                ))}
+              </Funnel>
             </FunnelChart>
           </ResponsiveContainer>
         </div>
@@ -224,20 +199,20 @@ export default function LoyaltyFunnelChart({ data }: LoyaltyFunnelChartProps) {
                   {step.name.split(" ")[0]}
                 </span>
                 <span className="text-sm font-black text-zinc-900 dark:text-zinc-50">
-                  {step.count.toLocaleString('en-PK')}
+                  {step.count.toLocaleString("en-PK")}
                 </span>
               </div>
               {!isLast && step.dropOffRate > 0 && (
                 <div className="mt-2 pt-2 border-t border-zinc-200/80 dark:border-zinc-800/80 flex items-center justify-between text-[9px] text-red-500 font-bold">
                   <span>▼ {step.dropOffRate}% drop</span>
                   <span className="text-zinc-400 dark:text-zinc-500 font-medium">
-                    ({step.dropOff.toLocaleString('en-PK')})
+                    ({step.dropOff.toLocaleString("en-PK")})
                   </span>
                 </div>
               )}
               {isLast && step.count > 0 && (
                 <div className="mt-2 pt-2 border-t border-zinc-200/80 dark:border-zinc-800/80 flex items-center justify-between text-[9px] text-emerald-500 font-bold">
-                  <span>✅ {step.count.toLocaleString('en-PK')} Cleared</span>
+                  <span>✅ {step.count.toLocaleString("en-PK")} Cleared</span>
                 </div>
               )}
             </div>

@@ -1,3 +1,6 @@
+
+// 📂 src/app/shared/components/layout/NewHeader.tsx
+
 "use client";
 
 import React, { useRef, useEffect, useState } from "react";
@@ -29,7 +32,6 @@ export default function NewHeader({
   const [isTabletSearchOpen, setIsTabletSearchOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
 
-  // 🔥 FIX: Function Defined BEFORE useEffect
   const playLogoAnimation = () => {
     if (isAnimating || !logoIconRef.current) return;
     setIsAnimating(true);
@@ -72,10 +74,10 @@ export default function NewHeader({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // === STATIC SKELETON ===
+  // === STATIC SKELETON (Aligned with Translucent Header) ===
   if (!mounted) {
     return (
-      <header className="bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800 w-full z-50 relative">
+      <header className="bg-white/80 dark:bg-gray-950/80 backdrop-blur-xl border-b border-zinc-200/50 dark:border-zinc-800/50 w-full z-50 sticky top-0 transition-all duration-300">
         <div className="max-w-480 mx-auto w-full">
           <div className="hidden md:flex items-center justify-between h-20 lg:h-28 px-6 lg:px-12 gap-8">
             <div className="flex items-center gap-4">
@@ -111,9 +113,9 @@ export default function NewHeader({
     );
   }
 
-  // === REAL HEADER ===
+  // === REAL STICKY HEADER (Glassmorphic Redesign) ===
   return (
-    <header className="bg-white/95 dark:bg-gray-900/95 backdrop-blur-md border-b border-gray-100 dark:border-gray-800 w-full z-50 relative">
+    <header className="bg-white/80 dark:bg-gray-950/80 backdrop-blur-xl border-b border-zinc-200/50 dark:border-zinc-800/50 w-full z-50 sticky top-0 transition-all duration-300 shadow-[0_4px_30px_rgba(0,0,0,0.02)]">
       <div className="max-w-480 mx-auto w-full">
         {/* DESKTOP */}
         <div className="hidden lg:flex items-center justify-between h-28 w-full px-8 xl:px-12 gap-8">
@@ -123,9 +125,10 @@ export default function NewHeader({
               className="flex items-center gap-4 group"
               onMouseEnter={playLogoAnimation}
             >
+              {/* Logo Area */}
               <div
                 ref={logoIconRef}
-                className="relative h-20 w-20 filter drop-shadow-sm"
+                className="relative h-20 w-20 shrink-0 select-none pointer-events-none"
               >
                 <Image
                   src="/usamabrand.svg"
@@ -136,12 +139,13 @@ export default function NewHeader({
                   unoptimized
                 />
               </div>
-              <div className="flex flex-col justify-center">
-                <span className="text-gray-900 dark:text-white text-3xl font-clash font-bold tracking-tight leading-none">
+              <div className="flex flex-col justify-center leading-none">
+                <span className="text-gray-900 dark:text-white text-3xl font-clash font-bold tracking-tight leading-none transition-colors duration-200">
                   PocketValue
                 </span>
-                <span className="text-sm text-brand-primary font-medium tracking-widest uppercase mt-1">
-                  Premium Store
+                {/* ✅ BRAND ALIGNMENT: Integrated "Your Pocket. Our Value." on Desktop */}
+                <span className="text-xs xl:text-sm text-brand-primary font-bold tracking-widest uppercase mt-1">
+                  Your Pocket. Our Value.
                 </span>
               </div>
             </Link>
@@ -170,10 +174,9 @@ export default function NewHeader({
                 className="w-full flex items-center justify-between"
               >
                 <div className="flex items-center gap-4">
-                  {/* ✅ FIX 1: Added aria-label for menu toggle */}
                   <button
                     onClick={onMenuClick}
-                    className="p-2.5 bg-gray-100 dark:bg-gray-800 rounded-xl hover:bg-brand-primary hover:text-white transition-colors shrink-0"
+                    className="p-2.5 bg-gray-50 dark:bg-zinc-900 rounded-xl hover:bg-brand-primary/10 hover:text-brand-primary transition-all shrink-0 border border-zinc-200/50 dark:border-zinc-800/50"
                     aria-label="Toggle navigation menu"
                   >
                     <LayoutGrid size={24} aria-hidden="true" />
@@ -183,7 +186,7 @@ export default function NewHeader({
                     className="flex items-center gap-3"
                     onMouseEnter={playLogoAnimation}
                   >
-                    <div className="relative h-16 w-16 shrink-0">
+                    <div className="relative h-16 w-16 shrink-0 select-none pointer-events-none">
                       <Image
                         src="/usamabrand.svg"
                         alt="PocketValue Logo"
@@ -193,26 +196,26 @@ export default function NewHeader({
                         unoptimized
                       />
                     </div>
-                    <div className="flex flex-col justify-center">
+                    <div className="flex flex-col justify-center leading-none">
                       <span className="text-2xl font-clash font-bold text-gray-900 dark:text-white leading-none">
                         PocketValue
                       </span>
-                      <span className="text-xs text-brand-primary font-medium tracking-widest uppercase mt-0.5">
-                        Premium Store
+                      {/* ✅ BRAND ALIGNMENT: Integrated "Your Pocket. Our Value." on Tablet */}
+                      <span className="text-[9px] lg:text-xs text-brand-primary font-bold tracking-wider uppercase mt-1">
+                        Your Pocket. Our Value.
                       </span>
                     </div>
                   </Link>
                 </div>
                 <div className="flex items-center gap-4">
-                  {/* ✅ FIX 2: Added aria-label for search toggle */}
                   <button
                     onClick={() => setIsTabletSearchOpen(true)}
-                    className="p-2.5 rounded-full bg-gray-50 dark:bg-gray-800 hover:bg-brand-primary/10 text-gray-600 dark:text-gray-300 hover:text-brand-primary transition-all"
+                    className="p-2.5 rounded-full bg-gray-50 dark:bg-zinc-900 hover:bg-brand-primary/10 text-gray-600 dark:text-gray-300 hover:text-brand-primary transition-all border border-zinc-200/50 dark:border-zinc-800/50"
                     aria-label="Open search"
                   >
                     <Search size={22} strokeWidth={2.5} aria-hidden="true" />
                   </button>
-                  <div className="h-8 w-px bg-gray-200 dark:bg-gray-700" />
+                  <div className="h-8 w-px bg-zinc-200 dark:bg-zinc-800" />
                   <HeaderActions isMobile={false} />
                 </div>
               </motion.div>
@@ -225,10 +228,9 @@ export default function NewHeader({
                 transition={{ duration: 0.2 }}
                 className="w-full flex items-center gap-3 z-50"
               >
-                {/* ✅ FIX 2: Added aria-label for close search */}
                 <button
                   onClick={() => setIsTabletSearchOpen(false)}
-                  className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors shrink-0"
+                  className="p-2 hover:bg-gray-100 dark:hover:bg-zinc-850 rounded-full transition-colors shrink-0"
                   aria-label="Close search"
                 >
                   <ArrowLeft
@@ -252,7 +254,7 @@ export default function NewHeader({
             className="flex items-center gap-3 z-10"
             onMouseEnter={playLogoAnimation}
           >
-            <div className="relative h-14 w-14 filter drop-shadow-sm shrink-0">
+            <div className="relative h-14 w-14 shrink-0 select-none pointer-events-none">
               <Image
                 src="/usamabrand.svg"
                 alt="PocketValue Logo"
@@ -262,12 +264,13 @@ export default function NewHeader({
                 unoptimized
               />
             </div>
-            <div className="flex flex-col justify-center">
+            <div className="flex flex-col justify-center leading-none">
               <span className="text-xl font-clash font-bold text-gray-900 dark:text-white tracking-tight leading-none">
                 PocketValue
               </span>
-              <span className="text-[10px] text-brand-primary font-medium tracking-wider uppercase mt-0.5">
-                Premium Store
+              {/* ✅ BRAND ALIGNMENT: Integrated "Your Pocket. Our Value." on Mobile (Font size micro-optimized) */}
+              <span className="text-[8px] sm:text-[9px] text-brand-primary font-bold tracking-wider uppercase mt-1">
+                Your Pocket. Our Value.
               </span>
             </div>
           </Link>

@@ -78,7 +78,7 @@ const getCachedGoogleFeed = unstable_cache(
       <channel>
         <title>PocketValue Official Feed</title>
         <link>${baseUrl}</link>
-        <description>Premium E-commerce Feed with Dynamic Inventory &amp; Ratings</description>`;
+        <description>PocketValue — Your Pocket. Our Value. • Official E-commerce Feed with Dynamic Inventory &amp; Ratings</description>`;
 
     // Products Loop
     for (const p of products as any) {

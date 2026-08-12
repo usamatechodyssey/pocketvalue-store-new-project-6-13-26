@@ -1,4 +1,4 @@
-// 📂 src/app/features/admin/reports/components/ReportFilters.tsx (FULLY HARDENED & CONTEXTUAL PLACEMENT)
+// 📂 src/app/features/admin/reports/components/ReportFilters.tsx (COMPACT SINGLE-ROW HUD FILTER BAR)
 
 "use client";
 
@@ -8,12 +8,10 @@ import {
   Search,
   X,
   ChevronDown,
-  Calendar,
   FileSpreadsheet,
   FileText,
 } from "lucide-react";
 import { useDebouncedCallback } from "use-debounce";
-import AnalyticsDateRangePicker from "@/app/features/admin/executive-kpi/components/DateRangePicker";
 
 // ================================================================
 // ✅ TYPES
@@ -32,11 +30,11 @@ interface ReportFiltersProps {
   exportExcel?: () => Promise<void>;
   exportPdf?: () => Promise<void>;
   isLoading?: boolean;
-  searchPlaceholder?: string; // ✅ NEW: Contextual Search Placeholder
+  searchPlaceholder?: string;
 }
 
 // ================================================================
-// 🚀 MAIN COMPONENT
+// 🚀 MAIN COMPONENT (Compact Single-Row Layout)
 // ================================================================
 export default function ReportFilters({
   categories = [],
@@ -47,7 +45,7 @@ export default function ReportFilters({
   exportExcel,
   exportPdf,
   isLoading = false,
-  searchPlaceholder = "Search data entries...", // ✅ Default fallback preserved
+  searchPlaceholder = "Search data entries...",
 }: ReportFiltersProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -102,21 +100,10 @@ export default function ReportFilters({
   const hasActiveFilters = currentCategory || currentStatus || currentSearch;
 
   return (
-    <div className="bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-4 shadow-xs space-y-4">
+    <div className="bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-3.5 shadow-xs">
       
-      {/* TOP ROW: Date Range (Full Width) */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-2 text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider font-mono">
-          <Calendar size={14} className="text-brand-primary stroke-[2px]" />
-          <span>Date Range Filter</span>
-        </div>
-        <div className="w-full sm:w-auto shadow-2xs">
-          <AnalyticsDateRangePicker />
-        </div>
-      </div>
-
-      {/* BOTTOM ROW: Filters + Search + Export */}
-      <div className="flex flex-wrap items-center gap-3 pt-4 border-t border-zinc-150 dark:border-zinc-850">
+      {/* COMPACT SINGLE ROW: Dropdowns + Search + Reset + Export Buttons */}
+      <div className="flex flex-wrap items-center gap-3">
         
         {/* --- Category Filter --- */}
         {showCategoryFilter && categories.length > 0 && (
@@ -124,7 +111,7 @@ export default function ReportFilters({
             <select
               value={currentCategory}
               onChange={(e) => handleCategoryChange(e.target.value)}
-              className="pl-3 pr-8 py-2 text-xs font-semibold border border-zinc-200 dark:border-zinc-850 rounded-lg bg-zinc-50/50 dark:bg-zinc-900/40 text-zinc-700 dark:text-zinc-300 appearance-none focus:ring-1 focus:ring-brand-primary/50 focus:border-brand-primary outline-hidden transition-all duration-200"
+              className="pl-3 pr-8 py-2 text-xs font-semibold border border-zinc-200 dark:border-zinc-850 rounded-xl bg-zinc-50/50 dark:bg-zinc-900/40 text-zinc-700 dark:text-zinc-300 appearance-none focus:ring-1 focus:ring-brand-primary/50 focus:border-brand-primary outline-hidden transition-all duration-200 font-mono"
             >
               <option value="">All Categories</option>
               {categories.map((cat) => (
@@ -143,7 +130,7 @@ export default function ReportFilters({
             <select
               value={currentStatus}
               onChange={(e) => handleStatusChange(e.target.value)}
-              className="pl-3 pr-8 py-2 text-xs font-semibold border border-zinc-200 dark:border-zinc-850 rounded-lg bg-zinc-50/50 dark:bg-zinc-900/40 text-zinc-700 dark:text-zinc-300 appearance-none focus:ring-1 focus:ring-brand-primary/50 focus:border-brand-primary outline-hidden transition-all duration-200"
+              className="pl-3 pr-8 py-2 text-xs font-semibold border border-zinc-200 dark:border-zinc-850 rounded-xl bg-zinc-50/50 dark:bg-zinc-900/40 text-zinc-700 dark:text-zinc-300 appearance-none focus:ring-1 focus:ring-brand-primary/50 focus:border-brand-primary outline-hidden transition-all duration-200 font-mono"
             >
               <option value="">All Statuses</option>
               {statuses.map((st) => (
@@ -158,7 +145,7 @@ export default function ReportFilters({
 
         {/* --- Search --- */}
         {showSearch && (
-          <div className="relative flex-1 min-w-37.5">
+          <div className="relative flex-1 min-w-44">
             <Search
               size={13}
               className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 dark:text-zinc-500 stroke-[2.2px]"
@@ -170,8 +157,8 @@ export default function ReportFilters({
                 setSearchValue(e.target.value);
                 debouncedSearch(e.target.value);
               }}
-              placeholder={searchPlaceholder} // ✅ Bound Contextual Placeholder
-              className="w-full pl-9 pr-3 py-2 text-xs font-medium border border-zinc-200 dark:border-zinc-850 rounded-lg bg-zinc-50/50 dark:bg-zinc-900/40 text-zinc-800 dark:text-zinc-200 placeholder:text-zinc-400 dark:placeholder:text-zinc-600 focus:ring-1 focus:ring-brand-primary/50 focus:border-brand-primary outline-hidden transition-all duration-200"
+              placeholder={searchPlaceholder}
+              className="w-full pl-9 pr-3 py-2 text-xs font-medium border border-zinc-200 dark:border-zinc-850 rounded-xl bg-zinc-50/50 dark:bg-zinc-900/40 text-zinc-800 dark:text-zinc-200 placeholder:text-zinc-400 dark:placeholder:text-zinc-600 focus:ring-1 focus:ring-brand-primary/50 focus:border-brand-primary outline-hidden transition-all duration-200"
             />
           </div>
         )}
@@ -180,7 +167,7 @@ export default function ReportFilters({
         {hasActiveFilters && (
           <button
             onClick={clearFilters}
-            className="inline-flex items-center gap-1 px-3 py-2 text-xs font-semibold text-zinc-500 hover:text-red-500 dark:text-zinc-400 dark:hover:text-red-400 transition-colors cursor-pointer"
+            className="inline-flex items-center gap-1 px-3 py-2 text-xs font-semibold text-zinc-500 hover:text-red-500 dark:text-zinc-400 dark:hover:text-red-400 transition-colors cursor-pointer font-mono"
           >
             <X size={13} className="stroke-[2.5px]" />
             Reset
@@ -196,7 +183,7 @@ export default function ReportFilters({
             <button
               onClick={exportExcel}
               disabled={isLoading}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold rounded-lg text-[10px] uppercase tracking-wider transition-all duration-200 disabled:opacity-50 cursor-pointer shadow-xs shadow-emerald-500/10 hover:scale-102 active:scale-98"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold rounded-xl text-[10px] uppercase tracking-wider transition-all duration-200 disabled:opacity-50 cursor-pointer shadow-xs shadow-emerald-500/10 hover:scale-102 active:scale-98 font-mono"
             >
               <FileSpreadsheet size={13} />
               Excel
@@ -206,7 +193,7 @@ export default function ReportFilters({
             <button
               onClick={exportPdf}
               disabled={isLoading}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-red-500 hover:bg-red-600 text-white font-semibold rounded-lg text-[10px] uppercase tracking-wider transition-all duration-200 disabled:opacity-50 cursor-pointer shadow-xs shadow-red-500/10 hover:scale-102 active:scale-98"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-red-500 hover:bg-red-600 text-white font-semibold rounded-lg text-[10px] uppercase tracking-wider transition-all duration-200 disabled:opacity-50 cursor-pointer shadow-xs shadow-red-500/10 hover:scale-102 active:scale-98 font-mono"
             >
               <FileText size={13} />
               PDF

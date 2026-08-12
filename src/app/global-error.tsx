@@ -51,9 +51,9 @@ export default function GlobalError({
         <div className={`relative min-h-screen flex items-center justify-center px-6 py-20 overflow-hidden ${bgClass}`}>
           {/* 🎨 Background Ambient Glow */}
           <div className="absolute inset-0 -z-10">
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-red-500/5 rounded-full blur-[120px]" />
-            <div className="absolute bottom-0 right-0 w-[400px] h-[400px] bg-amber-500/5 rounded-full blur-[100px]" />
-            <div className="absolute top-0 left-0 w-[300px] h-[300px] bg-brand-primary/5 rounded-full blur-[80px]" />
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-200 h-200 bg-red-500/5 rounded-full blur-[120px]" />
+            <div className="absolute bottom-0 right-0 w-100 h-100 bg-amber-500/5 rounded-full blur-[100px]" />
+            <div className="absolute top-0 left-0 w-75 h-75 bg-brand-primary/5 rounded-full blur-[80px]" />
           </div>
 
           <div className="relative max-w-2xl w-full text-center">

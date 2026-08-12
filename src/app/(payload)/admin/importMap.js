@@ -35,6 +35,7 @@ import { default as default_b107c0f817b8f32c74fd41f6bc5873d2 } from '../../../ap
 import { default as default_ec0877758565f7d831f9a75e8ccee0a8 } from '../../../app/features/admin/analytics-telemetry/components/CustomAuditNavLink'
 import { default as default_844bb7e4bbcf211cf435f220539f81c0 } from '../../../app/features/admin/loyalty-intelligence/components/CustomLoyaltyNavLink'
 import { default as default_c0e29ef4a25cd10ed02128feb1c608d0 } from '../../../app/features/admin/reports/components/CustomReportsNavLink'
+import { default as default_87a0b01fd1dcd7825c7d19a35ab46449 } from '../../../app/features/admin/customer-requests/components/CustomCustomerRequestsNavLink'
 import { default as default_eadd5017a305e6543f81e808a2ce1ba2 } from '../../../app/(payload)/admin/views/AnalyticsDashboard'
 import { default as default_56f3876c28ff8f1cb286f8a73d612890 } from '../../../app/(payload)/admin/views/BehavioralIntelligenceView'
 import { default as default_fc739f583d7cfae0f220ad6a1a732f4e } from '../../../app/(payload)/admin/views/CategoryExplorer'
@@ -61,6 +62,7 @@ import { default as default_19f2b522a018cec2bd2452fd3befe97d } from '../../../ap
 import { default as default_723e54e720721c3905f681fca21d2a10 } from '../../../app/(payload)/admin/views/UserDetail'
 import { default as default_acaec9ff66bdae3a37a556cecc13cda4 } from '../../../app/(payload)/admin/views/UsersList'
 import { default as default_92d5b199eca74ed36450c45c767723e2 } from '../../../app/(payload)/admin/views/CourierSettings'
+import { default as default_7836665d0fdb6992177a542950e2c756 } from '../../../app/(payload)/admin/views/CustomerRequestsView'
 import { CollectionCards as CollectionCards_f9c02e79a4aed9a3924487c0cd4cafb1 } from '@payloadcms/next/rsc'
 
 /** @type import('payload').ImportMap */
@@ -102,6 +104,7 @@ export const importMap = {
   "/app/features/admin/analytics-telemetry/components/CustomAuditNavLink#default": default_ec0877758565f7d831f9a75e8ccee0a8,
   "/app/features/admin/loyalty-intelligence/components/CustomLoyaltyNavLink#default": default_844bb7e4bbcf211cf435f220539f81c0,
   "/app/features/admin/reports/components/CustomReportsNavLink#default": default_c0e29ef4a25cd10ed02128feb1c608d0,
+  "/app/features/admin/customer-requests/components/CustomCustomerRequestsNavLink#default": default_87a0b01fd1dcd7825c7d19a35ab46449,
   "./app/(payload)/admin/views/AnalyticsDashboard#default": default_eadd5017a305e6543f81e808a2ce1ba2,
   "./app/(payload)/admin/views/BehavioralIntelligenceView#default": default_56f3876c28ff8f1cb286f8a73d612890,
   "./app/(payload)/admin/views/CategoryExplorer#default": default_fc739f583d7cfae0f220ad6a1a732f4e,
@@ -128,5 +131,6 @@ export const importMap = {
   "./app/(payload)/admin/views/UserDetail#default": default_723e54e720721c3905f681fca21d2a10,
   "./app/(payload)/admin/views/UsersList#default": default_acaec9ff66bdae3a37a556cecc13cda4,
   "./app/(payload)/admin/views/CourierSettings#default": default_92d5b199eca74ed36450c45c767723e2,
+  "./app/(payload)/admin/views/CustomerRequestsView#default": default_7836665d0fdb6992177a542950e2c756,
   "@payloadcms/next/rsc#CollectionCards": CollectionCards_f9c02e79a4aed9a3924487c0cd4cafb1
 }

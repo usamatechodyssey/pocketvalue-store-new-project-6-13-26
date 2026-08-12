@@ -161,7 +161,7 @@ const SettingSchema = new Schema<ISetting>(
 );
 
 // ---------- INDEXES ----------
-SettingSchema.index({ _id: 1 });
+// ✅ FIX: Removed redundant SettingSchema.index({ _id: 1 }) to fix Mongoose warning
 
 // ================================================================
 // 🚀 MODEL EXPORT

@@ -34,7 +34,7 @@ export default function ProductDrillDownModal({
     product?.variants?.[0]?.cdnImages?.[0]?.url ||
     product?.variants?.[0]?.images?.[0]?.url ||
     product?.image?.url ||
-    "/placeholder.png";
+    "/placeholder.svg";
 
   return (
     <Transition show={isOpen} as={Fragment}>

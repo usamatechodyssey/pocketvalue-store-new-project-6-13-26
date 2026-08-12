@@ -1,11 +1,17 @@
+// 📂 src/app/(payload)/admin/views/StaffManagementView.tsx (CYBER-HUD HARDENED)
+
 import { DefaultTemplate } from "@payloadcms/next/templates";
-import { getStaffMembers } from "@/app/features/admin/order-fulfillment/actions/payloadAdminActions";
+import { getStaffMembers } from "@/app/features/admin/staff-management/actions/payloadAdminActions";
 import StaffListClient from "@/app/features/admin/staff-management/components/StaffListClient";
 import { ShieldCheck, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 
 export default async function StaffManagementView(props: any) {
-  const { initPageResult, params, searchParams } = props;
+  // ✅ FIX: Next.js 15 Async Params Await
+  const { initPageResult } = props;
+  const params = await props.params;
+  const searchParams = await props.searchParams;
+  
   const staff = await getStaffMembers();
 
   return (
@@ -19,23 +25,29 @@ export default async function StaffManagementView(props: any) {
       user={props.user || initPageResult?.req?.user}
       visibleEntities={props.visibleEntities || initPageResult?.visibleEntities}
     >
-      <div className="tw-admin-wrapper p-4 md:p-10 space-y-10 pb-20">
+      {/* ✅ FIX: Expanded container width matches system-wide HUD layout (max-w-[1750px]) */}
+      <div className="tw-admin-wrapper p-4 md:p-8 space-y-10 pb-20 max-w-[1750px] mx-auto bg-zinc-50/40 dark:bg-zinc-950/20">
+        
+        {/* HEADER */}
         <div className="space-y-2 animate-in fade-in duration-500">
           <Link
             href="/admin"
-            className="flex items-center gap-2 text-xs font-black text-brand-primary hover:underline uppercase tracking-widest mb-4"
+            className="inline-flex items-center gap-2 text-[10px] font-bold text-brand-primary hover:text-brand-primary/80 transition-colors uppercase tracking-widest mb-4 no-underline hover:no-underline font-mono"
           >
-            <ArrowLeft size={14} /> Back to Hub
+            <ArrowLeft size={13} className="stroke-[2.5px]" /> Back to Hub
           </Link>
-          <h1 className="text-5xl font-black text-gray-900 dark:text-white tracking-tighter uppercase leading-none flex items-center gap-4">
-            <ShieldCheck size={48} className="text-brand-primary" />
+          <h1 className="text-4xl font-black text-zinc-900 dark:text-zinc-50 tracking-tighter uppercase leading-none flex items-center gap-4">
+            <div className="p-3 bg-brand-primary/10 rounded-2xl border border-brand-primary/20">
+                <ShieldCheck size={32} className="text-brand-primary" />
+            </div>
             Staff Security
           </h1>
-          <p className="text-sm text-gray-500 font-bold uppercase tracking-widest opacity-70">
+          <p className="text-[10px] text-zinc-400 dark:text-zinc-500 font-bold uppercase tracking-widest">
             Governance & Administrative Access Control
           </p>
         </div>
 
+        {/* STAFF LIST CONTENT */}
         <div className="min-h-125">
           <StaffListClient initialStaff={staff} />
         </div>

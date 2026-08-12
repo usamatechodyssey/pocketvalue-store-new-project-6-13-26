@@ -1,4 +1,4 @@
-// src/app/features/admin/inventory-cms/components/import-products/components/UploadBox.tsx
+// 📂 src/app/features/admin/inventory-cms/components/import-products/components/UploadBox.tsx (CYBER-HUD HARDENED)
 
 "use client";
 
@@ -13,7 +13,7 @@ interface UploadBoxProps {
   isDragActive: boolean;
 }
 
-export function UploadBox({ file, onDrop, onRemoveFile, onAnalyze, isDragActive }: UploadBoxProps) {
+export default function UploadBox({ file, onDrop, onRemoveFile, onAnalyze, isDragActive }: UploadBoxProps) {
   const { getRootProps, getInputProps } = useDropzone({
     onDrop,
     multiple: false,
@@ -24,41 +24,43 @@ export function UploadBox({ file, onDrop, onRemoveFile, onAnalyze, isDragActive 
     return (
       <div
         {...getRootProps()}
-        className="bg-white dark:bg-gray-800 p-8 rounded-xl shadow-sm border border-dashed border-gray-300 dark:border-gray-600 hover:border-brand-primary transition-all group text-center cursor-pointer py-10"
+        className="bg-white dark:bg-zinc-950 p-8 rounded-[2.5rem] shadow-xs border border-dashed border-zinc-300 dark:border-zinc-800 hover:border-brand-primary dark:hover:border-brand-primary/50 transition-all group text-center cursor-pointer py-12"
       >
         <input {...getInputProps()} />
-        <div className="w-20 h-20 bg-blue-50 dark:bg-blue-900/20 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
-          <UploadCloud size={40} className="text-brand-primary" />
+        <div className="w-16 h-16 bg-brand-primary/10 text-brand-primary rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-105 transition-transform duration-200 border border-brand-primary/20">
+          <UploadCloud size={28} className="text-brand-primary" />
         </div>
-        <h3 className="text-lg font-bold text-gray-700 dark:text-gray-200">Click or Drag CSV File</h3>
-        <p className="text-gray-500 text-sm mt-2">Supports multi-variant rows</p>
+        <h3 className="text-sm font-bold text-zinc-800 dark:text-zinc-200 uppercase tracking-wider font-mono">Click or Drag CSV File</h3>
+        <p className="text-zinc-400 dark:text-zinc-500 text-xs mt-1.5">Supports multi-variant row parsing</p>
         {isDragActive && (
-          <p className="text-sm font-semibold text-brand-primary mt-2">Drop your CSV here!</p>
+          <p className="text-xs font-bold text-brand-primary mt-2 font-mono uppercase tracking-widest animate-pulse">Drop your CSV here!</p>
         )}
       </div>
     );
   }
 
   return (
-    <div className="bg-white dark:bg-gray-800 p-8 rounded-xl shadow-sm border border-dashed border-gray-300 dark:border-gray-600 hover:border-brand-primary transition-all group text-center animate-in fade-in">
+    <div className="bg-white dark:bg-zinc-950 p-8 rounded-[2.5rem] shadow-xs border border-dashed border-zinc-300 dark:border-zinc-800 hover:border-brand-primary transition-all group text-center animate-in fade-in duration-300">
       <div className="flex items-center justify-center gap-4 mb-6">
-        <FileIcon size={48} className="text-green-500 shadow-green-200 drop-shadow-md" />
-        <div className="text-left">
-          <p className="font-bold text-lg text-gray-800 dark:text-white">{file.name}</p>
-          <p className="text-sm text-gray-500">{(file.size / 1024).toFixed(1)} KB</p>
+        <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl text-emerald-500 shadow-2xs">
+          <FileIcon size={32} />
+        </div>
+        <div className="text-left leading-none space-y-1">
+          <p className="font-bold text-sm text-zinc-800 dark:text-zinc-150 leading-none">{file.name}</p>
+          <p className="text-[10px] text-zinc-400 dark:text-zinc-500 font-mono">{(file.size / 1024).toFixed(1)} KB</p>
         </div>
         <button
           onClick={onRemoveFile}
-          className="p-2 bg-red-50 text-red-500 rounded-full hover:bg-red-100"
+          className="p-1.5 bg-red-500/10 text-red-500 border border-red-500/20 rounded-xl hover:bg-red-500/20 cursor-pointer transition-colors"
         >
-          <X size={18} />
+          <X size={14} className="stroke-[2.5px]" />
         </button>
       </div>
       <button
         onClick={onAnalyze}
-        className="w-full max-w-sm mx-auto py-3 bg-brand-primary hover:bg-brand-primary-hover text-white font-bold rounded-lg shadow-lg shadow-brand-primary/30 transition-all active:scale-95 flex items-center justify-center gap-2"
+        className="w-full max-w-sm mx-auto py-2.5 bg-brand-primary hover:bg-brand-primary/95 text-white font-bold rounded-xl text-xs uppercase tracking-wider shadow-xs shadow-brand-primary/10 transition-all active:scale-98 flex items-center justify-center gap-2 cursor-pointer"
       >
-        Analyze File <ChevronRight size={18} />
+        Analyze File <ChevronRight size={14} />
       </button>
     </div>
   );

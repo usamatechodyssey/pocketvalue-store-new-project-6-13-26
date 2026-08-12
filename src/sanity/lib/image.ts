@@ -34,7 +34,7 @@ interface PayloadImagePayload {
 // 🛡️ URL SANITIZER (Prevents XSS)
 // ====================================================================
 const sanitizeUrl = (url: string): string => {
-  if (!url) return '/placeholder.png';
+  if (!url) return '/placeholder.svg';
   
   // Trim whitespace
   const trimmed = url.trim();
@@ -42,25 +42,25 @@ const sanitizeUrl = (url: string): string => {
   // ✅ Block javascript: protocol
   if (/^javascript:/i.test(trimmed)) {
     console.warn('Blocked javascript: URL in image source');
-    return '/placeholder.png';
+    return '/placeholder.svg';
   }
   
   // ✅ Block data: protocol (can contain HTML)
   if (/^data:/i.test(trimmed)) {
     console.warn('Blocked data: URL in image source');
-    return '/placeholder.png';
+    return '/placeholder.svg';
   }
   
   // ✅ Block vbscript: protocol
   if (/^vbscript:/i.test(trimmed)) {
     console.warn('Blocked vbscript: URL in image source');
-    return '/placeholder.png';
+    return '/placeholder.svg';
   }
   
   // ✅ Block file: protocol
   if (/^file:/i.test(trimmed)) {
     console.warn('Blocked file: URL in image source');
-    return '/placeholder.png';
+    return '/placeholder.svg';
   }
   
   // ✅ For http/https, validate URL structure
@@ -70,7 +70,7 @@ const sanitizeUrl = (url: string): string => {
       return trimmed;
     } catch {
       console.warn('Invalid URL structure:', trimmed);
-      return '/placeholder.png';
+      return '/placeholder.svg';
     }
   }
   
@@ -86,7 +86,7 @@ const sanitizeUrl = (url: string): string => {
   
   // ❌ Unknown/unsafe format
   console.warn('Unrecognized URL format:', trimmed);
-  return '/placeholder.png';
+  return '/placeholder.svg';
 };
 
 // UNIVERSAL MOCK BUILDER IMPLEMENTATION
@@ -113,7 +113,7 @@ const createMockBuilder = (finalUrl: string): ImageUrlBuilderMock => {
 export const urlFor = (source: unknown): ImageUrlBuilderMock | ReturnType<typeof builder.image> => {
   // 1. Agar source undefined, null, ya empty hai
   if (!source) {
-    return createMockBuilder('/placeholder.png');
+    return createMockBuilder('/placeholder.svg');
   }
 
   // 2. String check (e.g. direct Cloudinary URL ya Sanity image ID reference)
@@ -138,7 +138,7 @@ export const urlFor = (source: unknown): ImageUrlBuilderMock | ReturnType<typeof
     }
 
     if (obj.asset?._ref && !obj.asset._ref.startsWith('image-')) {
-      return createMockBuilder('/placeholder.png');
+      return createMockBuilder('/placeholder.svg');
     }
   }
 
@@ -148,6 +148,6 @@ export const urlFor = (source: unknown): ImageUrlBuilderMock | ReturnType<typeof
   } catch (error: unknown) {
     const errorMsg = error instanceof Error ? error.message : String(error);
     console.error("Sanity URL Builder Error (Ignored, falling back):", errorMsg);
-    return createMockBuilder('/placeholder.png');
+    return createMockBuilder('/placeholder.svg');
   }
 };

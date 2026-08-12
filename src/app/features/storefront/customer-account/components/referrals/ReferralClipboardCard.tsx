@@ -137,7 +137,7 @@ export default function ReferralClipboardCard({ initialStats }: ReferralClipboar
                   <button
                     onClick={handleGenerateCode}
                     disabled={isGenerating}
-                    className="px-6 py-3.5 bg-linear-to-r from-brand-primary to-brand-primary-hover text-white font-bold rounded-xl shadow-md hover:scale-[1.03] transition-all duration-200 active:scale-95 disabled:opacity-50 min-w-[170px] text-center text-xs sm:text-sm"
+                    className="px-6 py-3.5 bg-linear-to-r from-brand-primary to-brand-primary-hover text-white font-bold rounded-xl shadow-md hover:scale-[1.03] transition-all duration-200 active:scale-95 disabled:opacity-50 min-w-42.5 text-center text-xs sm:text-sm"
                   >
                     {isGenerating ? "Generating..." : "Generate Code"}
                   </button>

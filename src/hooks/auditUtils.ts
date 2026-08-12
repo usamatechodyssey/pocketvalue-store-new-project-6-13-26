@@ -1,9 +1,7 @@
-// src/hooks/auditUtils.ts
+// 📂 src/hooks/auditUtils.ts (FULLY COMPILE-SAFE)
+
 import type { PayloadRequest } from 'payload';
 
-/**
- * 🛡️ Security: Sensitive fields to exclude from logs (passwords, tokens, etc.)
- */
 const SENSITIVE_FIELDS = new Set([
   'password',
   'passwordResetToken',
@@ -13,33 +11,32 @@ const SENSITIVE_FIELDS = new Set([
   'resetToken',
 ]);
 
-/**
- * Sanitizes an object by removing sensitive fields.
- * ✅ FIX 3: Properly typed to return Partial<T>
- */
 export function sanitizeData<T extends Record<string, unknown>>(data: T): Partial<T> {
   if (!data) return {};
-  const result: Partial<T> = {};
-  for (const [key, value] of Object.entries(data)) {
-    if (!SENSITIVE_FIELDS.has(key)) {
-      (result as Record<string, unknown>)[key] = value;
+  
+  // ✅ FIX: Clone using type-safe spread and manual deletion
+  const result = { ...data } as Partial<T>;
+  
+  for (const key of Object.keys(result)) {
+    if (SENSITIVE_FIELDS.has(key)) {
+      delete result[key as keyof T];
     }
   }
   return result;
 }
 
-/**
- * Generates a human-readable diff string between two objects.
- */
 export function generateDiff(previous: any, current: any): string {
   if (!previous || !current) return 'Document created or deleted.';
+  
   const oldData = sanitizeData(previous);
   const newData = sanitizeData(current);
   const changes: string[] = [];
 
   const allKeys = new Set([...Object.keys(oldData), ...Object.keys(newData)]);
+  
   for (const key of allKeys) {
-    if (key === 'id' || key === '_id' || key === 'createdAt' || key === 'updatedAt') continue;
+    if (['id', '_id', 'createdAt', 'updatedAt', 'version'].includes(key)) continue;
+    
     const oldVal = (oldData as Record<string, any>)[key];
     const newVal = (newData as Record<string, any>)[key];
 
@@ -49,33 +46,24 @@ export function generateDiff(previous: any, current: any): string {
       changes.push(`${key}: ${oldStr} ➔ ${newStr}`);
     }
   }
-  return changes.length > 0 ? changes.join(' | ') : 'No significant changes detected.';
+  
+  const diffStr = changes.length > 0 ? changes.join(' | ') : 'No significant changes detected.';
+  return diffStr.length > 1000 ? diffStr.substring(0, 997) + '...' : diffStr;
 }
 
-/**
- * Extracts the client IP address from the Payload request object.
- * ✅ FIX 4: Removed req.ip (doesn't exist on PayloadRequest)
- */
 export function getClientIp(req: PayloadRequest): string {
-  // Try headers first (supports proxies)
+  
   const forwarded = req.headers?.get?.('x-forwarded-for');
-  if (forwarded) {
-    const ips = forwarded.split(',').map((ip) => ip.trim());
-    return ips[0];
+  if (forwarded && typeof forwarded === 'string') {
+    return forwarded.split(',')[0].trim();
   }
-
   const realIp = req.headers?.get?.('x-real-ip');
-  if (realIp) return realIp;
-
-  const cfConnectingIp = req.headers?.get?.('cf-connecting-ip');
-  if (cfConnectingIp) return cfConnectingIp;
+  if (realIp && typeof realIp === 'string') return realIp;
 
   return '0.0.0.0';
 }
 
-/**
- * Extracts the User-Agent from the Payload request object.
- */
 export function getUserAgent(req: PayloadRequest): string {
+  
   return req.headers?.get?.('user-agent') || 'Unknown';
 }

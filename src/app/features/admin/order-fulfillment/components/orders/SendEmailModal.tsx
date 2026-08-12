@@ -1,3 +1,5 @@
+// 📂 src/app/features/admin/order-fulfillment/components/orders/SendEmailModal.tsx (CYBER-HUD HARDENED)
+
 "use client";
 
 import { useState, useTransition, Fragment } from "react";
@@ -21,36 +23,107 @@ export default function SendEmailModal({ customerId, customerName }: { customerI
       if (result.success) {
         toast.success("Email sent!");
         setIsOpen(false);
-        setSubject(""); setMessage("");
-      } else toast.error(result.message);
+        setSubject(""); 
+        setMessage("");
+      } else {
+        toast.error(result.message);
+      }
     });
   };
 
-  const inputStyles = "w-full p-2.5 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 text-sm focus:ring-brand-primary";
+  const inputStyles = "w-full p-2.5 text-xs font-medium border border-zinc-200 dark:border-zinc-800 rounded-xl bg-zinc-50/50 dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200 placeholder:text-zinc-400 focus:ring-1 focus:ring-brand-primary/50 outline-hidden transition-all";
 
   return (
     <>
-      <button onClick={() => setIsOpen(true)} className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 shadow-md">
-        <Mail size={18} /> Send Custom Email
+      <button 
+        onClick={() => setIsOpen(true)} 
+        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold uppercase tracking-wider rounded-xl transition-all shadow-xs cursor-pointer shadow-blue-500/10"
+      >
+        <Mail size={16} /> Send Custom Email
       </button>
 
       <Transition appear show={isOpen} as={Fragment}>
-        <Dialog as="div" className="relative z-9999" onClose={() => setIsOpen(false)}>
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" aria-hidden="true" />
-          <div className="fixed inset-0 flex items-center justify-center p-4">
-            <DialogPanel className="w-full max-w-md rounded-xl bg-white dark:bg-gray-800 p-6 shadow-2xl">
-              <div className="flex justify-between items-center mb-4">
-                <DialogTitle className="text-lg font-bold dark:text-white">Email to {customerName}</DialogTitle>
-                <X className="cursor-pointer opacity-50" onClick={() => setIsOpen(false)} />
-              </div>
-              <form onSubmit={handleSendEmail} className="space-y-4">
-                <input type="text" placeholder="Subject" value={subject} onChange={e => setSubject(e.target.value)} className={inputStyles} />
-                <textarea rows={5} placeholder="Your message..." value={message} onChange={e => setMessage(e.target.value)} className={inputStyles}></textarea>
-                <button type="submit" disabled={isPending} className="w-full py-3 bg-brand-primary text-white font-bold rounded-lg flex items-center justify-center gap-2">
-                  {isPending && <Loader2 className="animate-spin" size={18} />} Send Email
-                </button>
-              </form>
-            </DialogPanel>
+        <Dialog as="div" className="relative z-50" onClose={() => setIsOpen(false)}>
+          <TransitionChild
+            as={Fragment}
+            enter="ease-out duration-300"
+            enterFrom="opacity-0"
+            enterTo="opacity-100"
+            leave="ease-in duration-200"
+            leaveFrom="opacity-100"
+            leaveTo="opacity-0"
+          >
+            <div className="fixed inset-0 bg-black/60 backdrop-blur-xs" />
+          </TransitionChild>
+
+          <div className="fixed inset-0 overflow-y-auto">
+            <div className="flex min-h-full items-center justify-center p-4 text-center">
+              <TransitionChild
+                as={Fragment}
+                enter="ease-out duration-300"
+                enterFrom="opacity-0 scale-95"
+                enterTo="opacity-100 scale-100"
+                leave="ease-in duration-200"
+                leaveFrom="opacity-100 scale-100"
+                leaveTo="opacity-0 scale-95"
+              >
+                <DialogPanel className="w-full max-w-md transform rounded-2xl bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 p-6 text-left align-middle shadow-2xl transition-all">
+                  <div className="flex justify-between items-center mb-4 pb-3 border-b border-zinc-150 dark:border-zinc-850">
+                    <DialogTitle className="text-sm font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider font-mono flex items-center gap-2">
+                      <Mail size={16} className="text-blue-500" /> Email to {customerName}
+                    </DialogTitle>
+                    <button onClick={() => setIsOpen(false)} className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 transition-colors cursor-pointer">
+                      <X size={16} />
+                    </button>
+                  </div>
+                  
+                  <form onSubmit={handleSendEmail} className="space-y-4">
+                    <div>
+                      <label className="block text-[10px] font-bold font-mono uppercase tracking-wider text-zinc-400 dark:text-zinc-500 mb-1">
+                        Email Subject
+                      </label>
+                      <input 
+                        type="text" 
+                        placeholder="e.g. Order Update Notification" 
+                        value={subject} 
+                        onChange={e => setSubject(e.target.value)} 
+                        className={inputStyles} 
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold font-mono uppercase tracking-wider text-zinc-400 dark:text-zinc-500 mb-1">
+                        Message Body
+                      </label>
+                      <textarea 
+                        rows={5} 
+                        placeholder="Write your custom message here..." 
+                        value={message} 
+                        onChange={e => setMessage(e.target.value)} 
+                        className={inputStyles}
+                      />
+                    </div>
+
+                    <div className="pt-2 flex justify-end gap-3 border-t border-zinc-150 dark:border-zinc-850">
+                      <button
+                        type="button"
+                        onClick={() => setIsOpen(false)}
+                        className="px-4 py-2 text-xs font-semibold rounded-xl text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200 transition-colors cursor-pointer"
+                      >
+                        Cancel
+                      </button>
+                      <button 
+                        type="submit" 
+                        disabled={isPending} 
+                        className="flex items-center justify-center gap-2 px-4 py-2 bg-brand-primary hover:bg-brand-primary/90 text-white text-xs font-bold uppercase tracking-wider rounded-xl transition-all disabled:opacity-50 cursor-pointer shadow-xs shadow-brand-primary/10"
+                      >
+                        {isPending && <Loader2 className="animate-spin" size={14} />} Send Email
+                      </button>
+                    </div>
+                  </form>
+                </DialogPanel>
+              </TransitionChild>
+            </div>
           </div>
         </Dialog>
       </Transition>

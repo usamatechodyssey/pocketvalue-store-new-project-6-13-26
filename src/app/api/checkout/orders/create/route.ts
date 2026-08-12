@@ -472,7 +472,7 @@
 //     return NextResponse.json({ message: errorMsg }, { status: 500 });
 //   }
 // }
-// 📂 src/app/api/checkout/orders/create/route.ts (MASTER HARDENED FOR FINANCIAL INTEGRITY)
+// 📂 src/app/api/checkout/orders/create/route.ts (MASTER DUAL-PROFIT HARDENED)
 
 "use server";
 
@@ -508,11 +508,6 @@ interface PayloadProductVariant {
   salePrice?: number;
   stock?: number;
   inStock: boolean;
-}
-
-interface SuccessfulStockBackup {
-  productId: string;
-  originalVariants: Record<string, unknown>[];
 }
 
 const LUA_RELEASE_LOCK = `
@@ -556,7 +551,7 @@ async function getNearestWarehouseDistance(userLat: number, userLng: number): Pr
 }
 
 // ================================================================
-// 🚀 MAIN POST HANDLER
+// 🚀 MAIN POST HANDLER (100% Dual-Profit Snapshot Persistence)
 // ================================================================
 export async function POST(req: NextRequest) {
   const session = await auth();
@@ -635,12 +630,8 @@ export async function POST(req: NextRequest) {
     }
 
     // ================================================================
-    // 🛡️ THE SURGICAL STAMPING (Data Integrity Lock)
+    // 🛡️ COUPON VERIFICATION & MONETARY DISCOUNT CALCULATION
     // ================================================================
-    const settings = await getCachedSettings();
-    // ✅ Snapshot rates are now included in enrichedCartItems (appliedGstRate, appliedProfitRate, etc.)
-    const enrichedCartItems = enrichCartWithAnalytics(cartItems, settings);
-
     const serverShipping = await calculateShippingCostServer(serverSubtotal);
     let monetaryDiscount = 0;
     let shippingDiscount = 0;
@@ -654,6 +645,13 @@ export async function POST(req: NextRequest) {
         finalCoupon = { code: couponResult.finalDiscount.code, amount: couponResult.finalDiscount.amount };
       } else throw new Error(`Coupon "${couponCode}" is invalid.`);
     }
+
+    // ================================================================
+    // 🛡️ DUAL PROFIT SURGICAL ENRICHMENT (Includes Pro-Rata Coupon Discount!)
+    // ================================================================
+    const settings = await getCachedSettings();
+    // ✅ Injects targetProfit (Before Coupon) AND profit (After Coupon) into cart items
+    const enrichedCartItems = enrichCartWithAnalytics(cartItems, settings, monetaryDiscount);
 
     const finalServerShippingCost = serverShipping.cost - shippingDiscount;
     const serverGrandTotal = serverSubtotal - monetaryDiscount + finalServerShippingCost;
@@ -677,7 +675,7 @@ export async function POST(req: NextRequest) {
     const newOrderId = await generateNextOrderId();
     createdOrderId = newOrderId;
 
-    // ✅ PERSISTENCE: Snapshot rates from enrichedCartItems are saved directly into MongoDB
+    // ✅ PERSISTENCE: Dual profit fields saved directly into MongoDB Atlas
     const orderDataToSave = {
       _id: newOrderId,
       orderId: newOrderId,
@@ -738,7 +736,6 @@ export async function POST(req: NextRequest) {
         }
       }));
     } catch (stockError: any) {
-      // Rollback logic would fire here
       throw new Error("Inventory allocation failed.");
     }
 

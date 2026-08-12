@@ -26,7 +26,7 @@ interface VisualSearchPanelProps {
   onClose: () => void;
 }
 
-const PLACEHOLDER_IMAGE_URL = "/placeholder.png";
+const PLACEHOLDER_IMAGE_URL = "/placeholder.svg";
 
 export default function VisualSearchPanel({ onClose }: VisualSearchPanelProps) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);

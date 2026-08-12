@@ -133,6 +133,9 @@
 | | | |____actions.ts
 | | | |____admin
 | | | | |____importMap.js
+| | | | |____reports-index
+| | | | | |____[slug]
+| | | | | | |____page.tsx
 | | | | |____views
 | | | | | |____AnalyticsDashboard.tsx
 | | | | | |____BehavioralIntelligenceView.tsx
@@ -227,8 +230,6 @@
 | | | | | |____[gateway]
 | | | | | | |____route.ts
 | | | | |____webhooks
-| | | | | |____crm
-| | | | | | |____route.ts
 | | | | | |____logistics
 | | | | | | |____route.ts
 | | | |____register
@@ -317,7 +318,6 @@
 | | | | | | |____payloadCustomerActions.ts
 | | | | | | |____payloadInventoryActions.ts
 | | | | | | |____payloadMassDeletionActions.ts
-| | | | | | |____payloadProductActions.ts
 | | | | | | |____payloadProductExplorerActions.ts
 | | | | | |____components
 | | | | | | |____categories
@@ -428,7 +428,6 @@
 | | | | |____order-fulfillment
 | | | | | |____actions
 | | | | | | |____ordersActions.ts
-| | | | | | |____payloadAdminActions.ts
 | | | | | | |____payloadReturnAdminActions.ts
 | | | | | | |____shipment
 | | | | | | | |____bulkShipment.service.ts
@@ -496,12 +495,16 @@
 | | | | | | | |____ReportSidebarSection.tsx
 | | | | | |____configs
 | | | | | | |____reportConfigs.ts
+| | | | | |____utils
+| | | | | | |____reportExporter.ts
 | | | | |____sales-chart
 | | | | | |____actions
 | | | | | | |____getSalesChartData.ts
 | | | | | |____components
 | | | | | | |____SalesPerformanceChart.tsx
 | | | | |____staff-management
+| | | | | |____actions
+| | | | | | |____payloadAdminActions.ts
 | | | | | |____components
 | | | | | | |____AddStaffModal.tsx
 | | | | | | |____CustomStaffNavLink.tsx

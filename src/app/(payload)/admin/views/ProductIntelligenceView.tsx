@@ -1,6 +1,5 @@
 // 📂 src/app/(payload)/admin/views/ProductIntelligenceView.tsx
 
-
 import { DefaultTemplate } from "@payloadcms/next/templates";
 import {
   getProductIntelligencePayload,
@@ -31,10 +30,10 @@ export default async function ProductIntelligenceView(props: ProductIntelligence
   const params = await paramsPromise;
   const searchParams = await searchParamsPromise;
 
-  // ✅ FIX 1: Single unified payload declaration (resolves ts6133 warning)
+  // Single unified payload declaration
   const payload = props.payload || initPageResult?.req?.payload;
 
-  // ✅ FIX 2: Support both startDate/endDate & from/to searchParams for Date Range Picker compatibility
+  // Support both startDate/endDate & from/to searchParams for Date Range Picker compatibility
   const fromParam = (searchParams?.startDate || searchParams?.from) as string | undefined;
   const toParam = (searchParams?.endDate || searchParams?.to) as string | undefined;
 
@@ -48,7 +47,7 @@ export default async function ProductIntelligenceView(props: ProductIntelligence
 
   const currentPage = Number(searchParams?.page) || 1;
 
-  // ✅ Explicitly typed with ProductIntelResponse
+  // Explicitly typed with ProductIntelResponse
   const intelResult: ProductIntelResponse = await getProductIntelligencePayload(
     range,
     currentPage,
@@ -77,16 +76,25 @@ export default async function ProductIntelligenceView(props: ProductIntelligence
       i18n={i18n}
       locale={locale}
       params={params}
-      payload={payload} // ✅ Correctly reads unified payload variable
+      payload={payload}
       permissions={permissions}
       searchParams={searchParams}
       user={user}
       visibleEntities={visibleEntities}
     >
-      <div className="tw-admin-wrapper p-4 sm:p-6 lg:p-10 space-y-10 max-w-[1800px] mx-auto bg-zinc-50/50 dark:bg-zinc-950/40 min-h-screen pb-20">
+      <div className="tw-admin-wrapper p-4 sm:p-6 lg:p-10 space-y-8 max-w-[1800px] mx-auto bg-zinc-50/50 dark:bg-zinc-950/40 min-h-screen pb-20">
         
         {/* ================================================================ */}
-        {/* 👑 HERO HEADER */}
+        {/* 📅 TOP-RIGHT TOOLBAR: Date Range Picker OUTSIDE Hero Header */}
+        {/* ================================================================ */}
+        <div className="flex items-center justify-end w-full print:hidden">
+          <div className="shadow-2xs">
+            <AnalyticsDateRangePicker />
+          </div>
+        </div>
+
+        {/* ================================================================ */}
+        {/* 👑 HERO HEADER CARD */}
         {/* ================================================================ */}
         <div className="bg-white dark:bg-zinc-950 p-6 sm:p-8 rounded-[2.5rem] border border-zinc-200 dark:border-zinc-800/80 shadow-2xl relative overflow-hidden flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
           <div className="absolute top-0 right-0 w-96 h-96 bg-brand-primary/10 rounded-full blur-3xl pointer-events-none hidden dark:block" />
@@ -122,10 +130,6 @@ export default async function ProductIntelligenceView(props: ProductIntelligence
               </span>{" "}
               | <span className="font-bold text-brand-primary">{totalDocs.toLocaleString('en-PK')} TOTAL MATCHES</span>
             </p>
-          </div>
-
-          <div className="relative z-10 w-full md:w-auto">
-            <AnalyticsDateRangePicker />
           </div>
         </div>
 

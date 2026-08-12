@@ -1,3 +1,4 @@
+
 // 📂 src/app/features/admin/loyalty-intelligence/actions/getLoyaltyExecutiveSummary.ts
 
 "use server";
@@ -6,6 +7,7 @@ import connectMongoose from "@/app/shared/lib/checkout/mongoose";
 import Order from "@/models/Order";
 import { redis } from "@/app/shared/lib/telemetry/rate-limiter";
 import { verifyAdminAccess } from "@/app/features/admin/analytics-telemetry/action/verifyAdminAccess";
+import { format, startOfDay, endOfDay, subDays } from "date-fns";
 
 // ✅ SINGLE SOURCE OF TRUTH
 import { REVENUE_STATUSES } from "@/app/shared/constants/analytics";
@@ -59,7 +61,7 @@ const releaseLock = async (lockKey: string, requestId: string): Promise<void> =>
 };
 
 // ================================================================
-// 🔨 HELPER: Calculate cohort metrics from grouped user data
+// 🔨 HELPER: Calculate cohort metrics from grouped user data (PKR Rounded)
 // ================================================================
 function calculateCohortMetrics(
   userOrders: { userId: string; orderCount: number; totalSpend: number }[]
@@ -69,25 +71,39 @@ function calculateCohortMetrics(
   const totalRevenue = userOrders.reduce((sum, u) => sum + u.totalSpend, 0);
   const repeatUsers = userOrders.filter((u) => u.orderCount > 1).length;
 
+  const rawAov = totalOrders > 0 ? totalRevenue / totalOrders : 0;
+  const rawLtv = totalUsers > 0 ? totalRevenue / totalUsers : 0;
+  const rawRepeat = totalUsers > 0 ? (repeatUsers / totalUsers) * 100 : 0;
+
   return {
     totalUsers,
     totalOrders,
-    totalRevenue,
-    averageOrderValue: totalOrders > 0 ? totalRevenue / totalOrders : 0,
-    lifetimeValue: totalUsers > 0 ? totalRevenue / totalUsers : 0,
-    repeatPurchaseRate: totalUsers > 0 ? (repeatUsers / totalUsers) * 100 : 0,
+    totalRevenue: Math.round(totalRevenue),
+    // ✅ FIX 2: Rounded off currency to nearest whole rupee (eliminates .286 decimals!)
+    averageOrderValue: Math.round(rawAov),
+    lifetimeValue: Math.round(rawLtv),
+    repeatPurchaseRate: Number(rawRepeat.toFixed(1)),
   };
 }
 
 // ================================================================
-// 🚀 MAIN FUNCTION — Enterprise Ready
+// 🚀 MAIN FUNCTION — Date-Aware & Enterprise Hardened
 // ================================================================
-export async function getLoyaltyExecutiveSummary(): Promise<{
+export async function getLoyaltyExecutiveSummary(range?: {
+  startDate: Date;
+  endDate: Date;
+}): Promise<{
   success: boolean;
   data?: LoyaltyExecutiveSummaryResponse;
   error?: string;
 }> {
-  const cacheKey = "analytics_loyalty_executive_summary_v6";
+  const today = new Date();
+  const start = range?.startDate ? startOfDay(new Date(range.startDate)) : startOfDay(subDays(today, 30));
+  const end = range?.endDate ? endOfDay(new Date(range.endDate)) : endOfDay(today);
+
+  const fromStr = format(start, "yyyy-MM-dd");
+  const toStr = format(end, "yyyy-MM-dd");
+  const cacheKey = `analytics_loyalty_executive_summary_v7:${fromStr}_${toStr}`;
 
   try {
     // 1. RBAC
@@ -97,7 +113,7 @@ export async function getLoyaltyExecutiveSummary(): Promise<{
     const cachedData = await redis.get(cacheKey);
     const parsed = safeParse<LoyaltyExecutiveSummaryResponse>(cachedData as string | null);
     if (parsed) {
-      console.log("⚡ Redis Cache Hit: Loyalty Executive Summary");
+      console.log(`⚡ Redis Cache Hit: Loyalty Executive Summary (${fromStr} to ${toStr})`);
       return { success: true, data: parsed };
     }
 
@@ -123,17 +139,18 @@ export async function getLoyaltyExecutiveSummary(): Promise<{
       await connectMongoose();
 
       // ================================================================
-      // 🔥 1. AGGREGATION: Group orders by user, attach referral status
+      // 🔥 1. AGGREGATION: Date-Aware & Status Whitelisted
       // ================================================================
       const userOrderAggregation = await Order.aggregate([
-        // ✅ Match valid sales orders with non-empty user IDs
+        // ✅ FIX 1: Match valid sales orders WITH TIMEFRAME BOUNDARIES
         {
           $match: {
             status: { $in: REVENUE_STATUSES },
+            createdAt: { $gte: start, $lte: end },
             userId: { $exists: true, $ne: "" },
           },
         },
-        // ✅ FIX 1: Safe conversion to ObjectId using $convert (onError: null prevents BSON crashes on custom string IDs!)
+        // Safe conversion to ObjectId using $convert
         {
           $addFields: {
             userObjId: {
@@ -146,7 +163,7 @@ export async function getLoyaltyExecutiveSummary(): Promise<{
             },
           },
         },
-        // ✅ Join with User collection
+        // Join with User collection
         {
           $lookup: {
             from: "users",
@@ -155,14 +172,13 @@ export async function getLoyaltyExecutiveSummary(): Promise<{
             as: "userData",
           },
         },
-        // ✅ preserveNullAndEmptyArrays prevents orders with missing/deleted User docs from being dropped!
         {
           $unwind: {
             path: "$userData",
             preserveNullAndEmptyArrays: true,
           },
         },
-        // ✅ Flag: Is this user referred?
+        // Flag: Is this user referred?
         {
           $addFields: {
             isReferred: {
@@ -174,7 +190,7 @@ export async function getLoyaltyExecutiveSummary(): Promise<{
             },
           },
         },
-        // ✅ Group by User ID and Referral Status to aggregate spends
+        // Group by User ID and Referral Status
         {
           $group: {
             _id: {
@@ -185,7 +201,7 @@ export async function getLoyaltyExecutiveSummary(): Promise<{
             totalSpend: { $sum: "$totalPrice" },
           },
         },
-        // ✅ Separate referred vs organic users
+        // Separate referred vs organic users
         {
           $facet: {
             referred: [
@@ -218,7 +234,7 @@ export async function getLoyaltyExecutiveSummary(): Promise<{
       const referredMetrics = calculateCohortMetrics(result.referred);
       const organicMetrics = calculateCohortMetrics(result.organic);
 
-      // 3. Calculate Premiums (Comparison)
+      // 3. Calculate Premiums
       const revenuePremium =
         organicMetrics.lifetimeValue > 0
           ? ((referredMetrics.lifetimeValue - organicMetrics.lifetimeValue) /
@@ -236,7 +252,6 @@ export async function getLoyaltyExecutiveSummary(): Promise<{
             100
           : 0;
 
-      // Revenue impact reflects total revenue generated BY the referral program
       const revenueImpact = referredMetrics.totalRevenue;
 
       // 4. Build Response
@@ -247,14 +262,14 @@ export async function getLoyaltyExecutiveSummary(): Promise<{
           revenuePremium: Number(revenuePremium.toFixed(1)),
           repeatPremium: Number(repeatPremium.toFixed(1)),
           aovPremium: Number(aovPremium.toFixed(1)),
-          revenueImpact: Number(revenueImpact.toFixed(0)),
+          revenueImpact: Math.round(revenueImpact),
         },
         generatedAt: new Date().toISOString(),
       };
 
-      // 5. Cache for 5 Minutes (using safeStringify)
+      // 5. Cache for 5 Minutes
       await redis.set(cacheKey, safeStringify(response), { ex: 300 });
-      console.log("✅ Loyalty Executive Summary Cached.");
+      console.log(`✅ Loyalty Executive Summary Cached (${fromStr} to ${toStr}).`);
 
       return { success: true, data: response };
     } finally {

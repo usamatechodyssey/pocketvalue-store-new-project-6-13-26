@@ -1,15 +1,17 @@
+// 📂 src/app/shared/components/layout/NewRightDock.tsx
+
 "use client";
 
 import ThemeSwitcher from "./ThemeSwitcher";
 import BackToTopButton from "../ui/BackToTopButton";
-import { HelpCircle, MessageCircle } from "lucide-react"; // ✅ Removed Bell
+import { HelpCircle, MessageCircle } from "lucide-react";
 import Link from "next/link";
 
 interface NewRightDockProps {
   topOffset: number;
 }
 
-// ✅ Tooltip wrapper with accessibility improvements
+// ✅ HIGH-CONTRAST GLASSMORPHIC HUD TOOLTIP
 const TooltipWrapper = ({
   children,
   label,
@@ -17,12 +19,11 @@ const TooltipWrapper = ({
   children: React.ReactNode;
   label: string;
 }) => (
-  <div className="group relative p-3 rounded-xl transition-all duration-300">
+  <div className="group relative p-2.5 rounded-xl transition-all duration-300 flex items-center justify-center">
     {children}
+    {/* ✅ FIX 1 & 2: Shifted offset to 'right-16' so the tooltip floats cleanly outside the dock border line without overlapping */}
     <span
-      className="absolute right-14 top-1/2 -translate-y-1/2 bg-gray-800 text-white text-[10px] font-bold px-2.5 py-1 rounded 
-        opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus:opacity-100 
-        transition-opacity pointer-events-none whitespace-nowrap z-50 shadow-lg"
+      className="absolute right-16 top-1/2 -translate-y-1/2 bg-zinc-950 border border-zinc-800/80 text-white text-[10px] font-mono font-black uppercase tracking-widest px-3 py-1.5 rounded-xl opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none whitespace-nowrap z-50 shadow-2xl translate-x-2 group-hover:translate-x-0"
       role="tooltip"
     >
       {label}
@@ -36,8 +37,8 @@ export default function NewRightDock({ topOffset }: NewRightDockProps) {
 
   return (
     <aside
-      className="hidden lg:flex flex-col fixed right-0 w-16 bg-white dark:bg-gray-900 border-l border-gray-200 dark:border-gray-800
-      transition-all duration-300 ease-out z-30 shadow-[-2px_0_10px_rgba(0,0,0,0.02)]"
+      // ✅ GLASSMORPHIC BACKDROP: Translucent white/gray-900 with clean thin borders
+      className="hidden lg:flex flex-col fixed right-0 w-16 bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border-l border-zinc-200/50 dark:border-zinc-800/50 transition-all duration-300 ease-out z-35 shadow-[-2px_0_15px_rgba(0,0,0,0.01)]"
       style={{
         top: `${safeTopOffset}px`,
         height: safeHeight,
@@ -47,17 +48,16 @@ export default function NewRightDock({ topOffset }: NewRightDockProps) {
       role="complementary"
     >
       {/* Top Icons Section */}
-      <div className="grow pt-8 flex flex-col items-center gap-2">
+      <div className="grow pt-8 flex flex-col items-center gap-3 select-none">
         {/* Help / Support */}
         <TooltipWrapper label="Help Center">
           <Link
             href="/faq"
             aria-label="Help Center"
-            className="text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors 
-              focus:outline-none focus:ring-2 focus:ring-brand-primary focus:ring-offset-2 
-              dark:focus:ring-offset-gray-900 rounded-full"
+            /* ✅ FIX 3: Removed 'focus:ring-2 focus:ring-offset-2' which created the ugly orange bracket artifacts! */
+            className="text-zinc-400 dark:text-zinc-500 hover:text-brand-primary dark:hover:text-brand-primary transition-all duration-300 active:scale-90 outline-none focus:outline-none focus-visible:outline-none rounded-full p-1"
           >
-            <HelpCircle size={24} strokeWidth={1.5} aria-hidden="true" />
+            <HelpCircle size={22} strokeWidth={1.8} aria-hidden="true" />
           </Link>
         </TooltipWrapper>
 
@@ -66,17 +66,16 @@ export default function NewRightDock({ topOffset }: NewRightDockProps) {
           <Link
             href="/contact-us"
             aria-label="Contact Us"
-            className="text-gray-400 hover:text-green-600 dark:hover:text-green-400 transition-colors 
-              focus:outline-none focus:ring-2 focus:ring-brand-primary focus:ring-offset-2 
-              dark:focus:ring-offset-gray-900 rounded-full"
+            /* ✅ FIX 3: Removed 'focus:ring-2 focus:ring-offset-2' which created the ugly orange bracket artifacts! */
+            className="text-zinc-400 dark:text-zinc-500 hover:text-emerald-500 dark:hover:text-emerald-400 transition-all duration-300 active:scale-90 outline-none focus:outline-none focus-visible:outline-none rounded-full p-1"
           >
-            <MessageCircle size={24} strokeWidth={1.5} aria-hidden="true" />
+            <MessageCircle size={22} strokeWidth={1.8} aria-hidden="true" />
           </Link>
         </TooltipWrapper>
       </div>
 
       {/* Bottom Utility Section */}
-      <div className="shrink-0 p-4 pb-8 border-t border-gray-100 dark:border-gray-800 flex flex-col items-center gap-4 bg-gray-50/50 dark:bg-gray-800/50 backdrop-blur-sm">
+      <div className="shrink-0 p-3 pb-8 border-t border-zinc-200/50 dark:border-zinc-800/50 flex flex-col items-center gap-4 bg-white/40 dark:bg-gray-900/40 backdrop-blur-md">
         <ThemeSwitcher />
         <BackToTopButton />
       </div>

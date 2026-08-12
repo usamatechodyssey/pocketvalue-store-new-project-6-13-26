@@ -630,9 +630,28 @@ export const SubmitReviewSchema = z.object({
 // SECTION 3: ADMIN PANEL & DATA MANAGEMENT SCHEMAS
 // ====================================================================
 
+
 export const UpdateOrderStatusSchema = z.object({
   orderId: z.string().min(1, { message: "Order ID is required." }),
-  newStatus: z.enum(['Pending', 'Processing', 'Shipped', 'Delivered', 'Cancelled', 'On Hold']),
+  newStatus: z.enum([
+    'Pending',
+    'Payment Verified',
+    'Processing',
+    'Ready to Ship',
+    'Shipped',
+    'In Transit',
+    'Delivered',
+    'RTO',
+    'Return Requested',
+    'Return Approved',
+    'Refund Initiated',
+    'Auto-Restocked',
+    'Completed',
+    'Cancelled',
+    'On Hold',
+    'Fraud Hold',
+    'Rejected'
+  ]),
 });
 
 export const SendCustomEmailSchema = z.object({
@@ -874,7 +893,8 @@ export const FilterRequestSchema = z.object({
     "price-high-to-low",
     "newest",
     "best-selling",
-    "rating-high"   // ✅ ENTERPRISE FIX: Added missing sort options
+    "rating-high",   // ✅ ENTERPRISE FIX: Added missing sort options
+    "rating-low" // ✅ ENTERPRISE FIX: Added missing "rating-low" sort option
   ]).optional(),
   filters: z.object({
     brands: z.array(z.string()).optional(),

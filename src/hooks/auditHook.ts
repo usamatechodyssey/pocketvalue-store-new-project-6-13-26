@@ -1,75 +1,68 @@
-// src/hooks/auditHook.ts
-import type { CollectionAfterChangeHook, CollectionAfterDeleteHook, PayloadRequest } from 'payload';
-import { sanitizeData, generateDiff, getClientIp, getUserAgent } from './auditUtils';
+// 📂 src/hooks/auditHook.ts (FULLY COMPILE-SAFE)
 
-/**
- * Creates a standardized `afterChange` hook for audit logging.
- */
+import type { CollectionAfterChangeHook, CollectionAfterDeleteHook } from 'payload';
+import { sanitizeData, generateDiff, getClientIp, getUserAgent } from './auditUtils';
+import { headers } from 'next/headers';
+
 export const createAuditAfterChangeHook = (
   collectionSlug: string
 ): CollectionAfterChangeHook => {
-  return async ({ collection, doc, previousDoc, req, operation }) => {
-    // Ignore if no user is logged in (system/internal processes)
+  return async ({ doc, previousDoc, req, operation }) => {
     if (!req.user) return;
 
-    // Sanitize and prepare data
-    const previousData = sanitizeData(previousDoc || {});
-    const newData = sanitizeData(doc || {});
     const changes = generateDiff(previousDoc, doc);
+    const h = await headers();
+    const requestId = h.get("x-request-id") || "N/A";
 
     try {
-      // ✅ FIX 5: Cast 'collection' as string to bypass strict type check
       await req.payload.create({
-        collection: 'audit-logs' as any,
+        collection: 'audit-logs',
         data: {
           admin: req.user.id,
           adminEmail: req.user.email,
-          adminRole: req.user.role,
+          adminRole: (req.user as any).role || 'admin',
           action: `${collectionSlug.toUpperCase()}_${operation.toUpperCase()}`,
           targetCollection: collectionSlug,
-          targetId: doc?.id || 'N/A',
+          targetId: String(doc?.id || 'N/A'),
           changes: changes,
-          previousData: previousData,
-          newData: newData,
+          previousData: sanitizeData(previousDoc || {}),
+          newData: sanitizeData(doc || {}),
           ipAddress: getClientIp(req),
           userAgent: getUserAgent(req),
+          requestId: requestId,
           timestamp: new Date().toISOString(),
-        } as any, // ✅ FIX 6: Cast data as any to bypass strict type check
+        } as any, 
       });
     } catch (error) {
-      // ❌ Silent Fail: Audit logging should never break the main transaction.
       console.error(`[AUDIT ERROR] Failed to log change for ${collectionSlug}:`, error);
     }
   };
 };
 
-/**
- * Creates a standardized `afterDelete` hook for audit logging.
- */
 export const createAuditAfterDeleteHook = (
   collectionSlug: string
 ): CollectionAfterDeleteHook => {
-  return async ({ collection, id, doc, req }) => {
+  return async ({ id, doc, req }) => {
     if (!req.user) return;
-
-    const sanitizedDoc = sanitizeData(doc || {});
+    const h = await headers();
+    const requestId = h.get("x-request-id") || "N/A";
 
     try {
-      // ✅ FIX 7: Cast 'collection' and 'data' as any
       await req.payload.create({
-        collection: 'audit-logs' as any,
+        collection: 'audit-logs',
         data: {
           admin: req.user.id,
           adminEmail: req.user.email,
-          adminRole: req.user.role,
+          adminRole: (req.user as any).role || 'admin',
           action: `${collectionSlug.toUpperCase()}_DELETE`,
           targetCollection: collectionSlug,
-          targetId: id,
+          targetId: String(id),
           changes: `Document with ID "${id}" was permanently deleted.`,
-          previousData: sanitizedDoc,
+          previousData: sanitizeData(doc || {}),
           newData: null,
           ipAddress: getClientIp(req),
           userAgent: getUserAgent(req),
+          requestId: requestId,
           timestamp: new Date().toISOString(),
         } as any,
       });

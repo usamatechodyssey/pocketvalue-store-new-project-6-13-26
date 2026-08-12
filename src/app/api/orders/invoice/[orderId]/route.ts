@@ -1,4 +1,4 @@
-// src/app/api/orders/invoice/[orderId]/route.ts
+// 📂 src/app/api/orders/invoice/[orderId]/route.ts (ROLE-AWARE & HARDENED)
 
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/app/auth";
@@ -7,9 +7,8 @@ import ReactPDF from "@react-pdf/renderer";
 
 // --- REFACTORED IMPORTS ---
 import connectMongoose from "@/app/shared/lib/checkout/mongoose";
-import Order, { IOrder } from "@/models/Order";
+import Order, { IOrder, ClientOrder } from "@/models/Order";
 import { InvoiceTemplate } from "@/app/features/storefront/customer-account/components/orders/Invoice/InvoiceTemplate";
-import type { ClientOrder } from "@/models/Order";
 
 /**
  * Helper function to convert a NodeJS ReadableStream into a Buffer.
@@ -24,8 +23,8 @@ async function streamToBuffer(stream: NodeJS.ReadableStream): Promise<Buffer> {
 }
 
 /**
- * ✅ ENTERPRISE FIX: Transform Mongoose document to ClientOrder
- * Converts Date objects to ISO strings for client-side compatibility.
+ * Transform Mongoose document to ClientOrder DTO
+ * Converts Date objects to ISO strings for @react-pdf/renderer compatibility.
  */
 function transformOrderToClientOrder(order: IOrder): ClientOrder {
   return {
@@ -39,6 +38,7 @@ function transformOrderToClientOrder(order: IOrder): ClientOrder {
       : order.createdAt,
     products: order.products.map((p: any) => ({
       _id: p._id,
+      productId: p.productId || p._id,
       cartItemId: p.cartItemId,
       name: p.name,
       price: p.price,
@@ -54,9 +54,9 @@ function transformOrderToClientOrder(order: IOrder): ClientOrder {
     shippingCost: order.shippingCost,
     trafficSource: order.trafficSource
       ? {
-          source: order.trafficSource.utmSource ?? 'Direct',
-          medium: order.trafficSource.utmMedium ?? 'None',
-          campaign: order.trafficSource.utmCampaign ?? 'None',
+          utmSource: order.trafficSource.utmSource ?? 'Direct',
+          utmMedium: order.trafficSource.utmMedium ?? 'None',
+          utmCampaign: order.trafficSource.utmCampaign ?? 'None',
         }
       : undefined,
   };
@@ -80,31 +80,37 @@ export async function GET(
     const params = await paramsPromise;
     const { orderId } = params;
 
-    // ✅ FIX 1: Explicitly cast to IOrder | null using `as`
-    const order = (await Order.findOne({
-      $or: [{ _id: orderId }, { orderId: orderId }],
-      userId: session.user.id,
-    }).lean()) as IOrder | null;
+    // ✅ FIX: Role-Aware Access Control (Allows Admin/Staff to generate invoices for any order)
+    const userRole = (session.user as any).role || "customer";
+    const isStaff = ["admin", "Store Manager", "Super Admin", "Content Editor", "manager"].includes(userRole);
 
-    // ✅ FIX 2: Check if order exists
+    const query: any = {
+      $or: [{ _id: orderId }, { orderId: orderId }],
+    };
+
+    // If regular customer, strictly enforce ownership check
+    if (!isStaff) {
+      query.userId = session.user.id;
+    }
+
+    const order = (await Order.findOne(query).lean()) as IOrder | null;
+
     if (!order) {
       return new NextResponse("Order not found or access denied.", { status: 404 });
     }
 
-    // ✅ FIX 3: Transform to ClientOrder
     const clientOrder = transformOrderToClientOrder(order);
-
     const documentElement = React.createElement(InvoiceTemplate, { order: clientOrder });
 
     const pdfStream = await ReactPDF.renderToStream(documentElement as any);
     const pdfBuffer = await streamToBuffer(pdfStream);
     const pdfUint8Array = new Uint8Array(pdfBuffer);
 
-    // ✅ FIX 4: Use `order.orderId` safely (now typed as IOrder)
     const response = new NextResponse(pdfUint8Array, {
       headers: {
         "Content-Type": "application/pdf",
         "Content-Disposition": `attachment; filename="invoice-${order.orderId}.pdf"`,
+        "Cache-Control": "no-cache, no-store, must-revalidate",
       },
     });
 

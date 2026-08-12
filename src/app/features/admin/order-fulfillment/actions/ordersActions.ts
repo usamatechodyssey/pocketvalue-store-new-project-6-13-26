@@ -1,4 +1,4 @@
-// 📂 src/app/features/admin/order-fulfillment/actions/ordersActions.ts (FULLY HARDENED & BSON-SAFE)
+// 📂 src/app/features/admin/order-fulfillment/actions/ordersActions.ts (FULLY HARDENED & TS-COMPILER FIXED)
 
 "use server";
 
@@ -87,7 +87,7 @@ async function restockOrderInventory(products: IOrder["products"]): Promise<bool
 }
 
 // ================================================================
-// === ACTION #1: GET PAGINATED ORDERS ===
+// === ACTION #1: GET PAGINATED ORDERS (REGEX SANITIZED) ===
 // ================================================================
 export async function getPaginatedOrders({ 
     page = 1, limit = 10, status = 'all', searchTerm = '', userId = null
@@ -105,8 +105,11 @@ export async function getPaginatedOrders({
     if (status && status !== 'all') query.status = status;
     if (userId) query.userId = userId;
 
-    if (searchTerm) {
-      const searchRegex = new RegExp(searchTerm.trim(), 'i');
+    if (searchTerm && searchTerm.trim().length > 0) {
+      // ✅ FIX 1: Escape special regex characters to prevent SyntaxError ReDoS crashes
+      const escapedSearch = searchTerm.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const searchRegex = new RegExp(escapedSearch, 'i');
+
       query.$or = [
           { orderId: searchRegex },
           { "shippingAddress.fullName": searchRegex },
@@ -157,7 +160,7 @@ export async function getPaginatedOrders({
 }
 
 // ================================================================
-// === ACTION #2: UPDATE ORDER STATUS (STATE MACHINE & DOUBLE-RESTOCK SAFE) ===
+// === ACTION #2: UPDATE ORDER STATUS (STATE MACHINE PROTECTED) ===
 // ================================================================
 export async function updateOrderStatus(
   orderId: string, 
@@ -190,7 +193,7 @@ export async function updateOrderStatus(
         order.status = validatedNewStatus as any;
         await order.save();
 
-        // DOUBLE-RESTOCK GUARD (Fires restock ONLY if previous status was not already cancelled/restocked)
+        // DOUBLE-RESTOCK GUARD
         const isAlreadyRestocked = ["Cancelled", "Rejected", "Auto-Restocked"].includes(oldStatus);
         if (!isAlreadyRestocked && ["Cancelled", "Rejected", "Auto-Restocked"].includes(validatedNewStatus)) {
           await restockOrderInventory(order.products);
@@ -309,7 +312,7 @@ export async function cancelOrderAction(orderId: string) {
     order.status = "Cancelled";
     await order.save();
 
-    // DOUBLE-RESTOCK GUARD (Fires restock ONLY if order was not already cancelled)
+    // DOUBLE-RESTOCK GUARD
     const isAlreadyRestocked = ["Cancelled", "Rejected", "Auto-Restocked"].includes(previousStatus);
     if (!isAlreadyRestocked) {
       await restockOrderInventory(order.products);
@@ -348,7 +351,7 @@ export async function cancelOrderAction(orderId: string) {
 }
 
 // ================================================================
-// === ACTION #5: GET SINGLE ORDER (BSON-SAFE OBJECTID SHIELD) ===
+// === ACTION #5: GET SINGLE ORDER (BSON-SAFE SHIELD & TS FIXED) ===
 // ================================================================
 export async function getSingleOrder(orderId: string): Promise<IOrder | null> {
     try {
@@ -358,11 +361,15 @@ export async function getSingleOrder(orderId: string): Promise<IOrder | null> {
         let order = await Order.findOne({ $or: [{ _id: orderId }, { orderId: orderId }] }).lean<IOrder>();
         if (!order) return null;
 
-        let userDoc = null;
-        // ✅ CRITICAL FIX: ObjectId validation shield prevents CastError exception crashes on custom customer string IDs
+        // ✅ TS FIX: Explicit generic interface prevents ts(2339) property errors on FlattenMaps
+        let userDoc: { _id: any; name?: string; email?: string } | null = null;
+        
+        // BSON Shield: Validates ObjectId format before Mongoose findById
         if (order.userId && mongoose.Types.ObjectId.isValid(order.userId)) {
           try {
-            userDoc = await User.findById(order.userId).select("name email").lean();
+            userDoc = await User.findById(order.userId)
+              .select("name email")
+              .lean<{ _id: any; name?: string; email?: string }>();
           } catch (uErr) {
             console.warn("⚠️ Customer lookup by string ID failed, attempting plain match.");
           }
@@ -370,7 +377,7 @@ export async function getSingleOrder(orderId: string): Promise<IOrder | null> {
 
         const serialized = JSON.parse(JSON.stringify(order));
         if (userDoc) {
-          serialized.userId = { _id: userDoc._id.toString(), name: userDoc.name, email: userDoc.email };
+          serialized.userId = { _id: userDoc._id.toString(), name: userDoc.name || "", email: userDoc.email || "" };
         }
 
         return serialized;

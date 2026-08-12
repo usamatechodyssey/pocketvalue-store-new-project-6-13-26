@@ -69,7 +69,7 @@ const releaseLock = async (lockKey: string, requestId: string): Promise<void> =>
 };
 
 // ================================================================
-// 🚀 MAIN FUNCTION — Enterprise Ready
+// 🚀 MAIN FUNCTION — Enterprise Ready (With Path Normalization)
 // ================================================================
 export async function getBehavioralNavigation(
   range: { from: Date; to: Date },
@@ -78,13 +78,13 @@ export async function getBehavioralNavigation(
 ): Promise<BehavioralNavigationResponse> {
   const fromStr = format(range.from, "yyyy-MM-dd");
   const toStr = format(range.to, "yyyy-MM-dd");
-  const cacheKey = `analytics_behavioral_navigation_v3:${fromStr}_${toStr}:page_${page}`;
+  const cacheKey = `analytics_behavioral_navigation_v4:${fromStr}_${toStr}:page_${page}`;
 
   try {
     await verifyAdminAccess();
     await connectMongoose();
 
-    // ✅ 1. Cache Check — USING safeParse
+    // 1. Cache Check
     const cachedData = await redis.get(cacheKey);
     const parsed = safeParse<BehavioralNavigationResponse>(cachedData as string | null);
     if (parsed) {
@@ -92,7 +92,7 @@ export async function getBehavioralNavigation(
       return parsed;
     }
 
-    // ✅ 2. Cache Stampede Protection (SETNX Lock)
+    // 2. Cache Stampede Protection (SETNX Lock)
     const LOCK_TTL = 30;
     const lockKey = `lock:${cacheKey}`;
     const requestId = `lock_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
@@ -113,7 +113,7 @@ export async function getBehavioralNavigation(
       console.log(`🔒 Navigation Lock acquired (${requestId}). Generating navigation intelligence...`);
 
       // ================================================================
-      // 🔥 1. PAGE-LEVEL AGGREGATION
+      // 🔥 1. PAGE-LEVEL AGGREGATION (With Path Normalization)
       // ================================================================
       const pageStats = await UserEvent.aggregate([
         {
@@ -122,9 +122,33 @@ export async function getBehavioralNavigation(
             createdAt: { $gte: range.from, $lte: range.to },
           },
         },
+        // ✅ FIX: Path Normalization Pipeline Stage (Strips trailing slashes & trims spaces)
+        {
+          $addFields: {
+            cleanPath: {
+              $let: {
+                vars: {
+                  trimmed: { $trim: { input: { $ifNull: ["$path", "/"] } } },
+                },
+                in: {
+                  $cond: [
+                    {
+                      $and: [
+                        { $gt: [{ $strLenCP: "$$trimmed" }, 1] },
+                        { $eq: [{ $substrCP: ["$$trimmed", { $subtract: [{ $strLenCP: "$$trimmed" }, 1] }, 1] }, "/"] },
+                      ],
+                    },
+                    { $substrCP: ["$$trimmed", 0, { $subtract: [{ $strLenCP: "$$trimmed" }, 1] }] },
+                    "$$trimmed",
+                  ],
+                },
+              },
+            },
+          },
+        },
         {
           $group: {
-            _id: "$path",
+            _id: "$cleanPath",
             views: { $sum: 1 },
             uniqueSessions: { $addToSet: "$sessionId" },
           },
@@ -140,7 +164,7 @@ export async function getBehavioralNavigation(
       ]);
 
       // ================================================================
-      // 🔥 2. SESSION-LEVEL STATS (Un-sorted aggregation)
+      // 🔥 2. SESSION-LEVEL STATS (Normalized Paths)
       // ================================================================
       const sessionData = await UserEvent.aggregate([
         {
@@ -150,14 +174,37 @@ export async function getBehavioralNavigation(
           },
         },
         {
+          $addFields: {
+            cleanPath: {
+              $let: {
+                vars: {
+                  trimmed: { $trim: { input: { $ifNull: ["$path", "/"] } } },
+                },
+                in: {
+                  $cond: [
+                    {
+                      $and: [
+                        { $gt: [{ $strLenCP: "$$trimmed" }, 1] },
+                        { $eq: [{ $substrCP: ["$$trimmed", { $subtract: [{ $strLenCP: "$$trimmed" }, 1] }, 1] }, "/"] },
+                      ],
+                    },
+                    { $substrCP: ["$$trimmed", 0, { $subtract: [{ $strLenCP: "$$trimmed" }, 1] }] },
+                    "$$trimmed",
+                  ],
+                },
+              },
+            },
+          },
+        },
+        {
           $group: {
             _id: "$sessionId",
-            firstPage: { $first: "$path" },
-            lastPage: { $last: "$path" },
+            firstPage: { $first: "$cleanPath" },
+            lastPage: { $last: "$cleanPath" },
             pageCount: { $sum: 1 },
             firstTime: { $first: "$createdAt" },
             lastTime: { $last: "$createdAt" },
-            pages: { $push: "$path" },
+            pages: { $push: "$cleanPath" },
             times: { $push: "$createdAt" },
           },
         },
@@ -179,7 +226,6 @@ export async function getBehavioralNavigation(
         entryMap.set(sess.firstPage, (entryMap.get(sess.firstPage) || 0) + 1);
         exitMap.set(sess.lastPage, (exitMap.get(sess.lastPage) || 0) + 1);
 
-        // ✅ FIX 1: Zip and sort pages & times chronologically to prevent negative duration & NaN average bugs!
         const zipped = (sess.pages as string[]).map((p, idx) => ({
           path: p,
           time: new Date(sess.times[idx]),
@@ -332,9 +378,9 @@ export async function getBehavioralNavigation(
         generatedAt: new Date().toISOString(),
       };
 
-      // ✅ 8. Cache for 5 minutes — USING safeStringify
+      // ✅ Cache for 5 minutes
       await redis.set(cacheKey, safeStringify(response), { ex: 300 });
-      console.log(`✅ Behavioral Navigation Cached (Page ${page}) — ${trend.length} points`);
+      console.log(`✅ Behavioral Navigation Cached (Page ${page}) — Normalized Paths`);
 
       return response;
     } finally {

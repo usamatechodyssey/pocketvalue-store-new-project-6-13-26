@@ -1,140 +1,11 @@
-// // src/app/shared/lib/checkout/analytics-calculator.ts
-
-// /**
-//  * @description Calculates pre-calculated analytics fields (profit, cost, fees, tax)
-//  * for each product in the cart. These fields are stored in the order document
-//  * to enable zero-load historical analytics.
-//  * 
-//  * Formula used matches getGranularFinancials.ts
-//  */
-
-// interface CartItem {
-//     _id: string;
-//     price: number;
-//     quantity: number;
-//     variant?: { _key: string; name: string };
-//     [key: string]: any; // For other fields
-//   }
-  
-//   interface GlobalSettings {
-//     globalFixedFees?: Array<{ percentage: number }>;
-//     pricingLogicTiers?: Array<{
-//       minCost: number;
-//       maxCost: number;
-//       profitPercent: number;
-//       adSpendPercent: number;
-//     }>;
-//     taxSettings?: { standardGstPercent: number };
-//     pricingSettings?: { estimatedDutiesPercent: number };
-//   }
-  
-//   export interface EnrichedCartItem extends CartItem {
-//     costPrice?: number; // Unit cost (capital)
-//     profit?: number;    // Total line profit (profit per unit × quantity)
-//     fees?: number;      // Total line fees
-//     tax?: number;       // Total line tax
-//     capital?: number;   // Total line cost (cost per unit × quantity)
-//   }
-  
-//   export function enrichCartWithAnalytics(
-//     cartItems: CartItem[],
-//     settings: GlobalSettings | null
-//   ): EnrichedCartItem[] {
-//     if (!settings) {
-//       // If settings are missing, return original items without analytics fields
-//       console.warn('⚠️ Settings missing in enrichCartWithAnalytics. Returning empty fields.');
-//       return cartItems.map((item) => ({
-//         ...item,
-//         costPrice: undefined,
-//         profit: undefined,
-//         fees: undefined,
-//         tax: undefined,
-//         capital: undefined,
-//       }));
-//     }
-  
-//     // 1. Extract settings
-//     const globalFeesArray = settings.globalFixedFees || [];
-//     const totalFixedFeePercent = globalFeesArray.reduce(
-//       (sum: number, fee: any) => sum + (fee.percentage || 0),
-//       0
-//     );
-  
-//     const pricingTiers = settings.pricingLogicTiers || [];
-//     const gstPercent = settings.taxSettings?.standardGstPercent ?? 0;
-//     const dutiesPercent = settings.pricingSettings?.estimatedDutiesPercent ?? 0;
-  
-//     // 2. Process each product
-//     return cartItems.map((item) => {
-//       const SP = item.price || 0;
-//       const Q = item.quantity || 0;
-  
-//       // If price is 0 or quantity is 0, return item with zeros
-//       if (SP === 0 || Q === 0) {
-//         return {
-//           ...item,
-//           costPrice: 0,
-//           profit: 0,
-//           fees: 0,
-//           tax: 0,
-//           capital: 0,
-//         };
-//       }
-  
-//       // 3. Find matching tier for profit % and ad spend %
-//       let profitPercent = 0;
-//       let adSpendPercent = 0;
-  
-//       if (pricingTiers.length > 0) {
-//         const matchedTier = pricingTiers.find(
-//           (tier: any) => SP >= tier.minCost && SP <= tier.maxCost
-//         );
-//         if (matchedTier) {
-//           profitPercent = matchedTier.profitPercent || 0;
-//           adSpendPercent = matchedTier.adSpendPercent || 0;
-//         } else {
-//           // Fallback to first tier
-//           profitPercent = pricingTiers[0]?.profitPercent || 0;
-//           adSpendPercent = pricingTiers[0]?.adSpendPercent || 0;
-//         }
-//       }
-  
-//       // 4. Per-unit calculations
-//       const gstAmount = SP * (gstPercent / 100);
-//       const feesAmount = SP * (totalFixedFeePercent / 100);
-//       const adSpendAmount = SP * (adSpendPercent / 100);
-//       const profitPerUnit = SP * (profitPercent / 100);
-  
-//       const leftover = SP - (gstAmount + feesAmount + adSpendAmount + profitPerUnit);
-  
-//       // 5. Capital (Cost) and Duties
-//       const capitalPerUnit = leftover / (1 + dutiesPercent / 100);
-//       // const dutiesPerUnit = leftover - capitalPerUnit; // Not needed in order, only for analytics
-  
-//       // 6. Line totals (multiply by quantity)
-//       const totalProfit = profitPerUnit * Q;
-//       const totalFees = feesAmount * Q;
-//       const totalTax = gstAmount * Q;
-//       const totalCapital = capitalPerUnit * Q;
-  
-//       return {
-//         ...item,
-//         costPrice: Math.round(capitalPerUnit), // Unit cost
-//         profit: Math.round(totalProfit),        // Line profit
-//         fees: Math.round(totalFees),            // Line fees
-//         tax: Math.round(totalTax),              // Line tax
-//         capital: Math.round(totalCapital),      // Line cost
-//       };
-//     });
-//   }
-// 📂 src/app/shared/lib/checkout/analytics-calculator.ts (FINAL HARDENED VERSION)
+// 📂 src/app/shared/lib/checkout/analytics-calculator.ts (DUAL PROFIT DYNAMICS HARDENED)
 
 /**
- * @description Calculates pre-calculated analytics fields (profit, cost, fees, tax, rates)
+ * @description Calculates pre-calculated analytics fields (targetProfit, profit, cost, fees, tax, rates)
  * for each product in the cart. These fields are stored in the order document
  * to enable zero-load historical analytics and bulletproof audit trails.
  * 
- * Formula synchronization with getGranularFinancials.ts and PriceAnatomySurgeon.tsx
+ * Formula synchronization with Order.ts, getGranularFinancials.ts, and PriceAnatomySurgeon.tsx
  */
 
 // ================================================================
@@ -160,43 +31,48 @@ interface GlobalSettings {
   }>;
   taxSettings?: { standardGstPercent: number };
   pricingSettings?: { estimatedDutiesPercent: number };
-  returnsSettings?: { estimatedReturnRatePercent: number }; // ✅ Added for RTO Snapshot
+  returnsSettings?: { estimatedReturnRatePercent: number };
 }
 
 export interface EnrichedCartItem extends CartItem {
   costPrice?: number;         // Unit cost (capital)
-  profit?: number;            // Total line profit (profit per unit × quantity)
+  targetProfit?: number;      // ✅ Target Line Profit BEFORE Coupon Discounts (e.g. Rs. 2,000)
+  profit?: number;            // Realized Pure Line Profit AFTER Coupon Discounts (e.g. Rs. 1,000)
   fees?: number;              // Total line fees
   tax?: number;               // Total line tax
   capital?: number;           // Total line cost (cost per unit × quantity)
   
   // ✅ SNAPSHOT RATES (THE AUDIT TRAIL)
-  // Yeh fields future reports ko batayengi ke checkout ke waqt kya exact margins thay.
-  appliedGstRate?: number;     // Snapshotted GST % (e.g. 18)
+  appliedGstRate?: number;     // Snapshotted GST % (e.g. 15)
   appliedDutiesRate?: number;  // Snapshotted Duties % (e.g. 5)
   appliedFeeRate?: number;     // Snapshotted Total Fixed Fee % (e.g. 3)
-  appliedProfitRate?: number;  // Snapshotted Target Profit % (e.g. 25)
+  appliedProfitRate?: number;  // Snapshotted Target Profit % (e.g. 20)
   appliedAdSpendRate?: number; // Snapshotted Ad Spend % (e.g. 8)
-  appliedRtoRate?: number;     // ✅ Snapshotted RTO Budget % (e.g. 10)
+  appliedRtoRate?: number;     // Snapshotted RTO Budget % (e.g. 10)
 }
 
 // ================================================================
-// 🚀 MAIN LOGIC: SURGICAL ENRICHMENT
+// 🚀 MAIN LOGIC: DUAL PROFIT SURGICAL ENRICHMENT
 // ================================================================
 
 /**
  * @function enrichCartWithAnalytics
- * @description Injects financial snapshots and rate stamps into cart items.
+ * @description Injects financial snapshots, dual profit amounts, and rate stamps into cart items.
+ * @param cartItems - Array of cart items
+ * @param settings - Global CMS settings
+ * @param couponDiscountAmount - Optional cart-wide coupon discount amount (PKR)
  */
 export function enrichCartWithAnalytics(
   cartItems: CartItem[],
-  settings: GlobalSettings | null
+  settings: GlobalSettings | null,
+  couponDiscountAmount: number = 0
 ): EnrichedCartItem[] {
   if (!settings) {
-    console.warn('⚠️ Settings missing in enrichCartWithAnalytics. Critical financial snapshotting bypassed!');
+    console.warn('⚠️ Settings missing in enrichCartWithAnalytics. Financial snapshotting bypassed!');
     return cartItems.map((item) => ({
       ...item,
       costPrice: undefined,
+      targetProfit: undefined,
       profit: undefined,
       fees: undefined,
       tax: undefined,
@@ -220,18 +96,30 @@ export function enrichCartWithAnalytics(
   const pricingTiers = settings.pricingLogicTiers || [];
   const gstPercent = settings.taxSettings?.standardGstPercent ?? 0;
   const dutiesPercent = settings.pricingSettings?.estimatedDutiesPercent ?? 0;
-  const rtoPercent = settings.returnsSettings?.estimatedReturnRatePercent ?? 0; // ✅ RTO Capture
+  const rtoPercent = settings.returnsSettings?.estimatedReturnRatePercent ?? 0;
+
+  // Calculate cart total subtotal for pro-rata coupon allocation
+  const totalCartSubtotal = cartItems.reduce(
+    (sum, item) => sum + (item.price || 0) * (item.quantity || 0),
+    0
+  );
 
   // 2. Process each item and FREEZE the current business logic values
   return cartItems.map((item) => {
     const SP = item.price || 0; // Selling Price
     const Q = item.quantity || 0; // Quantity
+    const itemSubtotal = SP * Q;
 
     // 0-value fallback protection
     if (SP === 0 || Q === 0) {
       return {
         ...item,
-        costPrice: 0, profit: 0, fees: 0, tax: 0, capital: 0,
+        costPrice: 0, 
+        targetProfit: 0,
+        profit: 0, 
+        fees: 0, 
+        tax: 0, 
+        capital: 0,
         appliedGstRate: gstPercent,
         appliedDutiesRate: dutiesPercent,
         appliedFeeRate: totalFixedFeePercent,
@@ -253,7 +141,6 @@ export function enrichCartWithAnalytics(
         profitPercent = matchedTier.profitPercent || 0;
         adSpendPercent = matchedTier.adSpendPercent || 0;
       } else {
-        // Fallback to first tier if SP is out of range
         profitPercent = pricingTiers[0]?.profitPercent || 0;
         adSpendPercent = pricingTiers[0]?.adSpendPercent || 0;
       }
@@ -263,31 +150,40 @@ export function enrichCartWithAnalytics(
     const gstAmount = SP * (gstPercent / 100);
     const feesAmount = SP * (totalFixedFeePercent / 100);
     const adSpendAmount = SP * (adSpendPercent / 100);
-    const profitPerUnit = SP * (profitPercent / 100);
+    const targetProfitPerUnit = SP * (profitPercent / 100);
 
-    const leftover = SP - (gstAmount + feesAmount + adSpendAmount + profitPerUnit);
+    const leftover = SP - (gstAmount + feesAmount + adSpendAmount + targetProfitPerUnit);
 
     // 5. Derived Capital (Base Cost before Duties)
-    // Formula: Capital = Leftover / (1 + Duties%)
     const capitalPerUnit = leftover / (1 + dutiesPercent / 100);
 
-    // 6. Return Enriched Item with Audit Snapshot
+    // 6. Pro-Rata Coupon Discount Allocation
+    const itemCouponShare = totalCartSubtotal > 0
+      ? (couponDiscountAmount * itemSubtotal) / totalCartSubtotal
+      : 0;
+
+    // Line Target Profit (Before Coupon) & Line Realized Profit (After Coupon)
+    const targetLineProfit = Math.round(targetProfitPerUnit * Q);
+    const realizedLineProfit = Math.max(0, Math.round(targetLineProfit - itemCouponShare));
+
+    // 7. Return Enriched Item with Dual Profit Audit Snapshots
     return {
       ...item,
       // Total Rupees Amounts (Stamped)
       costPrice: Math.round(capitalPerUnit),
-      profit: Math.round(profitPerUnit * Q),
+      targetProfit: targetLineProfit,              // ✅ Target Profit BEFORE Coupon
+      profit: realizedLineProfit,                  // ✅ Realized Pure Profit AFTER Coupon
       fees: Math.round(feesAmount * Q),
       tax: Math.round(gstAmount * Q),
       capital: Math.round(capitalPerUnit * Q),
       
-      // ✅ THE AUDIT EVIDENCE (Frozen Rates)
+      // Frozen Audit Rates
       appliedGstRate: gstPercent,
       appliedDutiesRate: dutiesPercent,
       appliedFeeRate: totalFixedFeePercent,
       appliedProfitRate: profitPercent,
       appliedAdSpendRate: adSpendPercent,
-      appliedRtoRate: rtoPercent // ✅ Frozen RTO estimation %
+      appliedRtoRate: rtoPercent
     };
   });
 }

@@ -1,13 +1,11 @@
-
-// /src/app/account/orders/[orderId]/page.tsx (UPDATED TO USE DTO & NEXT.JS 16 PARAMS)
+// 📂 src/app/account/orders/[orderId]/page.tsx (CYBER-HUD HARDENED)
 
 import { auth } from "@/app/auth";
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Hash, Calendar } from "lucide-react";
 import connectMongoose from "@/app/shared/lib/checkout/mongoose";
-import Order, { IOrder } from "@/models/Order";
-import { ClientOrder } from "@/models/Order";
+import Order, { IOrder, ClientOrder } from "@/models/Order";
 
 import StatusTimeline from "../../../../features/storefront/customer-account/components/orders/StatusTimeline";
 import OrderItemsList from "../../../../features/storefront/customer-account/components/orders/OrderItemsList";
@@ -17,57 +15,62 @@ import {
 } from "../../../../features/storefront/customer-account/components/orders/OrderInfoCards";
 import OrderActions from "@/app/features/storefront/customer-account/components/orders/OrderActions";
 
-// This function returns a plain, safe ClientOrder object
+// ================================================================
+// 🔧 DTO TRANSFORMATION ENGINE (Snapshot Integrity)
+// ================================================================
+function transformOrderToClientOrder(order: IOrder): ClientOrder {
+  return {
+    _id: order._id.toString(),
+    orderId: order.orderId,
+    userId: order.userId,
+    totalPrice: order.totalPrice,
+    status: order.status,
+    createdAt: order.createdAt instanceof Date 
+      ? order.createdAt.toISOString() 
+      : order.createdAt,
+    products: order.products.map((p: any) => ({
+      _id: p._id,
+      productId: p.productId, // ✅ FIX: productId explicit map karein
+      cartItemId: p.cartItemId,
+      name: p.name,
+      price: p.price,
+      quantity: p.quantity,
+      slug: p.slug,
+      image: p.image,
+      variant: p.variant
+    })),
+    shippingAddress: order.shippingAddress,
+    paymentMethod: order.paymentMethod,
+    paymentStatus: order.paymentStatus,
+    subtotal: order.subtotal,
+    shippingCost: order.shippingCost,
+    coupon: order.coupon,
+    trafficSource: order.trafficSource,
+    warehouseDistance: order.warehouseDistance
+  };
+}
+
 async function getSingleUserOrder(
   orderId: string,
   userId: string
 ): Promise<ClientOrder | null> {
   try {
     await connectMongoose();
-    
     const order = await Order.findOne({
       $or: [{ _id: orderId }, { orderId: orderId }],
       userId: userId
     }).lean<IOrder>();
 
-    if (!order) {
-      return null;
-    }
-
-    // Manually convert the Mongoose object to a plain ClientOrder object
-    const clientOrder: ClientOrder = {
-        _id: order._id.toString(),
-        orderId: order.orderId,
-        userId: order.userId,
-        totalPrice: order.totalPrice,
-        status: order.status,
-        createdAt: new Date(order.createdAt).toISOString(),
-        products: order.products.map(p => ({
-            _id: p._id,
-            cartItemId: p.cartItemId,
-            name: p.name,
-            price: p.price,
-            quantity: p.quantity,
-            slug: p.slug,
-            image: p.image,
-            variant: p.variant
-        })),
-        shippingAddress: order.shippingAddress,
-        paymentMethod: order.paymentMethod,
-        paymentStatus: order.paymentStatus,
-        subtotal: order.subtotal,
-        shippingCost: order.shippingCost,
-    };
-
-    return clientOrder;
-
+    return order ? transformOrderToClientOrder(order) : null;
   } catch (error) {
-    console.error("Failed to fetch single user order:", error);
+    console.error("Failed to fetch order:", error);
     return null;
   }
 }
 
-// UPDATE: params is now a Promise (Next.js 15/16 requirement)
+// ================================================================
+// 🚀 MAIN PAGE COMPONENT
+// ================================================================
 type UserOrderDetailPageProps = {
   params: Promise<{ orderId: string }>;
 };
@@ -78,10 +81,7 @@ export default async function UserOrderDetailPage({ params }: UserOrderDetailPag
     redirect("/login?callbackUrl=/account/orders");
   }
 
-  // UPDATE: Await the params before accessing properties
   const { orderId } = await params;
-
-  // The 'order' variable is a clean ClientOrder object
   const order = await getSingleUserOrder(orderId, session.user.id);
 
   if (!order) {
@@ -89,37 +89,36 @@ export default async function UserOrderDetailPage({ params }: UserOrderDetailPag
   }
 
   return (
-    <div className="space-y-8">
+    <div className="max-w-[1750px] mx-auto p-4 md:p-8 space-y-8 animate-in fade-in duration-500">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 dark:text-gray-100">
+        <div className="space-y-1.5">
+          <Link
+            href="/account/orders"
+            className="inline-flex items-center gap-2 text-xs font-bold text-brand-primary hover:text-brand-primary/80 transition-all no-underline hover:no-underline uppercase tracking-widest font-mono"
+          >
+            <ArrowLeft size={13} /> Back to My Orders
+          </Link>
+          <h1 className="text-2xl font-black text-zinc-900 dark:text-zinc-50 tracking-tight uppercase">
             Order Details
           </h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-            Order ID:{" "}
-            <span className="font-mono font-semibold text-gray-700 dark:text-gray-300">
-              {order.orderId}
+          <div className="flex items-center gap-4 text-xs text-zinc-500 dark:text-zinc-400 font-mono">
+            <span className="flex items-center gap-1.5 font-bold text-zinc-800 dark:text-zinc-200">
+              <Hash size={13} /> {order.orderId}
             </span>
-            <span className="mx-2 text-gray-300 dark:text-gray-600">•</span>
-            <span>
-              {new Date(order.createdAt).toLocaleDateString("en-US", {
+            <span className="flex items-center gap-1.5">
+              <Calendar size={13} /> 
+              {new Date(order.createdAt).toLocaleDateString("en-PK", {
                 year: "numeric",
-                month: "long",
+                month: "short",
                 day: "numeric",
               })}
             </span>
-          </p>
+          </div>
         </div>
-        <Link
-          href="/account/orders"
-          className="flex items-center gap-2 text-sm font-semibold text-brand-primary hover:underline"
-        >
-          <ArrowLeft size={16} /> Back to My Orders
-        </Link>
       </div>
 
-      <div className="p-6 bg-white dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm">
-        <h2 className="font-bold text-lg mb-2 text-gray-800 dark:text-gray-200">
+      <div className="bg-white dark:bg-zinc-950 p-6 rounded-2xl shadow-xs border border-zinc-200 dark:border-zinc-800">
+        <h2 className="text-xs font-bold uppercase tracking-widest font-mono mb-4 text-zinc-800 dark:text-zinc-200">
           Order Status
         </h2>
         <StatusTimeline status={order.status} />
@@ -134,7 +133,7 @@ export default async function UserOrderDetailPage({ params }: UserOrderDetailPag
         products={order.products}
       />
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <ShippingAddressCard shippingAddress={order.shippingAddress} />
         <PaymentDetailsCard
           paymentDetails={{

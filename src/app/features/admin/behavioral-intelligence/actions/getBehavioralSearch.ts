@@ -1,4 +1,4 @@
-// 📂 src/app/features/admin/behavioral-intelligence/actions/getBehavioralSearch.ts
+// // 📂 src/app/features/admin/behavioral-intelligence/actions/getBehavioralSearch.ts
 
 "use server";
 
@@ -65,7 +65,7 @@ const releaseLock = async (lockKey: string, requestId: string): Promise<void> =>
 };
 
 // ================================================================
-// 🚀 MAIN FUNCTION — Enterprise Ready
+// 🚀 MAIN FUNCTION — Enterprise Ready (With Lowercase Search Merging)
 // ================================================================
 export async function getBehavioralSearch(
   range: { from: Date; to: Date },
@@ -74,13 +74,13 @@ export async function getBehavioralSearch(
 ): Promise<BehavioralSearchResponse> {
   const fromStr = format(range.from, "yyyy-MM-dd");
   const toStr = format(range.to, "yyyy-MM-dd");
-  const cacheKey = `analytics_behavioral_search_v3:${fromStr}_${toStr}:page_${page}`;
+  const cacheKey = `analytics_behavioral_search_v4:${fromStr}_${toStr}:page_${page}`;
 
   try {
     await verifyAdminAccess();
     await connectMongoose();
 
-    // ✅ 1. Cache Check — USING safeParse
+    // 1. Cache Check
     const cachedData = await redis.get(cacheKey);
     const parsed = safeParse<BehavioralSearchResponse>(cachedData as string | null);
     if (parsed) {
@@ -88,7 +88,7 @@ export async function getBehavioralSearch(
       return parsed;
     }
 
-    // ✅ 2. Cache Stampede Protection (SETNX Lock)
+    // 2. Cache Stampede Protection
     const LOCK_TTL = 30;
     const lockKey = `lock:${cacheKey}`;
     const requestId = `lock_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
@@ -99,17 +99,14 @@ export async function getBehavioralSearch(
       await new Promise((resolve) => setTimeout(resolve, 500));
       const retryCache = await redis.get(cacheKey);
       const retryParsed = safeParse<BehavioralSearchResponse>(retryCache as string | null);
-      if (retryParsed) {
-        console.log("⚡ Served stale search cache.");
-        return retryParsed;
-      }
+      if (retryParsed) return retryParsed;
     }
 
     try {
       console.log(`🔒 Search Lock acquired (${requestId}). Generating search intelligence...`);
 
       // ================================================================
-      // 🔥 1. SEARCH AGGREGATIONS
+      // 🔥 1. SEARCH AGGREGATIONS (With $toLower Normalization)
       // ================================================================
       const [searchStats, clickStats, trendingTerms, dailyTrend, paginatedTerms] = await Promise.all([
         // Total Searches
@@ -122,11 +119,11 @@ export async function getBehavioralSearch(
           { $match: { eventType: "search_result_click", createdAt: { $gte: range.from, $lte: range.to } } },
           { $count: "total" },
         ]),
-        // Trending Terms (Top 10)
+        // ✅ FIX 1: Lowercase search term grouping merges "JACKET" & "jacket"
         UserEvent.aggregate([
           { $match: { eventType: "search", createdAt: { $gte: range.from, $lte: range.to } } },
           { $match: { "metadata.search_term": { $exists: true, $ne: "" } } },
-          { $group: { _id: "$metadata.search_term", count: { $sum: 1 } } },
+          { $group: { _id: { $toLower: "$metadata.search_term" }, count: { $sum: 1 } } },
           { $sort: { count: -1 } },
           { $limit: 10 },
         ]),
@@ -141,13 +138,13 @@ export async function getBehavioralSearch(
           },
           { $sort: { _id: 1 } },
         ]),
-        // Paginated Search Terms
+        // ✅ FIX 2: Lowercase paginated search terms grouping
         UserEvent.aggregate([
           { $match: { eventType: "search", createdAt: { $gte: range.from, $lte: range.to } } },
           { $match: { "metadata.search_term": { $exists: true, $ne: "" } } },
           {
             $group: {
-              _id: "$metadata.search_term",
+              _id: { $toLower: "$metadata.search_term" },
               searches: { $sum: 1 },
               zeroResults: {
                 $sum: {
@@ -163,7 +160,7 @@ export async function getBehavioralSearch(
       ]);
 
       // ================================================================
-      // 🔥 2. COMPUTE CLICKS PER SEARCH TERM
+      // 🔥 2. COMPUTE CLICKS PER SEARCH TERM (Lowercase query)
       // ================================================================
       const termClicks = await UserEvent.aggregate([
         {
@@ -175,7 +172,7 @@ export async function getBehavioralSearch(
         },
         {
           $group: {
-            _id: "$metadata.query",
+            _id: { $toLower: "$metadata.query" },
             clicks: { $sum: 1 },
           },
         },
@@ -191,9 +188,10 @@ export async function getBehavioralSearch(
       const overallCtr = totalSearches > 0 ? (totalClicks / totalSearches) * 100 : 0;
 
       const enrichedTerms: SearchTermMetric[] = paginatedTerms.map((t: any) => {
-        const clicks = clickMap.get(t._id) || 0;
+        const termKey = String(t._id || "").toLowerCase();
+        const clicks = clickMap.get(termKey) || 0;
         return {
-          term: t._id,
+          term: termKey,
           searches: t.searches,
           clicks,
           ctr: t.searches > 0 ? Number(((clicks / t.searches) * 100).toFixed(1)) : 0,
@@ -201,19 +199,13 @@ export async function getBehavioralSearch(
         };
       });
 
-      // ================================================================
-      // 🔥 4. ZERO RESULT SEARCHES COUNT
-      // ================================================================
+      // 4. ZERO RESULT SEARCHES COUNT
       const zeroResultCount = enrichedTerms.filter((t) => t.zeroResults).length;
 
-      // ================================================================
-      // 🔥 5. TRENDING TERMS
-      // ================================================================
+      // 5. TRENDING TERMS
       const trending = trendingTerms.map((t: any) => ({ term: t._id, count: t.count }));
 
-      // ================================================================
-      // 🔥 6. DAILY TREND WITH CLICKS (Gap-Filled for smooth Recharts)
-      // ================================================================
+      // 6. DAILY TREND WITH CLICKS (Gap-Filled)
       const dailyClickTrend = await UserEvent.aggregate([
         {
           $match: {
@@ -233,7 +225,6 @@ export async function getBehavioralSearch(
       const clickTrendMap = new Map(dailyClickTrend.map((d: any) => [d._id, d.clicks]));
       const trendMap = new Map<string, any>(dailyTrend.map((d: any) => [d._id, d]));
 
-      // ✅ FIX: Dynamic Continuous Date Gap-Filling (Ensures 100% smooth trendlines)
       const fullTrend: SearchTrendPoint[] = [];
       let currentDate = range.from;
 
@@ -250,9 +241,7 @@ export async function getBehavioralSearch(
         currentDate = addDays(currentDate, 1);
       }
 
-      // ================================================================
-      // 🔥 7. SUMMARY
-      // ================================================================
+      // 7. SUMMARY
       const topTrendingTerm = trending.length > 0 ? trending[0].term : "N/A";
 
       const summary = {
@@ -263,9 +252,7 @@ export async function getBehavioralSearch(
         topTrendingTerm,
       };
 
-      // ================================================================
-      // 🔥 8. TOTAL PAGES
-      // ================================================================
+      // 8. TOTAL PAGES
       const totalDocs = await UserEvent.countDocuments({
         eventType: "search",
         createdAt: { $gte: range.from, $lte: range.to },
@@ -274,9 +261,7 @@ export async function getBehavioralSearch(
       const totalPages = Math.ceil(totalDocs / limit);
       const safePage = Math.max(1, Math.min(page, totalPages || 1));
 
-      // ================================================================
-      // 🚀 RESPONSE
-      // ================================================================
+      // RESPONSE
       const response: BehavioralSearchResponse = {
         summary,
         trendingTerms: trending,
@@ -289,9 +274,8 @@ export async function getBehavioralSearch(
         generatedAt: new Date().toISOString(),
       };
 
-      // ✅ 9. Cache for 5 minutes — USING safeStringify
       await redis.set(cacheKey, safeStringify(response), { ex: 300 });
-      console.log(`✅ Behavioral Search Cached (Page ${page}) — ${fullTrend.length} points`);
+      console.log(`✅ Behavioral Search Cached (Lowercased Merged)`);
 
       return response;
     } finally {

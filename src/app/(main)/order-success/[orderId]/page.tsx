@@ -71,8 +71,8 @@ export default async function OrderSuccessPage({
     <div className="relative min-h-[80vh] flex items-center justify-center px-6 py-20 overflow-hidden">
       {/* 🎨 Background Ambient Glow */}
       <div className="absolute inset-0 -z-10">
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-emerald-500/5 rounded-full blur-[120px]" />
-        <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-brand-primary/5 rounded-full blur-[100px]" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-200 h-200 bg-emerald-500/5 rounded-full blur-[120px]" />
+        <div className="absolute bottom-0 left-0 w-100 h-100 bg-brand-primary/5 rounded-full blur-[100px]" />
       </div>
 
       <div className="relative max-w-2xl w-full text-center">

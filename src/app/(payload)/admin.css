@@ -1,20 +1,163 @@
-/* src/app/(payload)/admin.css */
+/* 📂 src/app/(payload)/admin.css (THE GLOBAL SHIELDED HUD) */
 
-@import "tailwindcss/theme" layer(theme);
-@import "tailwindcss/utilities" layer(utilities);
+/* ✅ CASCADE LAYER SPECIFICATIONS: Skips preflight globally to restore the premium borders 
+   and pitch-black contrast of Screenshot #1. */
+@layer theme, base, components, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
 
-/* 1. Tailwind ko batayein ke files kahan hain */
-@source "../components/admin"; 
 
-/* 2. Payload ke Dark Mode ko Tailwind ke sath Sync karein */
-@custom-variant dark (&:where([data-theme="dark"],[data-theme="dark"] *));
 
-/* 3. Borders ko wapas zinda karein (Sirf custom components ke liye) */
-@layer utilities {
-  .tw-admin-wrapper *, .tw-admin-wrapper ::before, .tw-admin-wrapper ::after {
-    border-width: 0;
-    border-style: solid;
-    border-color: #e5e7eb; /* Default gray-200 */
+/* ================================================================
+   1. TAILWIND V4 SOURCE SCANNING (Scans Custom Admin Views)
+   ================================================================ */
+@source "./admin/views/**/*.{js,ts,jsx,tsx}"; 
+@source "./**/*.{js,ts,jsx,tsx}";
+@source "../features/admin/**/*.{js,ts,jsx,tsx}";
+@source "../shared/**/*.{js,ts,jsx,tsx}";
+
+/* ================================================================
+   2. COMPLETE BRAND DESIGN TOKENS (Synced 1:1 with globals.css)
+   ================================================================ */
+@theme {
+  --color-brand-primary: #FF8F32;
+  --color-brand-primary-hover: #E86627;
+  --color-brand-secondary: #10589E;
+  --color-brand-accent: #10589E;
+  --color-brand-danger: #E11D48;
+  --color-brand-success: #16A34A;
+
+  --color-surface-base: #ffffff;
+  --color-surface-ground: #f9fafb;
+  --color-surface-input: #f3f4f6;
+  --color-surface-border: #e5e7eb;
+  --color-surface-border-darker: #d1d5db;
+  --color-surface-footer: #1f2937;
+
+  --color-text-primary: #1f2937;
+  --color-text-secondary: #4b5563;
+  --color-text-subtle: #6b7280;
+  --color-text-on-primary: #ffffff;
+  --color-text-on-accent: #ffffff;
+  --color-text-on-dark: #d1d5db;
+
+  --color-zinc-850: #121215;
+}
+
+/* ================================================================
+   3. DARK MODE VARIANT (Payload CMS [data-theme="dark"] Sync)
+   ================================================================ */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *, .dark, .dark *));
+
+/* ================================================================
+   4. 🛡️ SYSTEM-WIDE REUSABLE RESETS (Requires 0 Code Updates In Widgets)
+   ================================================================ */
+@layer base {
+  /* 🛡️ Global Scoped Reset: Removes browser-face & default borders from ALL buttons inside our dashboard container.
+     This allows all existing standard Tailwind classes in your widget files to apply perfectly without overrides! */
+  .tw-admin-wrapper button {
+    background: transparent;
+    border: 0 solid transparent;
+    padding: 0;
+    margin: 0;
+    font-family: inherit;
+    font-size: inherit;
+    color: inherit;
+    line-height: inherit;
+    cursor: pointer;
+    -webkit-appearance: none;
+    appearance: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
   }
 }
 
+@layer utilities {
+  /* Box sizing safety */
+  .tw-admin-wrapper,
+  .tw-admin-wrapper *,
+  .tw-admin-wrapper ::before,
+  .tw-admin-wrapper ::after {
+    box-sizing: border-box;
+  }
+
+  /* ✅ Pure pitch-black background to match Screenshot #1 and Payload Dark theme */
+  .tw-admin-wrapper {
+    @apply bg-gray-50 text-gray-600 antialiased font-medium dark:bg-[#09090b] dark:text-gray-300;
+  }
+
+  /* Light/Dark mode border color defaults (No global border-width override!) */
+  html:not([data-theme="dark"]) .tw-admin-wrapper * {
+    border-color: #e5e7eb;
+  }
+  html[data-theme="dark"] .tw-admin-wrapper * {
+    border-color: #27272a;
+  }
+
+  /* Global Scrollbar Utilities inside Custom Wrapper */
+  .tw-admin-wrapper ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  .tw-admin-wrapper ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .tw-admin-wrapper ::-webkit-scrollbar-thumb {
+    background: #D1D5DB;
+    border-radius: 10px;
+  }
+  html[data-theme="dark"] .tw-admin-wrapper ::-webkit-scrollbar-thumb {
+    background: #4b5563;
+  }
+  .tw-admin-wrapper ::-webkit-scrollbar-thumb:hover {
+    background: #9ca3af;
+  }
+
+  /* Global Scrollbar Hide */
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
+
+/* ================================================================
+   5. HIGH-DENSITY PRINT SPECIFICATIONS (For Report PDFs)
+   ================================================================ */
+@media print {
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+
+  .print\:hidden,
+  .payload-admin-header,
+  .payload-admin-nav,
+  nav,
+  aside,
+  header {
+    display: none !important;
+  }
+
+  .tw-admin-wrapper {
+    max-width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    background: transparent !important;
+    border: none !important;
+  }
+
+  table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+  }
+
+  th, td {
+    border: 1px solid #d4d4d8 !important;
+    padding: 6px 8px !important;
+  }
+}

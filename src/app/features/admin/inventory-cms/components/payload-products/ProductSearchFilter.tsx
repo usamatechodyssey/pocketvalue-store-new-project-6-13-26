@@ -1,3 +1,5 @@
+// 📂 src/app/features/admin/inventory-cms/components/payload-products/ProductSearchFilter.tsx (CYBER-HUD HARDENED)
+
 "use client";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -15,7 +17,7 @@ export default function ProductSearchFilter() {
 
   const debouncedUpdateUrl = useDebouncedCallback((searchTerm: string) => {
     const params = new URLSearchParams(searchParams);
-    params.set("page", "1");
+    params.set("page", "1"); // Bumps back to page 1 to prevent empty index bounds
     if (searchTerm) params.set("search", searchTerm);
     else params.delete("search");
     
@@ -26,14 +28,19 @@ export default function ProductSearchFilter() {
 
   return (
     <div className="relative">
-      <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
-      {isPending && <Loader2 className="absolute right-3.5 top-1/2 -translate-y-1/2 animate-spin text-gray-400" size={20} />}
+      <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-400 dark:text-zinc-500 stroke-[2.2px]" size={16} />
+      
+      {/* Dynamic Inline Pending Loader */}
+      {isPending && (
+        <Loader2 className="absolute right-3.5 top-1/2 -translate-y-1/2 animate-spin text-brand-primary" size={16} />
+      )}
+      
       <input
         type="text"
         defaultValue={currentSearch}
         onChange={(e) => debouncedUpdateUrl(e.target.value)}
-        placeholder="Search by Product, SKU or Variant ID..."
-        className="w-full p-2.5 pl-11 border border-gray-300 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-900 focus:ring-brand-primary focus:border-brand-primary"
+        placeholder="Search by Product name, SKU or Variant ID..."
+        className="appearance-none block w-full rounded-xl border border-zinc-200 dark:border-zinc-800 py-2.5 px-3.5 pl-10 text-xs font-medium text-zinc-800 dark:text-zinc-200 bg-zinc-50/50 dark:bg-zinc-950 placeholder:text-zinc-400 dark:placeholder:text-zinc-600 focus:ring-1 focus:ring-brand-primary/50 focus:border-brand-primary outline-hidden transition-all duration-200"
       />
     </div>
   );

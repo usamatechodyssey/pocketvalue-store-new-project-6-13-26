@@ -1,13 +1,14 @@
+// 📂 src/app/features/admin/order-fulfillment/components/returns/ReturnFilters.tsx (CYBER-HUD HARDENED)
+
 "use client";
 
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { Search } from "lucide-react";
 import { useDebouncedCallback } from "use-debounce";
-// ✅ FIX: IMPORT FROM CENTRALIZED UTILITY
 import { RETURN_STATUSES } from "@/app/shared/utils/adminOrderDisplayUtils";
 
-// ✅ FIX: Consistent input styling (matches AdminOrderFilters.tsx)
-const inputStyles = "appearance-none block w-full rounded-md border-0 py-2 px-3.5 pl-11 text-gray-900 bg-white dark:text-white dark:bg-gray-900 ring-1 ring-inset ring-gray-300 dark:ring-gray-700 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-brand-primary sm:text-sm";
+// Consistent Cyber-HUD Input Styling
+const inputStyles = "appearance-none block w-full rounded-xl border border-zinc-200 dark:border-zinc-800 py-2.5 px-3.5 pl-10 text-xs font-medium text-zinc-800 dark:text-zinc-200 bg-zinc-50/50 dark:bg-zinc-950 placeholder:text-zinc-400 dark:placeholder:text-zinc-600 focus:ring-1 focus:ring-brand-primary/50 focus:border-brand-primary outline-hidden transition-all duration-200";
 
 export default function ReturnFilters() {
   const router = useRouter();
@@ -32,29 +33,29 @@ export default function ReturnFilters() {
   }, 500);
 
   return (
-    <div className="flex flex-col md:flex-row gap-4 mb-6">
+    <div className="flex flex-col md:flex-row items-center gap-4 w-full">
       {/* Search Input */}
-      <div className="grow relative">
-        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+      <div className="grow relative w-full">
+        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-400 dark:text-zinc-500 stroke-[2.2px]" size={16} />
         <input
           type="text"
           defaultValue={currentSearchTerm}
           onChange={(e) => debouncedSearch(e.target.value)}
-          placeholder="Search by Order # or Customer..."
+          placeholder="Search by Order # or Customer name..."
           className={inputStyles}
         />
       </div>
       
-      {/* Status Tabs */}
-      <div className="flex gap-2 overflow-x-auto pb-2">
+      {/* Status Filter Tabs (High-Density Monospaced) */}
+      <div className="flex items-center gap-1.5 overflow-x-auto custom-scrollbar w-full md:w-auto pb-1 md:pb-0 font-mono">
         {RETURN_STATUSES.map((tab) => (
           <button
             key={tab}
             onClick={() => updateUrl({ page: "1", status: tab })}
-            className={`px-3 py-1.5 text-sm font-medium rounded-md whitespace-nowrap transition-all ${
+            className={`px-3 py-2 text-[11px] font-bold uppercase tracking-wider rounded-xl whitespace-nowrap transition-all cursor-pointer ${
               currentStatus === tab
-                ? "bg-brand-primary text-white shadow-md"
-                : "bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600"
+                ? "bg-brand-primary text-white shadow-xs"
+                : "bg-zinc-100 dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-850 border border-zinc-200 dark:border-zinc-800"
             }`}
           >
             {tab}

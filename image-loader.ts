@@ -11,7 +11,7 @@ import { type ImageLoaderProps } from 'next/image';
  * Prevents XSS, SSRF, and protocol smuggling attacks.
  */
 function sanitizeUrl(url: string): string {
-  if (!url) return '/placeholder.png';
+  if (!url) return '/placeholder.svg';
 
   const trimmed = url.trim();
   const lower = trimmed.toLowerCase();
@@ -30,7 +30,7 @@ function sanitizeUrl(url: string): string {
   for (const proto of dangerousProtocols) {
     if (lower.startsWith(proto)) {
       console.warn(`🚨 [Image Loader] Blocked dangerous protocol: ${proto}`);
-      return '/placeholder.png';
+      return '/placeholder.svg';
     }
   }
 
@@ -41,7 +41,7 @@ function sanitizeUrl(url: string): string {
       return trimmed;
     } catch {
       console.warn(`🚨 [Image Loader] Invalid URL structure: ${trimmed}`);
-      return '/placeholder.png';
+      return '/placeholder.svg';
     }
   }
 
@@ -57,7 +57,7 @@ function sanitizeUrl(url: string): string {
 
   // 5. Unknown format → fallback
   console.warn(`🚨 [Image Loader] Unknown URL format: ${trimmed}`);
-  return '/placeholder.png';
+  return '/placeholder.svg';
 }
 
 // ================================================================
@@ -168,7 +168,7 @@ export default function imageLoader({ src, width, quality = 80 }: ImageLoaderPro
   const optimizedUrl = optimizeImageUrl(finalSrc, width, quality);
 
   // 5. Final fallback (safety net)
-  return optimizedUrl || '/placeholder.png';
+  return optimizedUrl || '/placeholder.svg';
 }
 
 // ================================================================

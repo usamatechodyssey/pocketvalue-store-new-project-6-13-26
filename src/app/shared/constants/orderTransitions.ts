@@ -6,7 +6,7 @@
 
 export const ORDER_STATUS_TRANSITIONS: Record<string, string[]> = {
     // Initial State
-    'Pending': ['Payment Verified', 'Cancelled'],
+    'Pending': ['Payment Verified', 'Processing', 'Cancelled', 'On Hold', 'Fraud Hold'],
   
     // Payment & Fraud
     'Payment Verified': ['Ready to Ship', 'Fraud Hold'],

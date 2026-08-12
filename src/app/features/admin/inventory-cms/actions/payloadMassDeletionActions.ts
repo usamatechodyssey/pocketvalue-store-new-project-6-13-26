@@ -1,15 +1,20 @@
-// src/app/features/admin/inventory-cms/actions/payloadCategoryActions.ts (or wherever mass deletion is defined)
+// 📂 src/app/features/admin/inventory-cms/actions/payloadMassDeletionActions.ts (DECOUPLED & OMS-SECURED)
 
 "use server";
 
 import { revalidatePath, revalidateTag } from "next/cache";
 import { getSafePayload } from "@/app/shared/lib/payloadInstance";
-import { z } from "zod"; // For validation and ZodError
-import { Payload } from "payload"; // Payload type for typing
 import { verifyStaff } from "@/lib/payloadAuth";
+import z from "zod"; 
+import { Payload } from "payload"; 
+import { redis } from "@/app/shared/lib/telemetry/rate-limiter";
+
+// ✅ OMS INTEGRITY IMPORTS
+import connectMongoose from "@/app/shared/lib/checkout/mongoose";
+import Order from "@/models/Order";
 
 // --- CONFIGURATION ---
-const CONFIRMATION_PHRASE = "I AM SURE"; // Required phrase for mass deletion
+const CONFIRMATION_PHRASE = "I AM SURE"; 
 
 // --- Zod Schema for Validation ---
 const PayloadMassDeletionSchema = z.object({
@@ -21,27 +26,27 @@ const PayloadMassDeletionSchema = z.object({
 
 export type MassDeletionPayload = z.infer<typeof PayloadMassDeletionSchema>;
 
-// --- Helper for Recursive Category/Product Finding ---
+// ============================================================================
+// 🔧 HELPER: RECURSIVE CATEGORY/PRODUCT HIERARCHY SCANNER
+// ============================================================================
 async function findCategoryHierarchy(
   payload: Payload, 
-  identifier: string, 
-  allCategories: any[] // Cached all categories for efficiency
+  valueIdentifier: string, 
+  allCategories: any[] 
 ): Promise<{ categoryIds: string[], productIds: string[] }> {
-  // Explicitly typed 'c' parameter to prevent implicit any warnings
+  
   const rootCategory = allCategories.find((c: any) => 
-    c.slug === identifier.toLowerCase() || c.name.toLowerCase() === identifier.toLowerCase()
+    c.slug === valueIdentifier.toLowerCase() || c.name.toLowerCase() === valueIdentifier.toLowerCase()
   );
 
   if (!rootCategory) {
-    throw new Error(`Category "${identifier}" not found.`);
+    throw new Error(`Category "${valueIdentifier}" not found.`);
   }
 
-  const categoryIdsToScan: string[] = [rootCategory.id]; // These categories are scanned only, not deleted
+  const categoryIdsToScan: string[] = [rootCategory.id]; 
   let productsToDelete: string[] = [];
 
-  // Find all sub-categories recursively to get all product links
   const findSubCategories = (parentId: string) => {
-    // ✅ ENTERPRISE UPGRADE: Highly resilient scanner that supports both populated objects and unpopulated string ID parent fields
     const children = allCategories.filter((c: any) => {
       if (!c.parent) return false;
       const parentIdValue = typeof c.parent === 'object' ? (c.parent.id || c.parent._id) : c.parent;
@@ -49,19 +54,18 @@ async function findCategoryHierarchy(
     });
 
     children.forEach((child: any) => {
-      categoryIdsToScan.push(child.id); // Add to the scanning list
-      findSubCategories(child.id); // Recurse
+      categoryIdsToScan.push(child.id); 
+      findSubCategories(child.id); 
     });
   };
 
   findSubCategories(rootCategory.id);
 
-  // Find all products linked to these categories
   const productsResult = await payload.find({
     collection: "products",
     where: { categories: { in: categoryIdsToScan } },
-    limit: 99999, // Max limit to capture all docs
-    depth: 0 // IDs only
+    limit: 99999, 
+    depth: 0 // Fetch IDs only (Memory Optimized)
   });
   
   productsToDelete = productsResult.docs.map((p: any) => p.id);
@@ -69,9 +73,14 @@ async function findCategoryHierarchy(
   return { categoryIds: categoryIdsToScan, productIds: productsToDelete }; 
 }
 
+// ============================================================================
+// 🚀 MAIN ACTION: MASS DELETE CATEGORY PRODUCTS HIERARCHY (OMS PROTECTED)
+// ============================================================================
 export async function massDeleteCategoryHierarchyPayload(
   payloadData: MassDeletionPayload
 ): Promise<{ success: boolean; message: string; logs?: string[] }> {
+  
+  // 🛡️ 1. Security check: Only root Super Admins can invoke bulk destructions
   await verifyStaff(["admin"]);
   
   const validation = PayloadMassDeletionSchema.safeParse(payloadData);
@@ -86,25 +95,51 @@ export async function massDeleteCategoryHierarchyPayload(
   try {
     logs.push(`🔍 Starting mass product deletion under category: "${identifier}"`);
 
-    const allCategoriesResult = await payload.find({ collection: "categories", limit: 99999, depth: 1 });
+    // Memory-safety category projections (Only select needed keys)
+    const allCategoriesResult = await payload.find({ 
+      collection: "categories", 
+      limit: 99999, 
+      depth: 1,
+      select: { name: true, slug: true, parent: true } 
+    });
     const allCategories = allCategoriesResult.docs;
 
     const { categoryIds: categoriesScanned, productIds: productIdsToDelete } = 
       await findCategoryHierarchy(payload, identifier, allCategories);
 
     if (productIdsToDelete.length === 0) {
-      logs.push(`⚠️ No products found linked to category "${identifier}" or its sub-categories. Nothing to delete.`);
+      logs.push(`⚠️ No products found linked to category "${identifier}". Nothing to delete.`);
       return { success: true, message: "No matching products found for deletion in this hierarchy.", logs };
     }
 
-    logs.push(`Categories scanned for products: ${categoriesScanned.length}`);
-    logs.push(`Products targeted for deletion: ${productIdsToDelete.length}`);
+    logs.push(`Categories scanned: ${categoriesScanned.length}`);
+    logs.push(`Products targeted: ${productIdsToDelete.length}`);
 
-    // --- Delete Products (Bulk Database Transaction Upgrade) ---
+    // ================================================================
+    // 🛡️ OMS PIPELINE INTEGRITY LOCK
+    // (Prevents deleting products currently processing inside active orders)
+    // ================================================================
+    await connectMongoose();
+    
+    const ACTIVE_OMS_STATUSES = ["Pending", "Payment Verified", "Processing", "Ready to Ship", "Shipped", "In Transit"];
+    
+    // Find active unfulfilled orders containing any of the targeted product IDs
+    const activeOrders = await Order.find({
+      "products.productId": { $in: productIdsToDelete },
+      status: { $in: ACTIVE_OMS_STATUSES }
+    }, { orderId: 1 }).lean<{ orderId: string }[]>();
+
+    if (activeOrders.length > 0) {
+      const activeIdsList = activeOrders.map(o => o.orderId).join(", ");
+      const errorMsg = `Mass deletion aborted: Targeted products are currently active in unfulfilled orders: [${activeIdsList}]. Please fulfill or cancel these orders before deleting the product catalog.`;
+      
+      logs.push(`🚨 [OMS BLOCK] Deletion aborted. Products are active in unfulfilled orders: ${activeIdsList}`);
+      return { success: false, message: errorMsg, logs };
+    }
+
+    // --- Bulk Database Deletion ---
     logs.push(`🗑️ Bulk deleting ${productIdsToDelete.length} products...`);
     
-    // ✅ ENTERPRISE UPGRADE: Migrated from slow, loop-based individual delete Promises to a highly optimized single bulk-delete transaction
-    // This reduces DB request operations from hundreds to just one single safe database transaction
     await payload.delete({
       collection: "products",
       where: {
@@ -118,17 +153,19 @@ export async function massDeleteCategoryHierarchyPayload(
     logs.push(`✅ Successfully deleted ${productIdsToDelete.length} products.`);
     logs.push(`🎉 Product deletion completed for category "${identifier}".`);
 
-    // ✅ Clear homepage and product-related caches
+    // Clear Next.js cache paths
     revalidatePath("/");
     revalidatePath("/admin/products");
     
-    // ✅ Clear filter-data cache because product deletion affects brands, price ranges, and attributes
-    revalidateTag("filter-data","max");
-    console.log(`✅ [Filter Cache] Revalidated after mass deletion of ${productIdsToDelete.length} products.`);
+    // Clear dynamic pricing/attribute filters cache
+    try {
+      revalidateTag("filter-data", "max");
+      console.log(`✅ [Filter Cache] Revalidated after mass deletion of ${productIdsToDelete.length} products.`);
+    } catch (e) {}
 
     return { 
       success: true, 
-      message: `Successfully deleted ${productIdsToDelete.length} products from category "${identifier}" hierarchy. Categories are safe.`, 
+      message: `Successfully deleted ${productIdsToDelete.length} products from category "${identifier}" hierarchy. Active orders are safe.`, 
       logs 
     };
 
@@ -137,4 +174,4 @@ export async function massDeleteCategoryHierarchyPayload(
     console.error("Mass Product Deletion Action Error:", error);
     return { success: false, message: error.message || "An unexpected error occurred during mass product deletion.", logs };
   }
-}
+} 

@@ -1,9 +1,12 @@
-//user account return action
+// 📂 src/app/features/storefront/customer-account/actions/returnActions.ts (FULLY HARDENED & BSON-SAFE)
+
 "use server";
 
 import { auth } from "@/app/auth";
 import { revalidatePath } from "next/cache";
-// ✅ FIX: Import factory functions instead of nodemailer
+import { Types } from "mongoose"; // ✅ Imported Types for BSON verification
+
+// ✅ Dynamic Exporters Factory
 import { 
   sendReturnReceivedEmail,
   sendAdminNotificationEmail
@@ -68,28 +71,28 @@ export async function createReturnRequestAction(formData: FormData): Promise<Cre
   try {
     await connectMongoose();
     
+    // Validate order ownership (Order _id is a custom String, e.g. PV-1001)
     const order = await Order.findOne({ 
       _id: orderId,
       userId: session.user.id 
     });
 
     if (!order) {
-      return { success: false, message: "Order not found or you do not have permission." };
+      return { success: false, message: "Order not found or access denied." };
     }
     
     const newReturnRequest = new ReturnRequest({
       orderId: order._id,
       orderNumber,
-      userId: session.user.id,
+      userId: new Types.ObjectId(session.user.id), // ✅ Persisted safely as BSON ObjectId
       items, 
       customerComments,
     });
 
     await newReturnRequest.save();
 
-    // ✅ FIX: Send emails using factory
+    // Isolated Email Dispatch
     try {
-      // Email #1: To Customer (Return Received)
       await sendReturnReceivedEmail({
         to: session.user.email,
         customerName: session.user.name,
@@ -97,7 +100,6 @@ export async function createReturnRequestAction(formData: FormData): Promise<Cre
         requestId: newReturnRequest._id.toString(),
       });
 
-      // Email #2: To Admin (New Return Notification)
       if (process.env.ADMIN_EMAIL) {
         await sendAdminNotificationEmail({
           to: process.env.ADMIN_EMAIL,
@@ -130,7 +132,17 @@ export async function getUserReturnRequests(): Promise<UserReturnRequest[]> {
   try {
     await connectMongoose();
     
-    const requests = await ReturnRequest.find({ userId: session.user.id })
+    // ✅ FIX: Dual BSON Matcher resolves query whether userId is stored as String or ObjectId
+    const userQuery: any = {
+      $or: [
+        { userId: session.user.id },
+      ]
+    };
+    if (Types.ObjectId.isValid(session.user.id)) {
+      userQuery.$or.push({ userId: new Types.ObjectId(session.user.id) });
+    }
+
+    const requests = await ReturnRequest.find(userQuery)
       .sort({ createdAt: -1 })
       .lean<any[]>();
 
@@ -147,24 +159,39 @@ export async function getUserReturnRequests(): Promise<UserReturnRequest[]> {
   }
 }
 
+// === ACTION #3: GET SINGLE USER RETURN DETAIL (BSON-SAFE) ===
 export async function getSingleUserReturnRequest(returnId: string): Promise<FullUserReturnRequest | null> {
   const session = await auth();
   if (!session?.user?.id) return null;
 
   try {
+    // ✅ FIX: BSON ObjectId Guard prevents BSONTypeError crashes on invalid URL parameters
+    if (!returnId || !Types.ObjectId.isValid(returnId)) {
+      console.warn(`🛡️ [Security] Blocked invalid BSON returnId query: ${returnId}`);
+      return null;
+    }
+
     const payload = await getSafePayload();
     await connectMongoose();
 
-    const request = await ReturnRequest.findOne({
-      _id: returnId,
-      userId: session.user.id
-    }).lean<any>();
+    const userQuery: any = {
+      _id: new Types.ObjectId(returnId),
+      $or: [
+        { userId: session.user.id },
+      ]
+    };
+    if (Types.ObjectId.isValid(session.user.id)) {
+      userQuery.$or.push({ userId: new Types.ObjectId(session.user.id) });
+    }
+
+    const request = await ReturnRequest.findOne(userQuery).lean<any>();
 
     if (!request) return null;
 
     const productIds = request.items.map((item: any) => item.productId);
     
-    const validProductIds = productIds.filter((id: string) => id && id.length > 0);
+    // Validate only valid hex 24-character ObjectIds for Payload CMS query
+    const validProductIds = productIds.filter((id: string) => id && /^[0-9a-fA-F]{24}$/.test(id));
 
     let productsMap = new Map<string, SanityProduct>();
 

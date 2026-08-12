@@ -1,4 +1,4 @@
-// src/app/features/admin/inventory-cms/components/import-products/components/ProgressDashboard.tsx
+// 📂 src/app/features/admin/inventory-cms/components/import-products/components/ProgressDashboard.tsx (CYBER-HUD HARDENED)
 
 "use client";
 
@@ -16,7 +16,7 @@ interface ProgressDashboardProps {
   onReset: () => void;
 }
 
-export function ProgressDashboard({
+export default function ProgressDashboard({
   status,
   stats,
   totalCount,
@@ -32,10 +32,10 @@ export function ProgressDashboard({
   const isCompleted = status === "completed";
 
   const getStatusIcon = () => {
-    if (isProcessing) return <Loader2 className="animate-spin text-brand-primary" size={24} />;
-    if (isPaused) return <Pause className="text-yellow-500" size={24} />;
-    if (isWaiting) return <WifiOff className="text-red-500 animate-pulse" size={24} />;
-    if (isCompleted) return <CheckCircle className="text-green-500" size={24} />;
+    if (isProcessing) return <Loader2 className="animate-spin text-brand-primary" size={20} />;
+    if (isPaused) return <Pause className="text-amber-500" size={20} />;
+    if (isWaiting) return <WifiOff className="text-red-500 animate-pulse" size={20} />;
+    if (isCompleted) return <CheckCircle className="text-emerald-500" size={20} />;
     return null;
   };
 
@@ -48,47 +48,48 @@ export function ProgressDashboard({
   };
 
   const getBarColor = () => {
-    if (isPaused) return "bg-yellow-400";
-    if (isWaiting) return "bg-red-400";
-    if (isCompleted) return "bg-green-500";
-    return "bg-blue-500";
+    if (isPaused) return "bg-amber-500";
+    if (isWaiting) return "bg-red-500";
+    if (isCompleted) return "bg-emerald-500";
+    return "bg-brand-primary";
   };
 
   return (
     <div className="space-y-6">
-      <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md border border-gray-100 dark:border-gray-700 relative overflow-hidden">
+      {/* ProgressBar Card */}
+      <div className="bg-white dark:bg-zinc-950 p-6 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-xs relative overflow-hidden">
         <div className="flex justify-between items-center mb-4">
           <div className="flex items-center gap-3">
             {getStatusIcon()}
             <div>
-              <h3 className="font-bold text-xl text-gray-800 dark:text-white">{getStatusLabel()}</h3>
-              <p className="text-xs text-gray-500 uppercase tracking-wide">
-                {stats.processed} / {totalCount} Products
+              <h3 className="font-bold text-lg text-zinc-900 dark:text-zinc-50 leading-none">{getStatusLabel()}</h3>
+              <p className="text-[10px] text-zinc-400 dark:text-zinc-500 font-bold uppercase tracking-wider font-mono mt-1.5">
+                {stats.processed} / {totalCount} Products Mapped
               </p>
             </div>
           </div>
           <div className="flex gap-2">
             {(isProcessing || isWaiting) && (
-              <button onClick={onPause} className="p-2 bg-yellow-50 text-yellow-600 rounded-lg hover:bg-yellow-100 border border-yellow-200">
-                <Pause size={20} />
+              <button onClick={onPause} className="p-2 bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 rounded-xl hover:bg-amber-500/20 cursor-pointer transition-colors">
+                <Pause size={18} />
               </button>
             )}
             {isPaused && (
-              <button onClick={onResume} className="px-4 py-2 bg-green-50 text-green-600 rounded-lg hover:bg-green-100 border border-green-200 font-bold flex gap-2">
-                <Play size={20} /> Resume
+              <button onClick={onResume} className="px-4 py-2 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 rounded-xl hover:bg-emerald-500/20 text-xs font-bold uppercase tracking-wider flex gap-2 cursor-pointer transition-all">
+                <Play size={14} className="mt-0.5" /> Resume
               </button>
             )}
             {isCompleted && (
-              <button onClick={onReset} className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-bold flex gap-2">
-                <RefreshCw size={20} /> New File
+              <button onClick={onReset} className="px-4 py-2 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-900 dark:hover:bg-zinc-850 border border-zinc-200 dark:border-zinc-850 text-zinc-700 dark:text-zinc-300 text-xs font-bold uppercase tracking-wider rounded-xl flex gap-2 cursor-pointer transition-all">
+                <RefreshCw size={14} className="mt-0.5" /> New File
               </button>
             )}
           </div>
         </div>
 
-        <div className="h-6 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden shadow-inner">
+        <div className="h-5 bg-zinc-100 dark:bg-zinc-900 rounded-full overflow-hidden shadow-inner">
           <div
-            className={`h-full transition-all duration-500 ease-out flex items-center justify-end pr-2 text-[10px] text-white font-bold ${getBarColor()}`}
+            className={`h-full transition-all duration-500 ease-out flex items-center justify-end pr-2.5 text-[9px] text-white font-mono font-bold ${getBarColor()}`}
             style={{ width: `${progressPercent}%` }}
           >
             {progressPercent > 5 && `${progressPercent}%`}
@@ -96,24 +97,28 @@ export function ProgressDashboard({
         </div>
       </div>
 
+      {/* KPI Counters Grid (Monospaced HUD) */}
       <div className="grid grid-cols-3 gap-4">
-        <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
-          <div className="flex items-center gap-2 mb-2 text-blue-500">
-            <Timer size={18} /> <span className="text-xs font-bold uppercase">Time Left</span>
+        {/* Time Left */}
+        <div className="bg-white dark:bg-zinc-950 p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-xs font-mono">
+          <div className="flex items-center gap-1.5 mb-1.5 text-brand-primary">
+            <Timer size={14} /> <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Time Left</span>
           </div>
-          <p className="text-2xl font-black text-gray-800 dark:text-white tracking-tight">{timeLeft}</p>
+          <p className="text-xl font-black text-zinc-800 dark:text-zinc-100 tracking-tight">{timeLeft}</p>
         </div>
-        <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
-          <div className="flex items-center gap-2 mb-2 text-green-500">
-            <CheckCircle size={18} /> <span className="text-xs font-bold uppercase">Success</span>
+        {/* Success */}
+        <div className="bg-white dark:bg-zinc-950 p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-xs font-mono">
+          <div className="flex items-center gap-1.5 mb-1.5 text-emerald-500">
+            <CheckCircle size={14} /> <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Success</span>
           </div>
-          <p className="text-2xl font-black text-gray-800 dark:text-white tracking-tight">{stats.success}</p>
+          <p className="text-xl font-black text-zinc-800 dark:text-zinc-100 tracking-tight">{stats.success}</p>
         </div>
-        <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
-          <div className="flex items-center gap-2 mb-2 text-red-500">
-            <XCircle size={18} /> <span className="text-xs font-bold uppercase">Failed</span>
+        {/* Failed */}
+        <div className="bg-white dark:bg-zinc-950 p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-xs font-mono">
+          <div className="flex items-center gap-1.5 mb-1.5 text-red-500">
+            <XCircle size={14} /> <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Failed</span>
           </div>
-          <p className="text-2xl font-black text-gray-800 dark:text-white tracking-tight">{stats.failed}</p>
+          <p className="text-xl font-black text-zinc-800 dark:text-zinc-100 tracking-tight">{stats.failed}</p>
         </div>
       </div>
     </div>

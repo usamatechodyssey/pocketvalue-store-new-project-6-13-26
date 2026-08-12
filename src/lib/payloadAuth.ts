@@ -1,52 +1,96 @@
-// src/lib/payloadAuth.ts
+// 📂 src/lib/payloadAuth.ts (MASTER PAYLOAD CMS STAFF AUTHENTICATOR WITH DEV FALLBACK)
 
 import { getSafePayload } from "@/app/shared/lib/payloadInstance";
 import { headers } from "next/headers";
 
 // ================================================================
-// 🛡️ ENTERPRISE ROLES (Strict Type Union)
+// ✅ ALLOWED STAFF ROLES (Payload CMS Database Aligned)
 // ================================================================
-// ✅ UPDATED: "logistics", "support", aur "finance" roles bhi add kar diye
-// taake shipmentActions.ts aur future modules seamlessly kaam karein.
-export type StaffRole = 
-  | "admin" 
-  | "manager" 
-  | "editor" 
-  | "logistics" 
-  | "support" 
-  | "finance";
+export type StaffRole =
+  | "admin"
+  | "manager"
+  | "editor"
+  | "logistics"
+  | "support"
+  | "finance"
+  | "Super Admin"
+  | "Store Manager"
+  | "Content Editor";
 
-/**
- * 🛡️ UNIVERSAL STAFF VERIFIER
- * This function must be executed at the beginning of Server Actions.
- * 
- * @param allowedRoles - List of roles that are authorized to perform the action.
- * @returns The validated user document from Payload.
- * @throws Error if user is not authenticated or role is not authorized.
- */
-export async function verifyStaff(
-  allowedRoles: StaffRole[],
-): Promise<any> {
-  // Use connection-safe client from the global cache singleton
-  const payload = await getSafePayload();
+// ================================================================
+// 🔧 HELPER: Normalizes Payload CMS staff roles
+// Bridges database strings ("Super Admin") with action strings ("admin")
+// ================================================================
+function normalizeRole(role: string): string {
+  if (!role) return "";
+  const r = role.toLowerCase().trim();
+  if (r === "super admin" || r === "admin") return "admin";
+  if (r === "store manager" || r === "manager") return "manager";
+  if (r === "content editor" || r === "editor") return "editor";
+  return r;
+}
 
-  // 1. Perform Payload Auth check using cookie sessions
-  const { user } = await payload.auth({ headers: await headers() });
+// ================================================================
+// 🛡️ UNIVERSAL STAFF VERIFIER (Payload CMS Auth + Dev Graceful Fallback)
+// Used by all Admin Server Actions and Intelligence Modules
+// ================================================================
+export async function verifyStaff(allowedRoles: StaffRole[]): Promise<any> {
+  let user: any = null;
 
-  // 2. Validate user presence
+  // 1. Authenticate via Payload CMS headers (payload-token cookie)
+  try {
+    const payload = await getSafePayload();
+    const authResult = await payload.auth({ headers: await headers() });
+    user = authResult.user;
+  } catch (e) {
+    // Session token expired or missing
+  }
+
+  // 🛡️ DEV-MODE FALLBACK: Localhost testing session auto-authentication
+  if (!user && process.env.NODE_ENV === "development") {
+    try {
+      const payload = await getSafePayload();
+      const devAdmins = await payload.find({
+        collection: "users",
+        where: { role: { in: ["admin", "Super Admin"] } },
+        limit: 1,
+      });
+      if (devAdmins.docs.length > 0) {
+        user = devAdmins.docs[0];
+        console.log("🛠️ Dev Mode Security: Local admin staff session active.");
+      }
+    } catch (e) {
+      // Dev fallback catch
+    }
+  }
+
+  // 2. Reject if no user found in Production
   if (!user) {
-    throw new Error(
-      "UNAUTHORIZED: Aapka Payload session expire ho chuka hai. Dobara login karein.",
-    );
+    throw new Error("UNAUTHORIZED: Session expired. Please log in to Payload Admin.");
   }
 
-  // 3. Confirm appropriate permission level
-  const userRole = (user as any).role;
-  if (!allowedRoles.includes(userRole)) {
-    throw new Error(
-      `FORBIDDEN: Aapka role [${userRole}] is action ke liye authorized nahi hai.`,
-    );
+  // 3. Normalize roles ("Super Admin" -> "admin")
+  const normalizedUserRole = normalizeRole((user as any).role || "");
+  const normalizedAllowedRoles = allowedRoles.map(normalizeRole);
+
+  // 4. Super-User Bypass: "admin" / "Super Admin" is always authorized
+  if (normalizedUserRole === "admin") {
+    return user;
   }
 
-  return user; // Return validated user document
+  // 5. Verify permission match
+  if (!normalizedAllowedRoles.includes(normalizedUserRole)) {
+    throw new Error(`FORBIDDEN: Role [${(user as any).role}] not authorized for this action.`);
+  }
+
+  return user;
+}
+
+// ================================================================
+// 🛡️ MASTER SUPER ADMIN GUARD
+// Used for high-privilege staff management actions
+// ================================================================
+export async function verifySuperAdmin(): Promise<any> {
+  const user = await verifyStaff(["admin", "Super Admin"]);
+  return user;
 }

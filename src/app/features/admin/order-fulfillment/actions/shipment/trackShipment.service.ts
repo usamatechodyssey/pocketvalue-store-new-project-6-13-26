@@ -1,14 +1,12 @@
-// src/features/admin/order-fulfillment/actions/shipment/trackShipment.service.ts
+// 📂 src/features/admin/order-fulfillment/actions/shipment/trackShipment.service.ts (FULLY HARDENED FOR PRODUCTION)
+
 "use server";
 
 import connectMongoose from "@/app/shared/lib/checkout/mongoose";
 import Order from "@/models/Order";
 import { verifyStaff } from "@/lib/payloadAuth";
 import { logUserEvent } from "@/app/features/admin/analytics-telemetry/action/trackingActions";
-import {
-  getCourierAdapter,
-  // We need to import mapCourierStatus from the main library, or re-export it.
-} from "./helpers";
+import { getCourierAdapter } from "./helpers";
 
 import {
   mapCourierStatus,
@@ -27,6 +25,7 @@ import type { TrackShipmentResult } from "./types";
  * Enterprise Features:
  * - RBAC protected (admin, manager, logistics can track)
  * - Auto-updates shipment status if tracking shows a change
+ * - Event-Driven Executive Cache Purge on status changes
  * - Full audit logging
  * - Graceful error handling
  * 
@@ -91,6 +90,18 @@ export async function trackShipment(
             }
             
             await order.save();
+
+            // ⚡ EVENT-DRIVEN EXECUTIVE CACHE PURGE
+            try {
+              const { redis } = await import("@/app/shared/lib/telemetry/rate-limiter");
+              const execCacheKeys = await redis.keys("analytics_executive:*");
+              if (execCacheKeys.length > 0) {
+                await redis.del(...execCacheKeys);
+                console.log(`⚡ Event-Driven Tracking Sync: Cleared ${execCacheKeys.length} executive cache keys.`);
+              }
+            } catch (purgeError: any) {
+              console.warn("⚠️ Executive cache purge warning:", purgeError.message);
+            }
 
             // 🛡️ 7. Audit Log for Auto-Update
             await logUserEvent("crm_sync", "/admin/shipments/track", {

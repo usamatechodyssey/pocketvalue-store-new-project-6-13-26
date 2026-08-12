@@ -1493,6 +1493,7 @@ export interface Setting {
             | 'tracking_update'
             | 'invoice_delivery'
             | 'abandoned_cart'
+            | 'customer_requests'
           )[]
         | null;
     };
@@ -1507,6 +1508,7 @@ export interface Setting {
             | 'tracking_update'
             | 'invoice_delivery'
             | 'abandoned_cart'
+            | 'customer_requests'
           )[]
         | null;
     };
@@ -1521,6 +1523,7 @@ export interface Setting {
             | 'tracking_update'
             | 'invoice_delivery'
             | 'abandoned_cart'
+            | 'customer_requests'
           )[]
         | null;
     };

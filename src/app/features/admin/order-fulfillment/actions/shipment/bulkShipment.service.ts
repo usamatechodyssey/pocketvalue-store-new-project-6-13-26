@@ -1,4 +1,5 @@
-// src/features/admin/order-fulfillment/actions/shipment/bulkShipment.service.ts
+// 📂 src/features/admin/order-fulfillment/actions/shipment/bulkShipment.service.ts (FULLY HARDENED & DUAL RESOLVED)
+
 "use server";
 
 import connectMongoose from "@/app/shared/lib/checkout/mongoose";
@@ -18,7 +19,7 @@ import type { BulkShipmentResult } from "./types";
 // ================================================================
 
 const CONCURRENCY_LIMIT = 5; // Process 5 orders at a time to avoid rate limits & memory spikes
-const MAX_BATCH_SIZE = 50; // Maximum orders per batch
+const MAX_BATCH_SIZE = 50;  // Maximum orders per batch
 
 // ================================================================
 // 🚀 SERVICE: BULK CREATE SHIPMENTS
@@ -32,11 +33,13 @@ const MAX_BATCH_SIZE = 50; // Maximum orders per batch
  * - Single DB connection (optimized)
  * - Error isolation (partial failures don't stop the batch)
  * - Idempotency check (skip already shipped orders)
+ * - Dual order resolution (_id or orderId)
+ * - Dual variant key matching (_key or id)
  * - Batch size limit (max 50 orders)
  * - Full audit logging
  * - RBAC protected
  * 
- * @param orderIds - Array of order IDs to process
+ * @param orderIds - Array of order IDs or order numbers to process
  * @param courierKey - Optional courier key (defaults to system default)
  * @returns BulkShipmentResult with detailed success/failure breakdown
  */
@@ -71,14 +74,14 @@ export async function bulkCreateShipments(
       };
     }
 
-    // 🛡️ 3. Single DB Connection (Optimization)
+    // 🛡️ 3. Single DB Connection
     await connectMongoose();
 
     // 🛡️ 4. Get Default Courier (if not specified)
     let selectedCourier = courierKey;
     if (!selectedCourier) {
       const defaultCourier = await getDefaultCourier();
-      selectedCourier = defaultCourier?.key as CourierKey || 'manual';
+      selectedCourier = (defaultCourier?.key as CourierKey) || 'manual';
     }
 
     // 🛡️ 5. Validate Courier is Enabled
@@ -108,7 +111,11 @@ export async function bulkCreateShipments(
      */
     const processOrder = async (orderId: string) => {
       try {
-        const order = await Order.findById(orderId);
+        // ✅ FIX 1: Dual order resolution matches either _id or orderId string
+        const order = await Order.findOne({
+          $or: [{ _id: orderId }, { orderId: orderId }],
+        });
+
         if (!order) {
           return { orderId, orderNumber: 'N/A', success: false, error: 'Order not found' };
         }
@@ -128,7 +135,7 @@ export async function bulkCreateShipments(
           };
         }
 
-        // 🛡️ 8. Identify Unshipped Items
+        // 🛡️ 8. Identify Unshipped Items (Dual Variant Resolution)
         const shippedProductKeys = new Set();
         order.shipments?.forEach((s: any) => {
           s.items?.forEach((item: any) => {
@@ -136,14 +143,16 @@ export async function bulkCreateShipments(
           });
         });
 
+        // ✅ FIX 2: Dual variant key resolution checks both _key and id properties
         const itemsToShip = order.products
           .filter((p: any) => {
-            const key = `${p.productId || p._id}-${p.variant?._key || 'default'}`;
+            const vKey = p.variant?._key || p.variant?.id || 'default';
+            const key = `${p.productId || p._id}-${vKey}`;
             return !shippedProductKeys.has(key);
           })
           .map((p: any) => ({
             productId: p.productId || p._id,
-            variantKey: p.variant?._key || 'default',
+            variantKey: p.variant?._key || p.variant?.id || 'default',
             quantity: p.quantity,
           }));
 
@@ -207,7 +216,6 @@ export async function bulkCreateShipments(
             failedCount++;
           }
         } else {
-          // Promise rejected (shouldn't happen if processOrder catches everything)
           failedCount++;
           results.push({
             orderId: 'unknown',

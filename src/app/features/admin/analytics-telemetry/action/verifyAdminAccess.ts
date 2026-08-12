@@ -1,24 +1,18 @@
+// 📂 src/features/admin/analytics-telemetry/action/verifyAdminAccess.ts (HARDENED TELEMETRY GUARD)
+
 "use server";
 
-import { auth } from "@/app/auth";
-import { headers } from "next/headers";
-import { getSafePayload } from "@/app/shared/lib/payloadInstance";
+import { verifyStaff } from "@/lib/payloadAuth";
 
+/**
+ * 🛡️ Verifies administrative staff access for high-density intelligence telemetry
+ * Uses normalized role matching ("Super Admin" / "Store Manager" -> "admin" / "manager")
+ */
 export async function verifyAdminAccess(): Promise<boolean> {
-  const session = await auth();
-  if (
-    session?.user?.role &&
-    ["Super Admin", "Store Manager"].includes(session.user.role)
-  ) {
+  try {
+    await verifyStaff(["admin", "manager"]);
     return true;
+  } catch (error: any) {
+    throw new Error(error.message || "Unauthorized: Intelligence access restricted to Admins only.");
   }
-
-  // Use connection-safe client from the global cache singleton
-  const payload = await getSafePayload();
-  const { user } = await payload.auth({ headers: await headers() });
-  if (user) return true;
-
-  throw new Error(
-    "Unauthorized: Intelligence access restricted to Admins only.",
-  );
 }

@@ -1,4 +1,6 @@
 
+// 📂 src/app/(main)/layout.tsx
+
 import { Suspense } from "react";
 import type { Metadata, Viewport } from "next";
 import { Montserrat } from "next/font/google";
@@ -44,7 +46,7 @@ export const viewport: Viewport = {
   viewportFit: "cover",
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#ffffff" },
-    { media: "(prefers-color-scheme: dark)", color: "#111827" },
+    { media: "(prefers-color-scheme: dark)", color: "#030712" }, // ✅ Synced gray-950 base
   ],
 };
 
@@ -70,7 +72,7 @@ export async function generateMetadata(): Promise<Metadata> {
       title: settings.siteName || "PocketValue",
     },
     formatDetection: { telephone: false },
-    // 🔥 SEO POINT #98: HREFLANG TAGS
+    // 🔥 SEO HREFLANG TAGS
     alternates: {
       canonical: `${siteUrl}/`,
       languages: {
@@ -97,9 +99,7 @@ export default async function RootLayout({
     process.env.NEXT_PUBLIC_BASE_URL || "https://www.pocketvalue.pk"
   ).replace(/\/$/, "");
 
-  // ============================================================
   // Structured Data Schema (JSON-LD)
-  // ============================================================
   const organizationSchema = {
     "@context": "https://schema.org",
     "@type": "Organization",
@@ -146,6 +146,7 @@ export default async function RootLayout({
       lang="en"
       suppressHydrationWarning
       className={montserrat.variable}
+      data-scroll-behavior="smooth"
     >
       <head>
         {/* Hreflang tags — primary method via <link> tags */}
@@ -155,7 +156,7 @@ export default async function RootLayout({
       </head>
       <body className="font-sans antialiased bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100 selection:bg-brand-primary/30">
         
-        {/* ✅ Standard HTML scripts for immediate bot parsing (Better SEO) */}
+        {/* Standard HTML scripts for immediate bot parsing (Better SEO) */}
         <script
           type="application/ld+json"
           id="schema-org"
@@ -174,11 +175,12 @@ export default async function RootLayout({
         {/* Web Vitals Reporting Component */}
         <WebVitals />
 
+        {/* ✅ FIXED: glows with the premium brand primary orange (#FF8F32) */}
         <NextTopLoader
-          color="#f97316"
+          color="#FF8F32"
           height={3}
           showSpinner={false}
-          shadow="0 0 10px #f97316,0 0 5px #f97316"
+          shadow="0 0 12px #FF8F32, 0 0 6px #FF8F32"
         />
 
         <ThemeProvider

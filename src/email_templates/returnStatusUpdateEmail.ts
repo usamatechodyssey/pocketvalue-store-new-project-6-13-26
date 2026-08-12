@@ -1,5 +1,4 @@
-
-// /src/email_templates/returnStatusUpdateEmail.ts
+// 📂 src/email_templates/returnStatusUpdateEmail.ts
 
 import { createMasterEmailLayout } from "./masterLayout";
 
@@ -24,8 +23,9 @@ export function createReturnStatusUpdateEmail({
   resolution,
   adminComments,
 }: StatusUpdateData): string {
+  // ✅ ACCENT SYNC: Updated default status highlight to exact brand warm orange (#FF8F32)
   let headerTitle = "Return Request Update";
-  let statusColor = "#F97316"; // Default Orange
+  let statusColor = "#FF8F32"; 
   let statusIcon = "🔄";
   let mainContent = "";
   let resolutionBlock = "";
@@ -51,9 +51,9 @@ export function createReturnStatusUpdateEmail({
             "A fresh replacement for your item is being prepared and will be shipped to you shortly.";
 
         resolutionBlock = `
-          <div style="margin-top: 20px; padding: 15px; background-color: #F0FDF4; border-left: 4px solid #16A34A; border-radius: 8px;">
+          <div style="margin-top: 20px; padding: 15px; background-color: #F0FDF4; border-left: 4px solid #16A34A; border-radius: 12px; border-top: 1px solid #e5e7eb; border-right: 1px solid #e5e7eb; border-bottom: 1px solid #e5e7eb;" class="dark-card dark-border">
             <p style="margin: 0; font-size: 14px; color: #16A34A;"><strong>Resolution:</strong> ${resolution}</p>
-            <p style="margin: 5px 0 0; font-size: 13px; color: #15803D;">${resDesc}</p>
+            <p style="margin: 5px 0 0; font-size: 13px; color: #15803D;" class="dark-text">${resDesc}</p>
           </div>
         `;
       }
@@ -83,9 +83,9 @@ export function createReturnStatusUpdateEmail({
   // 💬 ADMIN COMMENTS SECTION
   const adminNotesHtml = adminComments
     ? `
-    <div style="margin-top: 25px; padding: 20px; background-color: #F9FAFB; border: 1px solid #E5E7EB; border-radius: 12px; font-style: italic;">
-      <p style="margin: 0 0 10px; font-size: 12px; color: #9CA3AF; font-style: normal; font-weight: bold; text-transform: uppercase;">Note from the Audit Team:</p>
-      <p style="margin: 0; font-size: 14px; color: #4B5563;">&quot;${adminComments}&quot;</p>
+    <div style="margin-top: 25px; padding: 20px; background-color: #F9FAFB; border: 1px solid #E5E7EB; border-radius: 12px; font-style: italic;" class="dark-card dark-border">
+      <p style="margin: 0 0 10px; font-size: 12px; color: #9CA3AF; font-style: normal; font-weight: bold; text-transform: uppercase;" class="dark-subtext">Note from the Audit Team:</p>
+      <p style="margin: 0; font-size: 14px; color: #4B5563;" class="dark-text">&quot;${adminComments}&quot;</p>
     </div>
   `
     : "";
@@ -97,28 +97,28 @@ export function createReturnStatusUpdateEmail({
 
   const bodyHtml = `
     <div style="margin-bottom: 25px;">
-        <p style="font-size: 16px; color: #4B5563;">Hi <strong>${customerName}</strong>,</p>
-        <div style="font-size: 15px; color: #4B5563; line-height: 1.6;">
+        <p style="font-size: 16px; color: #4B5563;" class="dark-text">Hi <strong>${customerName}</strong>,</p>
+        <div style="font-size: 15px; color: #4B5563; line-height: 1.6;" class="dark-text">
             ${mainContent}
         </div>
     </div>
     
-    <div style="background-color: #ffffff; border: 2px solid ${statusColor}; padding: 20px; border-radius: 16px; margin-bottom: 30px; text-align: center;">
-        <p style="font-size: 11px; color: #9CA3AF; margin: 0; text-transform: uppercase; letter-spacing: 2px; font-weight: bold;">New Status Update</p>
+    <div style="background-color: #ffffff; border: 2px solid ${statusColor}; padding: 20px; border-radius: 16px; margin-bottom: 30px; text-align: center;" class="dark-card dark-border">
+        <p style="font-size: 11px; color: #9CA3AF; margin: 0; text-transform: uppercase; letter-spacing: 2px; font-weight: bold;" class="dark-subtext">New Status Update</p>
         <p style="font-size: 20px; color: ${statusColor}; font-weight: 900; margin: 10px 0;">${statusIcon} ${newStatus.toUpperCase()}</p>
-        <p style="font-size: 12px; color: #6B7280; margin: 0;">Ticket: #${ticketId}</p>
+        <p style="font-size: 12px; color: #6B7280; margin: 0;" class="dark-subtext">Ticket: #${ticketId}</p>
     </div>
 
     ${resolutionBlock}
     ${adminNotesHtml}
 
     <div style="margin-top: 35px; text-align: center;">
-        <a href="${process.env.NEXT_PUBLIC_BASE_URL}/account/returns/${requestId}" style="display: inline-block; background-color: #1F2937; color: #ffffff; padding: 15px 30px; text-decoration: none; border-radius: 10px; font-weight: bold; font-size: 14px; text-transform: uppercase; letter-spacing: 1px;">
+        <a href="${process.env.NEXT_PUBLIC_BASE_URL}/account/returns/${requestId}" style="display: inline-block; background-color: #1F2937; color: #ffffff; padding: 15px 30px; text-decoration: none; border-radius: 12px; font-weight: bold; font-size: 13px; text-transform: uppercase; letter-spacing: 1px;" class="dark-bg dark-text">
             View Request Details
         </a>
     </div>
 
-    <p style="font-size: 13px; color: #9CA3AF; margin-top: 40px; text-align: center; border-top: 1px solid #f3f4f6; padding-top: 20px;">
+    <p style="font-size: 13px; color: #9CA3AF; margin-top: 40px; text-align: center; border-top: 1px solid #e5e7eb; padding-top: 20px;" class="dark-border dark-subtext">
         If you have any questions regarding this decision, please reply directly to this email or contact our support team.
     </p>
   `;

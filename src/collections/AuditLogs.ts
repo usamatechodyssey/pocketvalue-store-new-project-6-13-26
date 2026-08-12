@@ -1,4 +1,4 @@
-// src/collections/AuditLogs.ts
+// 📂 src/collections/AuditLogs.ts
 import type { CollectionConfig } from 'payload';
 
 export const AuditLogs: CollectionConfig = {
@@ -14,14 +14,18 @@ export const AuditLogs: CollectionConfig = {
       if (!user) return false;
       return user.role === 'admin' || user.role === 'manager';
     },
+    // Keep access controls tight; local API overrides these for system-logging
     create: () => false,
     update: () => false,
     delete: () => false,
   },
   hooks: {
+    // ✅ CRITICAL SECURITY FIX: Operation check allows 'create' but strictly blocks 'update' to ensure immutability!
     beforeChange: [
-      () => {
-        throw new Error('Audit logs are immutable and cannot be modified.');
+      ({ operation }) => {
+        if (operation === 'update') {
+          throw new Error('Audit logs are immutable and cannot be modified.');
+        }
       },
     ],
     beforeDelete: [
@@ -112,7 +116,6 @@ export const AuditLogs: CollectionConfig = {
       admin: { readOnly: true, date: { pickerAppearance: 'dayAndTime' } },
     },
   ],
-  // ✅ FIX: Removed 'options' property — TTL index will be created separately
   indexes: [
     {
       fields: ['adminEmail'],
@@ -123,8 +126,6 @@ export const AuditLogs: CollectionConfig = {
     {
       fields: ['action'],
     },
-    // ⏳ TTL INDEX: Removed from here due to Payload type restrictions.
-    // Will be created via migration script or MongoDB Compass.
   ],
   timestamps: false,
 };

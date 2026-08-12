@@ -23,12 +23,58 @@
 // import "yet-another-react-lightbox/styles.css";
 // import { logUserEvent } from "@/app/features/admin/analytics-telemetry/action/trackingActions";
 
+// // ================================================================
+// // 🎥 ENTERPRISE FIX: YouTube Detection + Embed URL Generator
+// // ================================================================
+// const YOUTUBE_DOMAINS = ["youtube.com", "youtu.be", "www.youtube.com"];
+
+// function detectVideoType(url: string): "youtube" | "direct" {
+//   if (!url) return "direct";
+//   const lower = url.toLowerCase();
+//   for (const domain of YOUTUBE_DOMAINS) {
+//     if (lower.includes(domain)) {
+//       return "youtube";
+//     }
+//   }
+//   return "direct";
+// }
+
+// function getYouTubeEmbedUrl(url: string): string {
+//   let videoId = "";
+  
+//   // Extract video ID from various YouTube URL formats
+//   if (url.includes("watch?v=")) {
+//     try {
+//       const urlObj = new URL(url);
+//       videoId = urlObj.searchParams.get("v") || "";
+//     } catch {
+//       // Fallback: split manually
+//       const parts = url.split("watch?v=");
+//       if (parts.length > 1) {
+//         videoId = parts[1].split("&")[0];
+//       }
+//     }
+//   } else if (url.includes("youtu.be/")) {
+//     const parts = url.split("youtu.be/");
+//     if (parts.length > 1) {
+//       videoId = parts[1].split("?")[0];
+//     }
+//   } else {
+//     // Assume it's already just the ID
+//     videoId = url;
+//   }
+
+//   // ✅ Privacy-enhanced domain + performance params
+//   return `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=0&rel=0&modestbranding=1&playsinline=1`;
+// }
+
 // interface GalleryItem {
 //   type: "image" | "video";
 //   image?: SanityImageObject;
 //   videoUrl?: string;
 //   altText: string;
 // }
+
 // interface ProductGalleryProps {
 //   images: SanityImageObject[];
 //   videoUrl?: string;
@@ -43,7 +89,6 @@
 //   const [thumbsSwiper, setThumbsSwiper] = useState<SwiperType | null>(null);
 //   const [lightboxOpen, setLightboxOpen] = useState(false);
 //   const [activeSlideIndex, setActiveSlideIndex] = useState(0);
-
 //   const [isBeginning, setIsBeginning] = useState(true);
 //   const [isEnd, setIsEnd] = useState(false);
   
@@ -51,14 +96,18 @@
 
 //   const galleryItems = useMemo(() => {
 //     const items: GalleryItem[] = [];
-//     if (videoUrl)
+//     if (videoUrl) {
+//       const videoType = detectVideoType(videoUrl);
 //       items.push({
 //         type: "video",
 //         videoUrl,
-//         image: images?.[0], 
+//         image: images?.[0],
 //         altText: `${productTitle} video`,
-//       });
-//     if (images)
+//         // ✅ Store video type for rendering logic
+//         _videoType: videoType,
+//       } as any);
+//     }
+//     if (images) {
 //       images.forEach((img, i) =>
 //         items.push({
 //           type: "image",
@@ -66,6 +115,7 @@
 //           altText: `${productTitle} image ${i + 1}`,
 //         }),
 //       );
+//     }
 //     return items;
 //   }, [images, videoUrl, productTitle]);
 
@@ -226,18 +276,14 @@
 //             <Swiper
 //               modules={[Thumbs, Pagination]}
 //               thumbs={{
-//                 swiper:
-//                   thumbsSwiper && !thumbsSwiper.destroyed ? thumbsSwiper : null,
+//                 swiper: thumbsSwiper && !thumbsSwiper.destroyed ? thumbsSwiper : null,
 //               }}
 //               pagination={{ clickable: true }}
 //               className="w-full h-full"
-//               // ✅ FIX: Added accessibility attributes
 //               aria-label="Product image gallery"
 //               role="region"
 //               onSlideChange={(swiper) => {
 //                 setActiveSlideIndex(swiper.activeIndex);
-                
-//                 // 🚀 TELEMETRY EVENT: Track dynamic Swiper slides navigation (Gap #46)
 //                 logUserEvent('pdp_media_interaction', pathname, {
 //                   action: 'gallery_slide_change',
 //                   slide_index: swiper.activeIndex,
@@ -245,58 +291,84 @@
 //                 });
 //               }}
 //             >
-//               {galleryItems.map((item, index) => (
-//                 <SwiperSlide key={index}>
-//                   <div
-//                     className={`relative w-full h-full ${
-//                       item.type === "image" ? "cursor-zoom-in" : ""
-//                     }`}
-//                     onClick={() => {
-//                       if (item.type === "image") {
-//                         setLightboxOpen(true);
-                        
-//                         // 🚀 TELEMETRY EVENT: Track Image Lightbox Open Zoom (Gap #46)
-//                         logUserEvent('pdp_media_interaction', pathname, {
-//                           action: 'image_lightbox_open',
-//                           asset_index: index
-//                         });
-//                       }
-//                     }}
-//                   >
-//                     {item.type === "image" && item.image ? (
-//                       <Image
-//                         src={urlFor(item.image).url()}
-//                         alt={item.altText}
-//                         fill
-//                         sizes="(max-width: 768px) 100vw, 50vw"
-//                         priority={index === 0} 
-//                         className="object-contain p-0 md:p-4"
-//                       />
-//                     ) : (
-//                       <div className="w-full h-full flex items-center justify-center bg-black">
-//                         <video
-//                           src={item.videoUrl}
-//                           className="w-full h-full object-contain"
-//                           controls
-//                           autoPlay={false}
-//                           muted
-//                           onContextMenu={(e) => e.preventDefault()}
-//                           controlsList="nodownload"
-//                           playsInline
-//                           aria-label={`Video for ${productTitle}`}
-//                           // 🚀 TELEMETRY EVENT: Track PDP Video Play Clicks (Gap #46)
-//                           onPlay={() => {
-//                             logUserEvent('pdp_media_interaction', pathname, {
-//                               action: 'video_play_start',
-//                               video_url: item.videoUrl
-//                             });
-//                           }}
+//               {galleryItems.map((item, index) => {
+//                 const isVideo = item.type === "video";
+//                 const videoType = (item as any)._videoType || "direct";
+
+//                 return (
+//                   <SwiperSlide key={index}>
+//                     <div
+//                       className={`relative w-full h-full ${
+//                         item.type === "image" ? "cursor-zoom-in" : ""
+//                       }`}
+//                       onClick={() => {
+//                         if (item.type === "image") {
+//                           setLightboxOpen(true);
+//                           logUserEvent('pdp_media_interaction', pathname, {
+//                             action: 'image_lightbox_open',
+//                             asset_index: index
+//                           });
+//                         }
+//                       }}
+//                     >
+//                       {item.type === "image" && item.image ? (
+//                         <Image
+//                           src={urlFor(item.image).url()}
+//                           alt={item.altText}
+//                           fill
+//                           sizes="(max-width: 768px) 100vw, 50vw"
+//                           priority={index === 0} 
+//                           className="object-contain p-0 md:p-4"
 //                         />
-//                       </div>
-//                     )}
-//                   </div>
-//                 </SwiperSlide>
-//               ))}
+//                       ) : isVideo && videoUrl ? (
+//                         // ================================================================
+//                         // 🎥 ENTERPRISE FIX: YouTube vs Direct Video Rendering
+//                         // ================================================================
+//                         videoType === "youtube" ? (
+//                           // ✅ YouTube: Iframe Embed (Privacy-enhanced, lazy load)
+//                           <div className="w-full h-full flex items-center justify-center bg-black">
+//                             <iframe
+//                               src={getYouTubeEmbedUrl(videoUrl)}
+//                               className="w-full h-full"
+//                               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+//                               allowFullScreen
+//                               loading="lazy"
+//                               title={productTitle}
+//                               sandbox="allow-scripts allow-same-origin allow-presentation"
+//                             />
+//                           </div>
+//                         ) : (
+//                           // ✅ Direct Video: Native HTML5 tag (MP4, WEBM, etc.)
+//                           <div className="w-full h-full flex items-center justify-center bg-black">
+//                             <video
+//                               src={videoUrl}
+//                               className="w-full h-full object-contain"
+//                               controls
+//                               autoPlay={false}
+//                               muted
+//                               onContextMenu={(e) => e.preventDefault()}
+//                               controlsList="nodownload"
+//                               playsInline
+//                               aria-label={`Video for ${productTitle}`}
+//                               onPlay={() => {
+//                                 logUserEvent('pdp_media_interaction', pathname, {
+//                                   action: 'video_play_start',
+//                                   video_url: videoUrl,
+//                                   video_type: 'direct'
+//                                 });
+//                               }}
+//                             />
+//                           </div>
+//                         )
+//                       ) : (
+//                         <div className="w-full h-full flex items-center justify-center bg-black">
+//                           <p className="text-gray-400 text-sm">Video unavailable</p>
+//                         </div>
+//                       )}
+//                     </div>
+//                   </SwiperSlide>
+//                 );
+//               })}
 //             </Swiper>
 
 //             {/* Floating Magnifier Icon */}
@@ -305,8 +377,6 @@
 //                 onClick={(e) => {
 //                   e.stopPropagation();
 //                   setLightboxOpen(true);
-                  
-//                   // 🚀 TELEMETRY EVENT: Track Zoom Trigger on Floating Magnifier Button Click (Gap #46)
 //                   logUserEvent('pdp_media_interaction', pathname, {
 //                     action: 'image_lightbox_zoom_button_click',
 //                     asset_index: activeSlideIndex
@@ -334,6 +404,8 @@
 //     </>
 //   );
 // }
+// 📂 src/app/features/storefront/catalog/components/product/ProductGallery.tsx
+
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
@@ -358,9 +430,6 @@ import Zoom from "yet-another-react-lightbox/plugins/zoom";
 import "yet-another-react-lightbox/styles.css";
 import { logUserEvent } from "@/app/features/admin/analytics-telemetry/action/trackingActions";
 
-// ================================================================
-// 🎥 ENTERPRISE FIX: YouTube Detection + Embed URL Generator
-// ================================================================
 const YOUTUBE_DOMAINS = ["youtube.com", "youtu.be", "www.youtube.com"];
 
 function detectVideoType(url: string): "youtube" | "direct" {
@@ -377,13 +446,11 @@ function detectVideoType(url: string): "youtube" | "direct" {
 function getYouTubeEmbedUrl(url: string): string {
   let videoId = "";
   
-  // Extract video ID from various YouTube URL formats
   if (url.includes("watch?v=")) {
     try {
       const urlObj = new URL(url);
       videoId = urlObj.searchParams.get("v") || "";
     } catch {
-      // Fallback: split manually
       const parts = url.split("watch?v=");
       if (parts.length > 1) {
         videoId = parts[1].split("&")[0];
@@ -395,12 +462,10 @@ function getYouTubeEmbedUrl(url: string): string {
       videoId = parts[1].split("?")[0];
     }
   } else {
-    // Assume it's already just the ID
     videoId = url;
   }
 
-  // ✅ Privacy-enhanced domain + performance params
-  return `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=0&rel=0&modestbranding=1&playsinline=1`;
+  return `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=0&rel=0`;
 }
 
 interface GalleryItem {
@@ -414,12 +479,14 @@ interface ProductGalleryProps {
   images: SanityImageObject[];
   videoUrl?: string;
   productTitle: string;
+  isModal?: boolean; // ✅ NEW PROP: Disables top offset inside QuickView Modal
 }
 
 export default function ProductGallery({
   images,
   videoUrl,
   productTitle,
+  isModal = false,
 }: ProductGalleryProps) {
   const [thumbsSwiper, setThumbsSwiper] = useState<SwiperType | null>(null);
   const [lightboxOpen, setLightboxOpen] = useState(false);
@@ -438,7 +505,6 @@ export default function ProductGallery({
         videoUrl,
         image: images?.[0],
         altText: `${productTitle} video`,
-        // ✅ Store video type for rendering logic
         _videoType: videoType,
       } as any);
     }
@@ -499,7 +565,7 @@ export default function ProductGallery({
           opacity: 1;
         }
         .product-gallery-thumbs .swiper-slide-thumb-active .thumb-border {
-          border-color: #f97316; 
+          border-color: #ff8f32; 
         }
         .thumb-arrow {
           position: absolute;
@@ -519,7 +585,7 @@ export default function ProductGallery({
           transition: all 0.2s ease;
         }
         .thumb-arrow:hover {
-          background-color: #f97316;
+          background-color: #ff8f32;
           color: white;
         }
         .thumb-arrow.disabled {
@@ -531,15 +597,22 @@ export default function ProductGallery({
           opacity: 0.5;
         }
         .swiper-pagination-bullet-active {
-          background: #f97316;
+          background: #ff8f32;
           opacity: 1;
         }
       `}</style>
 
-      <div className="relative w-full aspect-4/5 md:aspect-auto md:h-125 lg:h-137.5">
+      {/* ✅ MODAL OFFSET FIX: When isModal=true, top-[120px] and sticky are disabled to remove top empty gap! */}
+      <div
+        className={`relative w-full aspect-4/5 md:aspect-auto md:h-125 lg:h-137.5 ${
+          isModal
+            ? "h-full top-0"
+            : "lg:sticky lg:top-30 self-start"
+        } transition-all duration-300 z-10`}
+      >
         <div className="flex flex-col-reverse md:flex-row gap-4 h-full">
           {/* Thumbnails Sidebar */}
-          <div className="hidden md:block w-24 shrink-0 relative">
+          <div className="hidden md:block w-20 lg:w-24 shrink-0 relative">
             <Swiper
               onSwiper={setThumbsSwiper}
               direction="vertical"
@@ -560,10 +633,10 @@ export default function ProductGallery({
               {galleryItems.map((item, index) => (
                 <SwiperSlide 
                   key={index} 
-                  className="cursor-pointer h-24!"
+                  className="cursor-pointer h-20! lg:h-24!"
                   aria-label={`Thumbnail ${index + 1} of ${galleryItems.length}`}
                 >
-                  <div className="thumb-border relative w-full aspect-square bg-white dark:bg-gray-700 rounded-md border-2 border-transparent overflow-hidden">
+                  <div className="thumb-border relative w-full aspect-square bg-white dark:bg-gray-800 rounded-xl border-2 border-transparent overflow-hidden shadow-2xs">
                     {item.image && (
                       <Image
                         src={urlFor(item.image).width(150).height(150).url()}
@@ -607,7 +680,7 @@ export default function ProductGallery({
           </div>
 
           {/* Main Slider */}
-          <div className="relative w-full h-full md:flex-1 overflow-hidden group rounded-none md:rounded-2xl border-0 md:border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-800">
+          <div className="relative w-full h-full md:flex-1 overflow-hidden group rounded-none md:rounded-2xl border-0 md:border border-zinc-200/60 dark:border-zinc-800/80 bg-white dark:bg-gray-900 shadow-2xs">
             <Swiper
               modules={[Thumbs, Pagination]}
               thumbs={{
@@ -653,14 +726,10 @@ export default function ProductGallery({
                           fill
                           sizes="(max-width: 768px) 100vw, 50vw"
                           priority={index === 0} 
-                          className="object-contain p-0 md:p-4"
+                          className="object-contain p-0 md:p-2"
                         />
                       ) : isVideo && videoUrl ? (
-                        // ================================================================
-                        // 🎥 ENTERPRISE FIX: YouTube vs Direct Video Rendering
-                        // ================================================================
                         videoType === "youtube" ? (
-                          // ✅ YouTube: Iframe Embed (Privacy-enhanced, lazy load)
                           <div className="w-full h-full flex items-center justify-center bg-black">
                             <iframe
                               src={getYouTubeEmbedUrl(videoUrl)}
@@ -673,7 +742,6 @@ export default function ProductGallery({
                             />
                           </div>
                         ) : (
-                          // ✅ Direct Video: Native HTML5 tag (MP4, WEBM, etc.)
                           <div className="w-full h-full flex items-center justify-center bg-black">
                             <video
                               src={videoUrl}
@@ -717,10 +785,10 @@ export default function ProductGallery({
                     asset_index: activeSlideIndex
                   });
                 }}
-                className="hidden md:flex absolute top-4 right-4 z-10 p-2.5 bg-white/70 backdrop-blur-sm rounded-full shadow-lg text-gray-700 transition-all duration-300 hover:scale-110 opacity-0 group-hover:opacity-100"
+                className="hidden md:flex absolute top-4 right-4 z-10 p-2.5 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md rounded-full shadow-lg text-zinc-700 dark:text-zinc-200 transition-all duration-300 hover:scale-110 opacity-0 group-hover:opacity-100 border border-zinc-200/50 dark:border-zinc-800/50"
                 aria-label="Zoom in on image"
               >
-                <ZoomIn size={20} />
+                <ZoomIn size={18} />
               </button>
             )}
           </div>

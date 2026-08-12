@@ -1,3 +1,5 @@
+// 📂 src/app/features/admin/inventory-cms/components/main/ImportCategoriesContent.tsx (CYBER-HUD HARDENED)
+
 "use client";
 
 import { useState, useCallback, useRef, useEffect, useTransition } from "react";
@@ -6,21 +8,20 @@ import {
     UploadCloud, FileText, CheckCircle, XCircle, 
     Loader2, File, X, Terminal, ChevronRight,
     Play,
-    RefreshCw, // Removed Wifi/WifiOff for simplicity, can add if needed
+    RefreshCw,
 } from "lucide-react";
 import { useDropzone } from "react-dropzone";
 import toast from "react-hot-toast";
 
-// ✅ NEW IMPORT: Category Server Action
+// ✅ Dynamic Categories Server Action
 import { batchCreateCategoriesPayload } from "@/app/features/admin/inventory-cms/actions/payloadCategoryActions";
-// ✅ NEW IMPORT: Category CSV Template
+// ✅ Dynamic Categories CSV Template
 import { CATEGORY_CSV_TEMPLATE } from "@/app/features/admin/inventory-cms/components/main/CategoryCsvTemplate"; 
 
 // ✅ Type Definitions
-type ProcessStatus = "idle" | "parsing" | "processing" | "completed"; // Simplified statuses for Categories
+type ProcessStatus = "idle" | "parsing" | "processing" | "completed"; 
 interface Stats { processed: number; success: number; failed: number; }
 interface BatchResult { success: boolean; successful: number; failed: number; errors: string[]; message?: string; }
-
 
 export default function ImportCategoriesContent() {
   // --- STATE ---
@@ -28,21 +29,20 @@ export default function ImportCategoriesContent() {
   const [status, setStatus] = useState<ProcessStatus>("idle");
   
   // Data & Queue
-  const [pendingCategories, setPendingCategories] = useState<any[]>([]); // Array of category objects from CSV
+  const [pendingCategories, setPendingCategories] = useState<any[]>([]); 
   const [totalInitialCount, setTotalInitialCount] = useState(0);
 
   // Statistics
   const [stats, setStats] = useState<Stats>({ processed: 0, success: 0, failed: 0 });
-  const [logs, setLogs] = useState<string[]>([]); // For Terminal
+  const [logs, setLogs] = useState<string[]>([]); 
   
   // Control Refs
   const shouldStopRef = useRef(false);
-  const [isPending, startTransition] = useTransition(); // 'isPending' for Button Disable
-
+  const [isPending, startTransition] = useTransition();
 
   // --- 1. LOGGING SYSTEM (TERMINAL) ---
   const addLog = (message: string, logType: 'info' | 'success' | 'error' | 'warning' = 'info') => {
-      const timestamp = new Date().toLocaleTimeString([], { hour12: false, hour: "2-digit", minute: "2-digit", second:"2-digit" });
+      const timestamp = new Date().toLocaleTimeString("en-PK", { hour12: false, hour: "2-digit", minute: "2-digit", second:"2-digit" });
       let prefixIcon = '';
       if (logType === 'success') prefixIcon = '✅';
       else if (logType === 'error') prefixIcon = '❌';
@@ -57,7 +57,7 @@ export default function ImportCategoriesContent() {
     if (acceptedFiles.length > 0) {
       if (acceptedFiles[0].type !== "text/csv") {
         addLog("Invalid file type. CSV only.", "error");
-        if (typeof window !== 'undefined') toast.error("Invalid file type. CSV only.");
+        toast.error("Invalid file type. CSV only.");
         return;
       }
       setFile(acceptedFiles[0]);
@@ -89,7 +89,7 @@ export default function ImportCategoriesContent() {
         complete: (results) => {
             const rawData: any[] = results.data;
             if (rawData.length === 0) {
-                if (typeof window !== 'undefined') toast.error("CSV is empty.");
+                toast.error("CSV is empty.");
                 setStatus("idle");
                 return;
             }
@@ -98,17 +98,17 @@ export default function ImportCategoriesContent() {
             setTotalInitialCount(rawData.length);
             setStatus("idle");
             addLog(`✅ Analysis Complete. Found ${rawData.length} categories.`, "success");
-            if (typeof window !== 'undefined') toast.success(`Ready to import ${rawData.length} categories.`);
+            toast.success(`Ready to import ${rawData.length} categories.`);
         },
         error: (err) => {
-            if (typeof window !== 'undefined') toast.error("CSV Parse Error");
+            toast.error("CSV Parse Error");
             addLog(`Error parsing CSV: ${err.message}`, "error");
             setStatus("idle");
         }
     });
   };
 
-  // --- 4. CORE PROCESSING LOOP (Calls Server Action) ---
+  // --- 4. CORE PROCESSING LOOP ---
   const startProcessing = async () => {
     if (pendingCategories.length === 0) return;
 
@@ -119,8 +119,6 @@ export default function ImportCategoriesContent() {
     let currentQueue = [...pendingCategories];
     let currentBatchErrors: string[] = [];
     
-    // For categories, we can process all at once since image processing is less intensive per item
-    // and Payload's update logic for parents requires all to be created first.
     try {
         addLog(`Processing ${currentQueue.length} categories...`, "info");
         
@@ -159,10 +157,9 @@ export default function ImportCategoriesContent() {
         }));
     }
 
-
     setStatus("completed");
     addLog("🎉 Category Import Job Finished!", "success");
-    if (typeof window !== 'undefined') toast.success("Category Import Completed!");
+    toast.success("Category Import Completed!");
   };
 
   const handleDownloadTemplate = () => {
@@ -177,62 +174,69 @@ export default function ImportCategoriesContent() {
       document.body.removeChild(link);
     } catch (error) {
       console.error("CSV template download failed:", error);
-      if (typeof window !== 'undefined') toast.error("Could not prepare the template for download.");
+      toast.error("Could not prepare the template for download.");
     }
   };
 
-  // --- RENDER ---
   const progressPercent = totalInitialCount > 0 ? Math.min(Math.round((stats.processed / totalInitialCount) * 100), 100) : 0;
 
   return (
-    <div className="space-y-6 max-w-6xl mx-auto font-sans">
+    // ✅ FIX: Expanded container width matches system-wide HUD layout (max-w-[1750px])
+    <div className="space-y-6 max-w-[1750px] mx-auto font-sans p-4 md:p-8 animate-in fade-in duration-300">
         
         {/* TOP BAR */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white dark:bg-gray-800 p-5 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
-             <div>
-                <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white dark:bg-zinc-950 p-5 rounded-2xl shadow-xs border border-zinc-200 dark:border-zinc-800">
+             <div className="space-y-1.5 leading-none">
+                <h1 className="text-xl font-bold text-zinc-900 dark:text-zinc-50 leading-none">
                     Bulk Category Import
                 </h1>
-                <p className="text-sm text-gray-500 mt-1">Import categories efficiently with parent-child relationships.</p>
+                <p className="text-xs text-zinc-400 dark:text-zinc-500 font-medium">Import categories efficiently with parent-child relationships.</p>
              </div>
-             <button onClick={handleDownloadTemplate} className="text-sm px-4 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 rounded-lg font-medium transition-colors flex items-center gap-2">
-                <FileText size={16}/> Template
+             <button 
+              onClick={handleDownloadTemplate} 
+              className="text-xs px-3.5 py-2 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-900 dark:hover:bg-zinc-850 border border-zinc-200 dark:border-zinc-850 rounded-xl font-bold uppercase tracking-wider transition-colors flex items-center gap-2 cursor-pointer"
+             >
+                <FileText size={14}/> Download Template
              </button>
         </div>
 
         {/* MAIN AREA */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
             
             {/* LEFT: STATUS & CONTROLS */}
-            <div className="lg:col-span-2 space-y-6">
+            <div className="lg:col-span-8 space-y-6">
                 
                 {/* 1. UPLOAD BOX (Visible when IDLE) */}
                 {status === "idle" && totalInitialCount === 0 && (
-                     <div className="bg-white dark:bg-gray-800 p-8 rounded-xl shadow-sm border border-dashed border-gray-300 dark:border-gray-600 hover:border-brand-primary transition-all group">
+                     <div className="bg-white dark:bg-zinc-950 p-8 rounded-[2.5rem] shadow-xs border border-dashed border-zinc-300 dark:border-zinc-800 hover:border-brand-primary dark:hover:border-brand-primary/50 transition-all group">
                         {!file ? (
                             <div {...getRootProps()} className="text-center cursor-pointer py-10">
                                 <input {...getInputProps()} />
-                                <div className="w-20 h-20 bg-blue-50 dark:bg-blue-900/20 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
-                                    <UploadCloud size={40} className="text-brand-primary"/>
+                                <div className="w-16 h-16 bg-brand-primary/10 text-brand-primary rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-105 transition-transform duration-200 border border-brand-primary/20">
+                                    <UploadCloud size={28} className="text-brand-primary"/>
                                 </div>
-                                <h3 className="text-lg font-bold text-gray-700 dark:text-gray-200">Click or Drag CSV File</h3>
-                                <p className="text-gray-500 text-sm mt-2">Supports parent-child structure</p>
+                                <h3 className="text-sm font-bold text-zinc-800 dark:text-zinc-200 uppercase tracking-wider font-mono">Click or Drag CSV File</h3>
+                                <p className="text-zinc-400 dark:text-zinc-500 text-xs mt-1.5">Supports parent-child structure</p>
                                 {isDragActive && (
-                                    <p className="text-sm font-semibold text-brand-primary mt-2">Drop your CSV here!</p>
+                                    <p className="text-xs font-bold text-brand-primary mt-2 font-mono uppercase tracking-widest animate-pulse">Drop your CSV here!</p>
                                 )}
                             </div>
                         ) : (
-                            <div className="text-center animate-in fade-in">
+                            <div className="text-center animate-in fade-in duration-300">
                                 <div className="flex items-center justify-center gap-4 mb-6">
-                                    <File size={48} className="text-green-500 shadow-green-200 drop-shadow-md"/>
-                                    <div className="text-left">
-                                        <p className="font-bold text-lg text-gray-800 dark:text-white">{file.name}</p>
-                                        <p className="text-sm text-gray-500">{(file.size / 1024).toFixed(1)} KB</p>
+                                    <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl text-emerald-500 shadow-2xs">
+                                      <File size={32} />
                                     </div>
-                                    <button onClick={() => setFile(null)} className="p-2 bg-red-50 text-red-500 rounded-full hover:bg-red-100"><X size={18}/></button>
+                                    <div className="text-left leading-none space-y-1">
+                                        <p className="font-bold text-sm text-zinc-800 dark:text-zinc-150 leading-none">{file.name}</p>
+                                        <p className="text-[10px] text-zinc-400 dark:text-zinc-500 font-mono">{(file.size / 1024).toFixed(1)} KB</p>
+                                    </div>
+                                    <button onClick={() => setFile(null)} className="p-1.5 bg-red-500/10 text-red-500 border border-red-500/20 rounded-xl hover:bg-red-500/20 cursor-pointer transition-colors">
+                                      <X size={14} className="stroke-[2.5px]" />
+                                    </button>
                                 </div>
-                                <button onClick={parseFile} className="w-full max-w-sm mx-auto py-3 bg-brand-primary hover:bg-brand-primary-hover text-white font-bold rounded-lg shadow-lg shadow-brand-primary/30 transition-all active:scale-95 flex items-center justify-center gap-2">
-                                     Analyze File <ChevronRight size={18}/>
+                                <button onClick={parseFile} className="w-full max-w-sm mx-auto py-2.5 bg-brand-primary hover:bg-brand-primary-hover text-white font-bold rounded-xl text-xs uppercase tracking-wider shadow-xs shadow-brand-primary/10 transition-all active:scale-98 flex items-center justify-center gap-2 cursor-pointer">
+                                     Analyze File <ChevronRight size={14}/>
                                 </button>
                             </div>
                         )}
@@ -241,14 +245,14 @@ export default function ImportCategoriesContent() {
 
                 {/* 2. CONFIRMATION (Parsed) */}
                 {status === "idle" && totalInitialCount > 0 && (
-                    <div className="bg-white dark:bg-gray-800 p-8 rounded-xl shadow-lg border-l-4 border-brand-primary animate-in slide-in-from-right-4">
-                        <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-2">Ready to Launch?</h2>
-                        <p className="text-gray-600 dark:text-gray-300 mb-6">Found <span className="font-bold text-brand-primary">{totalInitialCount} categories</span>. System is ready to process.</p>
+                    <div className="bg-white dark:bg-zinc-950 p-6 sm:p-8 rounded-2xl shadow-xs border-l-4 border-brand-primary border-t border-r border-b border-zinc-200 dark:border-zinc-800 animate-in slide-in-from-right-4 duration-300">
+                        <h2 className="text-xl sm:text-2xl font-bold text-zinc-900 dark:text-zinc-50 mb-2">Ready to Launch?</h2>
+                        <p className="text-xs sm:text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed mb-6">Found <span className="font-bold text-brand-primary font-mono">{totalInitialCount} categories</span> inside CSV. System is ready to process.</p>
                         <div className="flex gap-3">
-                            <button onClick={startProcessing} disabled={isPending} className="flex-1 py-3 bg-brand-primary text-white font-bold rounded-lg shadow-md hover:bg-brand-primary-hover flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
-                                {isPending ? <Loader2 className="animate-spin" size={20}/> : <Play size={20}/>} Start Import
+                            <button onClick={startProcessing} disabled={isPending} className="flex-1 py-2.5 bg-brand-primary text-white font-bold rounded-xl text-xs uppercase tracking-wider transition-all disabled:opacity-50 cursor-pointer shadow-xs shadow-brand-primary/10 flex items-center justify-center gap-2">
+                                {isPending ? <Loader2 className="animate-spin" size={16}/> : <Play size={16}/>} Start Import
                             </button>
-                            <button onClick={resetAll} disabled={isPending} className="px-6 py-3 bg-gray-100 text-gray-700 font-bold rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed">
+                            <button onClick={resetAll} disabled={isPending} className="px-6 py-2.5 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-900 dark:hover:bg-zinc-850 text-zinc-700 dark:text-zinc-300 font-bold rounded-xl text-xs uppercase tracking-wider border border-zinc-200 dark:border-zinc-850 cursor-pointer transition-colors">
                                 Cancel
                             </button>
                         </div>
@@ -259,17 +263,17 @@ export default function ImportCategoriesContent() {
                 {status !== "idle" && status !== "parsing" && (
                     <div className="space-y-6">
                         {/* Progress Card */}
-                        <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md border border-gray-100 dark:border-gray-700 relative overflow-hidden">
+                        <div className="bg-white dark:bg-zinc-950 p-6 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-xs relative overflow-hidden">
                             <div className="flex justify-between items-center mb-4">
                                 <div className="flex items-center gap-3">
-                                    {status === "processing" && <Loader2 className="animate-spin text-brand-primary" size={24}/>}
-                                    {status === "completed" && <CheckCircle className="text-green-500" size={24}/>}
+                                    {status === "processing" && <Loader2 className="animate-spin text-brand-primary" size={20}/>}
+                                    {status === "completed" && <CheckCircle className="text-emerald-500" size={20}/>}
                                     
                                     <div>
-                                        <h3 className="font-bold text-xl text-gray-800 dark:text-white">
+                                        <h3 className="font-bold text-lg text-zinc-900 dark:text-zinc-50 leading-none">
                                             {status === "processing" ? "Importing..." : "Complete"}
                                         </h3>
-                                        <p className="text-xs text-gray-500 uppercase tracking-wide">
+                                        <p className="text-[10px] text-zinc-400 dark:text-zinc-500 font-bold uppercase tracking-wider font-mono mt-1.5">
                                             {stats.processed} / {totalInitialCount} Processed
                                         </p>
                                     </div>
@@ -278,18 +282,18 @@ export default function ImportCategoriesContent() {
                                 {/* Controls */}
                                 <div className="flex gap-2">
                                     {status === "completed" && (
-                                        <button onClick={resetAll} className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-bold flex gap-2">
-                                            <RefreshCw size={20}/> New File
+                                        <button onClick={resetAll} className="px-4 py-2 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-900 dark:hover:bg-zinc-850 border border-zinc-200 dark:border-zinc-850 text-zinc-700 dark:text-zinc-300 text-xs font-bold uppercase tracking-wider rounded-xl flex gap-2 cursor-pointer transition-all">
+                                            <RefreshCw size={14}/> New File
                                         </button>
                                     )}
                                 </div>
                             </div>
 
                             {/* Big Bar */}
-                            <div className="h-6 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden shadow-inner">
+                            <div className="h-5 bg-zinc-100 dark:bg-zinc-900 rounded-full overflow-hidden shadow-inner">
                                 <div 
-                                    className={`h-full transition-all duration-500 ease-out flex items-center justify-end pr-2 text-[10px] text-white font-bold
-                                        ${status === "completed" ? "bg-green-500" : "bg-blue-500"} 
+                                    className={`h-full transition-all duration-500 ease-out flex items-center justify-end pr-2 text-[9px] text-white font-mono font-bold
+                                        ${status === "completed" ? "bg-emerald-500" : "bg-brand-primary"} 
                                     `} 
                                     style={{ width: `${progressPercent}%` }}
                                 >
@@ -300,23 +304,23 @@ export default function ImportCategoriesContent() {
 
                         {/* Stats Grid */}
                         <div className="grid grid-cols-3 gap-4">
-                            <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
-                                <div className="flex items-center gap-2 mb-2 text-blue-500">
-                                    <Terminal size={18}/> <span className="text-xs font-bold uppercase">Total Processed</span>
+                            <div className="bg-white dark:bg-zinc-950 p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-xs font-mono">
+                                <div className="flex items-center gap-1.5 mb-1.5 text-brand-primary">
+                                    <Terminal size={14}/> <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Processed</span>
                                 </div>
-                                <p className="text-2xl font-black text-gray-800 dark:text-white tracking-tight">{stats.processed}</p>
+                                <p className="text-xl font-black text-zinc-800 dark:text-zinc-100 tracking-tight">{stats.processed}</p>
                             </div>
-                            <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
-                                <div className="flex items-center gap-2 mb-2 text-green-500">
-                                    <CheckCircle size={18}/> <span className="text-xs font-bold uppercase">Success</span>
+                            <div className="bg-white dark:bg-zinc-950 p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-xs font-mono">
+                                <div className="flex items-center gap-1.5 mb-1.5 text-emerald-500">
+                                    <CheckCircle size={14}/> <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Success</span>
                                 </div>
-                                <p className="text-2xl font-black text-gray-800 dark:text-white tracking-tight">{stats.success}</p>
+                                <p className="text-xl font-black text-zinc-800 dark:text-zinc-100 tracking-tight">{stats.success}</p>
                             </div>
-                            <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
-                                <div className="flex items-center gap-2 mb-2 text-red-500">
-                                    <XCircle size={18}/> <span className="text-xs font-bold uppercase">Failed</span>
+                            <div className="bg-white dark:bg-zinc-950 p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-xs font-mono">
+                                <div className="flex items-center gap-1.5 mb-1.5 text-red-500">
+                                    <XCircle size={14}/> <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Failed</span>
                                 </div>
-                                <p className="text-2xl font-black text-gray-800 dark:text-white tracking-tight">{stats.failed}</p>
+                                <p className="text-xl font-black text-zinc-800 dark:text-zinc-100 tracking-tight">{stats.failed}</p>
                             </div>
                         </div>
                     </div>
@@ -324,29 +328,34 @@ export default function ImportCategoriesContent() {
             </div>
 
             {/* RIGHT: TERMINAL / LOGS */}
-            <div className="bg-gray-900 text-gray-200 p-4 rounded-xl shadow-xl border border-gray-700 flex flex-col h-125 font-mono text-sm">
-                <div className="flex items-center gap-2 border-b border-gray-700 pb-3 mb-2">
-                    <Terminal size={16} className="text-brand-primary"/> 
-                    <span className="font-bold text-xs uppercase tracking-wider text-gray-400">Live Activity Log</span>
-                    {status === "processing" && <span className="ml-auto flex h-2 w-2 rounded-full bg-green-500 animate-pulse"></span>}
-                </div>
-                
-                <div className="flex-1 overflow-y-auto space-y-2 pr-2 scrollbar-thin scrollbar-thumb-gray-700">
-                    {logs.length === 0 ? (
-                        <p className="text-gray-600 italic text-center mt-10">Waiting for activity...</p>
-                    ) : (
-                        logs.map((log, i) => (
-                            <div key={i} className={`flex gap-2 wrap-break-word animate-in fade-in slide-in-from-left-2 duration-300
-                                ${log.includes("❌") || log.includes("Error") ? "text-red-400" : 
-                                  log.includes("✅") ? "text-green-400" : 
-                                  log.includes("⚠️") ? "text-yellow-400" : "text-gray-300"}
-                            `}>
-                                <span className="opacity-50 select-none text-[10px] pt-1 shrink-0">{log.split(']')[0]}]</span>
-                                <span>{log.split(']')[1]}</span>
-                            </div>
-                        ))
-                    )}
-                </div>
+            <div className="lg:col-span-4">
+              <div className="bg-zinc-950 border border-zinc-800 text-zinc-200 p-4 rounded-2xl shadow-xl flex flex-col h-125 font-mono text-xs">
+                  <div className="flex items-center gap-2 border-b border-zinc-800 pb-3 mb-2">
+                      <Terminal size={14} className="text-brand-primary"/> 
+                      <span className="font-bold text-[10px] uppercase tracking-wider text-zinc-500">Live Activity Log</span>
+                      {status === "processing" && <span className="ml-auto flex h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse"></span>}
+                  </div>
+                  
+                  <div className="flex-1 overflow-y-auto space-y-1.5 pr-2 custom-scrollbar">
+                      {logs.length === 0 ? (
+                          <p className="text-zinc-700 italic text-center mt-10">Waiting for activity...</p>
+                      ) : (
+                          logs.map((log, i) => {
+                            const isError = log.includes("❌") || log.includes("Error");
+                            const isSuccess = log.includes("✅");
+                            const isWarning = log.includes("⚠️");
+                            const textColor = isError ? "text-red-400" : isSuccess ? "text-emerald-400" : isWarning ? "text-amber-400" : "text-zinc-300";
+                            
+                            return (
+                              <div key={i} className={`flex gap-2 wrap-break-word animate-in fade-in slide-in-from-left-2 duration-300 ${textColor}`}>
+                                  <span className="opacity-50 select-none text-[9px] pt-0.5 shrink-0">{log.split(']')[0]}]</span>
+                                  <span>{log.split(']')[1]}</span>
+                              </div>
+                            );
+                          })
+                      )}
+                  </div>
+              </div>
             </div>
 
         </div>

@@ -1,4 +1,5 @@
-// src/app/components/admin/MassDeletionModal.tsx
+// 📂 src/app/features/admin/inventory-cms/components/main/MassDeletionModal.tsx (CYBER-HUD HARDENED)
+
 "use client";
 
 import { Fragment, useState, useTransition } from "react";
@@ -18,12 +19,10 @@ import {
   XCircle,
 } from "lucide-react";
 
-// ✅ NEW IMPORT: Payload Mass Deletion Server Action
+// ✅ PAYLOAD Mass Deletion Server Action
 import { massDeleteCategoryHierarchyPayload, MassDeletionPayload } from "@/app/features/admin/inventory-cms/actions/payloadMassDeletionActions";
 
 // --- CONSTANTS ---
-// CONFIRMATION_PHRASE PayloadMassDeletionSchema se hi aana chahiye ideally
-// Filhal yahan hardcode kiya hai taake UI aur Backend sync rahein.
 const CONFIRMATION_PHRASE = "I AM SURE"; 
 
 interface MassDeletionModalProps {
@@ -51,8 +50,9 @@ export default function MassDeletionModal({
     onClose();
   };
   
+  // ✅ FIX 2: Updated to match centralized high-density Cyber-HUD input styles
   const inputStyles =
-    "appearance-none block w-full rounded-md border-0 py-2.5 px-3.5 text-gray-900 bg-white dark:text-white dark:bg-gray-900 ring-1 ring-inset ring-gray-300 dark:ring-gray-700 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-brand-primary sm:text-sm";
+    "appearance-none block w-full rounded-xl border border-zinc-200 dark:border-zinc-800 py-2.5 px-3.5 text-xs font-semibold font-mono text-zinc-800 dark:text-zinc-200 bg-zinc-50/50 dark:bg-zinc-900 placeholder:text-zinc-400 focus:ring-1 focus:ring-brand-primary/50 outline-hidden transition-all duration-200";
   
   const canConfirm =
     categoryIdentifier.trim().length > 0 && confirmPhrase === CONFIRMATION_PHRASE;
@@ -68,7 +68,6 @@ export default function MassDeletionModal({
     toast.loading("Starting Hierarchical Deletion...");
 
     startTransition(async () => {
-      // ✅ Payload Server Action ko call karein
       const payload: MassDeletionPayload = {
         identifier: categoryIdentifier.trim(),
         confirmPhrase: confirmPhrase,
@@ -87,7 +86,7 @@ export default function MassDeletionModal({
         toast.error(result.message);
       }
       
-      if(result.success) {
+      if (result.success) {
          setCategoryIdentifier("");
          setConfirmPhrase("");
       }
@@ -108,8 +107,9 @@ export default function MassDeletionModal({
           leaveFrom="opacity-100"
           leaveTo="opacity-0"
         >
-          <div className="fixed inset-0 bg-black/70" />
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-xs" />
         </TransitionChild>
+        
         <div className="fixed inset-0 overflow-y-auto">
           <div className="flex min-h-full items-center justify-center p-4 text-center">
             <TransitionChild
@@ -121,25 +121,27 @@ export default function MassDeletionModal({
               leaveFrom="opacity-100 scale-100"
               leaveTo="opacity-0 scale-95"
             >
-              <DialogPanel className="w-full max-w-lg transform overflow-hidden rounded-lg bg-white dark:bg-gray-800 p-6 text-left align-middle shadow-xl transition-all">
+              {/* ✅ FIX 1: Upgraded container to Cyber-HUD standard dark mode tokens */}
+              <DialogPanel className="w-full max-w-lg transform overflow-hidden rounded-2xl bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 p-6 text-left align-middle shadow-2xl transition-all">
                 <DialogTitle
                   as="h3"
-                  className="text-xl font-bold leading-6 text-red-600 dark:text-red-400 flex items-center gap-2 border-b pb-3 dark:border-gray-700"
+                  className="text-sm font-bold uppercase tracking-wider font-mono text-red-600 dark:text-red-400 flex items-center gap-2 border-b pb-3 border-zinc-150 dark:border-zinc-850"
                 >
-                  <ShieldAlert size={24} /> Hierarchical Deletion Tool
+                  <ShieldAlert size={18} className="stroke-[2.2px]" /> Hierarchical Deletion Tool
                 </DialogTitle>
                 
                 <form onSubmit={handleSubmit}>
                     <div className="mt-4 space-y-4">
-                        <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-md border border-yellow-200 dark:border-yellow-700">
-                            <p className="text-sm font-semibold text-yellow-800 dark:text-yellow-300 flex items-center gap-2">
-                                <Zap size={16} /> WARNING: This will permanently delete ALL PRODUCTS inside this category and its sub-categories. (The categories themselves will NOT be deleted).
+                        {/* Warning Box */}
+                        <div className="p-3.5 bg-amber-500/10 border border-amber-500/20 rounded-xl">
+                            <p className="text-xs font-semibold font-mono text-amber-700 dark:text-amber-400 flex items-start gap-2 leading-relaxed">
+                                <Zap size={14} className="mt-0.5 shrink-0" /> WARNING: This will permanently delete ALL PRODUCTS inside this category and its sub-categories. (The categories themselves will NOT be deleted). Active orders are safe.
                             </p>
                         </div>
                         
                         {/* Category Input */}
-                        <div>
-                            <label className="block text-sm font-medium mb-1">
+                        <div className="space-y-1">
+                            <label className="block text-[10px] font-bold font-mono uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
                                 Category Name or Slug (Exact Match)
                             </label>
                             <input
@@ -154,8 +156,8 @@ export default function MassDeletionModal({
                         </div>
                         
                         {/* Confirmation Input */}
-                        <div>
-                            <label className="block text-sm font-medium mb-1 text-red-600 dark:text-red-400">
+                        <div className="space-y-1">
+                            <label className="block text-[10px] font-bold font-mono uppercase tracking-wider text-red-500 dark:text-red-400">
                                 Type "{CONFIRMATION_PHRASE}" to confirm
                             </label>
                             <input
@@ -169,20 +171,20 @@ export default function MassDeletionModal({
                         </div>
                     </div>
 
-                    {/* Report Section */}
+                    {/* Report & Script Logs Section */}
                     {report && (
-                        <div className="mt-6 border-t dark:border-gray-700 pt-4 space-y-2">
-                            <div className={`p-3 rounded-md border ${report.success ? "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800" : "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800"}`}>
-                                <p className="font-semibold flex items-center gap-2">
-                                    {report.success ? <CheckCircle className="text-green-500" size={20} /> : <XCircle className="text-red-500" size={20} />}
+                        <div className="mt-6 border-t border-zinc-150 dark:border-zinc-850 pt-4 space-y-3 font-mono">
+                            <div className={`p-3 rounded-xl border ${report.success ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20" : "bg-red-500/10 text-red-600 border-red-500/20"}`}>
+                                <p className="text-xs font-bold flex items-center gap-2">
+                                    {report.success ? <CheckCircle className="text-emerald-500" size={16} /> : <XCircle className="text-red-500" size={16} />}
                                     {report.message}
                                 </p>
                             </div>
                             
                             {report.logs && report.logs.length > 0 && (
                                 <div className="mt-3">
-                                    <h4 className="text-sm font-bold mb-1">Script Logs:</h4>
-                                    <pre className="p-3 text-xs bg-gray-50 dark:bg-gray-700/50 rounded-md border dark:border-gray-700 max-h-48 overflow-y-auto whitespace-pre-wrap">
+                                    <h4 className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-1.5">Script Logs:</h4>
+                                    <pre className="p-3 text-[10px] font-mono leading-relaxed bg-zinc-50/50 dark:bg-zinc-900/30 rounded-xl border border-zinc-200 dark:border-zinc-800 max-h-48 overflow-y-auto whitespace-pre-wrap custom-scrollbar text-zinc-600 dark:text-zinc-400">
                                         {report.logs.join('\n')}
                                     </pre>
                                 </div>
@@ -191,10 +193,10 @@ export default function MassDeletionModal({
                     )}
 
                     {/* Action Buttons */}
-                    <div className="mt-6 flex justify-end gap-3">
+                    <div className="mt-6 flex justify-end gap-3 pt-3 border-t border-zinc-150 dark:border-zinc-850">
                         <button
                             type="button"
-                            className="px-4 py-2 text-sm font-semibold bg-gray-200 dark:bg-gray-600 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500"
+                            className="px-4 py-2 text-xs font-semibold rounded-xl text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200 transition-colors cursor-pointer"
                             onClick={resetState}
                             disabled={isPending}
                         >
@@ -202,10 +204,10 @@ export default function MassDeletionModal({
                         </button>
                         <button
                             type="submit"
-                            className="flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-red-600 rounded-md hover:bg-red-700 disabled:bg-red-400"
+                            className="flex items-center justify-center gap-2 px-4 py-2 text-xs font-bold uppercase tracking-wider text-white bg-red-600 hover:bg-red-700 disabled:opacity-50 transition-all rounded-xl cursor-pointer shadow-xs shadow-red-500/10"
                             disabled={!canConfirm || isPending || (report !== null && report.success)}
                         >
-                            {isPending && <Loader2 className="animate-spin" size={16} />}
+                            {isPending && <Loader2 className="animate-spin" size={14} />}
                             {isPending ? "Executing..." : "Permanently Delete"}
                         </button>
                     </div>

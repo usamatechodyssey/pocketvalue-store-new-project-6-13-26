@@ -1,6 +1,17 @@
 
-// // // src/app/(main)/category/[...slug]/page.tsx (UPGRADED WITH SAFE PAYLOAD HANDSHAKE)
-
+// // src/app/(main)/category/[...slug]/page.tsx
+// // ================================================================
+// // 🏷️ ENTERPRISE CATEGORY PAGE ENGINE (UPGRADED — FINAL)
+// // ================================================================
+// // This file handles category pages with full SEO optimization:
+// // ✅ ISR + Edge caching with on-demand revalidation
+// // ✅ CollectionPage + BreadcrumbList Schema (#67, #77)
+// // ✅ Content freshness signals in metadata (#23)
+// // ✅ Entity linking for AI overviews (#39)
+// // ✅ Dynamic product listing with filters
+// // ✅ Responsive banners (desktop + mobile)
+// // ✅ Sub-category navigation
+// // ================================================================
 
 // import { notFound } from "next/navigation";
 // import Image from "next/image";
@@ -25,6 +36,9 @@
 // import { generateBaseMetadata } from "@/utils/metadata";
 // import { urlFor } from "@/sanity/lib/image";
 
+// // ✅ Structured Data Utilities (#67, #77)
+// import { generateCollectionStructuredData } from "@/app/shared/lib/seo/structuredData";
+
 // // ✅ Types
 // type CategoryPageProps = {
 //   params: Promise<{ slug: string[] }>;
@@ -32,9 +46,7 @@
 // };
 
 // // =====================================================
-// // ✅ ISR: Page will be statically generated on first request,
-// //    then served from CDN for all subsequent requests.
-// //    Cache clears automatically on admin update via revalidateTag.
+// // ✅ ISR: Statically generated, served from CDN
 // // =====================================================
 // export const revalidate = false;
 
@@ -49,7 +61,7 @@
 //       const categoryResult = await payload.find({
 //         collection: "categories",
 //         where: { slug: { equals: slug } },
-//         depth: 1, // ✅ Only depth: 1 (no sub-categories needed)
+//         depth: 1,
 //       });
 
 //       const categoryDoc = categoryResult.docs[0];
@@ -63,6 +75,9 @@
 //         seo: (categoryDoc.seo as any) || {},
 //         desktopBanner: (categoryDoc as any).desktopBanner || null,
 //         mobileBanner: (categoryDoc as any).mobileBanner || null,
+//         // ✅ Added timestamps for freshness (#23)
+//         createdAt: categoryDoc.createdAt,
+//         updatedAt: categoryDoc.updatedAt,
 //       };
 //     },
 //     [`category-meta-${slug}`],
@@ -155,17 +170,17 @@
 // };
 
 // // =========================================================================
-// // 🔥 METADATA GENERATION (Uses lightweight fetch)
+// // 🔥 METADATA GENERATION (Enhanced with freshness signals)
 // // =========================================================================
 // export async function generateMetadata({ params }: CategoryPageProps) {
 //   const { slug } = await params;
 //   const currentSlug = slug[slug.length - 1];
 
-//   // ✅ Using lightweight metadata fetch (no products, no sub-categories)
 //   const metaData = await getCachedCategoryMetadata(currentSlug);
 //   if (!metaData) return {};
 
-//   const { name, description, image, seo } = metaData;
+//   const { name, description, image, seo, createdAt, updatedAt } = metaData;
+//   const now = new Date().toISOString();
 
 //   return generateBaseMetadata({
 //     title: seo.metaTitle || name,
@@ -175,6 +190,13 @@
 //       `Shop for ${name} online at PocketValue.`,
 //     image: seo.ogImage || image,
 //     path: `/category/${currentSlug}`,
+//     // ✅ Point #23: Content Freshness
+//     publishedTime: createdAt || now,
+//     modifiedTime: updatedAt || createdAt || now,
+//     // ✅ Point #80: Publisher/Author signals
+//     author: "PocketValue Team",
+//     section: "Category",
+//     // ✅ Point #39: Entity linking
 //   });
 // }
 
@@ -192,7 +214,7 @@
 //   const currentPage = Number(resolvedSearchParams?.page) || 1;
 //   const sort = resolvedSearchParams?.sort as string | undefined;
 
-//   // ✅ Using centralized cached settings (Redis already handles caching)
+//   // ✅ Centralized cached settings
 //   const settings = await getCachedSettings();
 //   const lowStockThreshold = settings.inventorySettings?.lowStockThreshold || 5;
 
@@ -211,34 +233,41 @@
 
 //   const siteUrl =
 //     process.env.NEXT_PUBLIC_BASE_URL || "https://www.pocketvalue.pk";
+//   const categoryUrl = `${siteUrl}/category/${currentSlug}`;
 
-//   // 🔥 SEO: CollectionPage + BreadcrumbList JSON-LD
-//   const jsonLd = {
-//     "@context": "https://schema.org",
-//     "@graph": [
-//       {
-//         "@type": "CollectionPage",
-//         "@id": `${siteUrl}/category/${currentSlug}/#webpage`,
-//         url: `${siteUrl}/category/${currentSlug}`,
-//         name: currentCategory.name,
-//         description:
-//           (currentCategory.description as string) ||
-//           `Shop for ${currentCategory.name} online.`,
-//         breadcrumb: { "@id": `${siteUrl}/category/${currentSlug}/#breadcrumb` },
-//       },
-//       {
-//         "@type": "BreadcrumbList",
-//         "@id": `${siteUrl}/category/${currentSlug}/#breadcrumb`,
-//         itemListElement: breadcrumbs.map((crumb, index) => ({
-//           "@type": "ListItem",
-//           position: index + 1,
-//           item: {
-//             "@id": `${siteUrl}${crumb.href.startsWith("/") ? crumb.href : "/" + crumb.href}`,
-//             name: crumb.name,
+//   // ================================================================
+//   // 🔥 STRUCTURED DATA — Using generateCollectionStructuredData (#67, #77)
+//   // ================================================================
+//   const collectionSchema = generateCollectionStructuredData({
+//     name: currentCategory.name,
+//     description: (currentCategory.description as string) ||
+//       `Shop for ${currentCategory.name} online at PocketValue.`,
+//     url: categoryUrl,
+//     baseUrl: siteUrl,
+//     breadcrumbs: breadcrumbs,
+//   });
+
+//   // ✅ Add @id for entity linking (#39)
+//   // Already present in the utility, but we ensure it's there
+//   const enhancedSchema = {
+//     ...collectionSchema,
+//     "@graph": collectionSchema["@graph"].map((item: any) => {
+//       if (item["@type"] === "CollectionPage") {
+//         return {
+//           ...item,
+//           // ✅ Ensure @id is present (#39)
+//           "@id": `${categoryUrl}/#webpage`,
+//           // ✅ Add inLanguage (#98)
+//           inLanguage: "en-US",
+//           // ✅ Add publisher (#80)
+//           publisher: {
+//             "@type": "Organization",
+//             "@id": `${siteUrl}/#organization`,
 //           },
-//         })),
-//       },
-//     ],
+//         };
+//       }
+//       return item;
+//     }),
 //   };
 
 //   const hasBanner = !!(currentCategory.desktopBanner || currentCategory.mobileBanner);
@@ -247,7 +276,9 @@
 //     <>
 //       <script
 //         type="application/ld+json"
-//         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+//         dangerouslySetInnerHTML={{
+//           __html: JSON.stringify(enhancedSchema),
+//         }}
 //       />
 
 //       <main className="w-full bg-gray-50 dark:bg-gray-950 px-2 md:px-4 py-8 md:py-12">
@@ -330,19 +361,7 @@
 //     </>
 //   );
 // }
-// src/app/(main)/category/[...slug]/page.tsx
-// ================================================================
-// 🏷️ ENTERPRISE CATEGORY PAGE ENGINE (UPGRADED — FINAL)
-// ================================================================
-// This file handles category pages with full SEO optimization:
-// ✅ ISR + Edge caching with on-demand revalidation
-// ✅ CollectionPage + BreadcrumbList Schema (#67, #77)
-// ✅ Content freshness signals in metadata (#23)
-// ✅ Entity linking for AI overviews (#39)
-// ✅ Dynamic product listing with filters
-// ✅ Responsive banners (desktop + mobile)
-// ✅ Sub-category navigation
-// ================================================================
+// 📂 src/app/(main)/category/[[...slug]]/page.tsx
 
 import { notFound } from "next/navigation";
 import Image from "next/image";
@@ -372,7 +391,7 @@ import { generateCollectionStructuredData } from "@/app/shared/lib/seo/structure
 
 // ✅ Types
 type CategoryPageProps = {
-  params: Promise<{ slug: string[] }>;
+  params: Promise<{ slug?: string[] }>;
   searchParams: Promise<{ page?: string; sort?: string }>;
 };
 
@@ -385,6 +404,8 @@ export const revalidate = false;
 // 🔥 LIGHTWEIGHT METADATA FETCH (No products, no sub-categories)
 // =========================================================================
 const getCachedCategoryMetadata = async (slug: string) => {
+  if (!slug) return null;
+
   return unstable_cache(
     async () => {
       const payload = await getSafePayload();
@@ -402,11 +423,10 @@ const getCachedCategoryMetadata = async (slug: string) => {
         name: categoryDoc.name,
         slug: categoryDoc.slug,
         description: (categoryDoc as any).description || null,
-        image: (categoryDoc.image as any)?.url || null,
+        image: (categoryDoc.image as any)?.url || undefined,
         seo: (categoryDoc.seo as any) || {},
         desktopBanner: (categoryDoc as any).desktopBanner || null,
         mobileBanner: (categoryDoc as any).mobileBanner || null,
-        // ✅ Added timestamps for freshness (#23)
         createdAt: categoryDoc.createdAt,
         updatedAt: categoryDoc.updatedAt,
       };
@@ -423,11 +443,38 @@ const getCachedCategoryMetadata = async (slug: string) => {
 // 🔥 FULL CATEGORY DATA (For product listing)
 // =========================================================================
 const getCachedCategoryData = async (slug: string, page: number, sort?: string) => {
-  const cacheKey = `category-${slug}-${page}-${sort || "newest"}`;
+  const cacheKey = `category-${slug || "all"}-${page}-${sort || "newest"}`;
 
   return unstable_cache(
     async () => {
       const payload = await getSafePayload();
+
+      // ✅ Root /category URL handler (When slug is empty "")
+      if (!slug) {
+        const productData = await getPayloadProducts({
+          page: page,
+          sortOrder: sort || "newest",
+        });
+
+        const currentCategory: SanityCategory = {
+          _id: "all-categories",
+          name: "All Categories",
+          slug: "",
+          parent: null,
+          description: "Explore all products across all categories.",
+          image: undefined, // ✅ TYPE FIX: Changed null to undefined for SanityCategory compatibility
+          seo: {},
+          subCategories: [],
+        };
+
+        return {
+          initialProducts: productData.products as SanityProduct[],
+          totalCount: productData.totalCount,
+          filterData: productData.filterData,
+          currentCategory,
+          selfTree: currentCategory,
+        };
+      }
 
       // 1️⃣ Fetch Current Category
       const categoryResult = await payload.find({
@@ -453,7 +500,7 @@ const getCachedCategoryData = async (slug: string, page: number, sort?: string) 
           name: sub.name,
           slug: sub.slug,
           parent: { _id: categoryDoc.id } as any,
-          image: (sub.image as any)?.url || null,
+          image: (sub.image as any)?.url || undefined, // ✅ TYPE FIX: Changed null to undefined
           subCategories: [],
           seo: {},
         })
@@ -474,7 +521,7 @@ const getCachedCategoryData = async (slug: string, page: number, sort?: string) 
         desktopBanner: (categoryDoc as any).desktopBanner,
         mobileBanner: (categoryDoc as any).mobileBanner,
         description: (categoryDoc as any).description,
-        image: (categoryDoc.image as any)?.url || null,
+        image: (categoryDoc.image as any)?.url || undefined, // ✅ TYPE FIX: Changed null to undefined
         seo: (categoryDoc.seo as any) || {},
         subCategories: mappedSubCategories,
       };
@@ -494,7 +541,7 @@ const getCachedCategoryData = async (slug: string, page: number, sort?: string) 
     },
     [cacheKey],
     {
-      tags: [`category-${slug}`],
+      tags: [`category-${slug || "all"}`],
       revalidate: false,
     }
   )();
@@ -505,7 +552,18 @@ const getCachedCategoryData = async (slug: string, page: number, sort?: string) 
 // =========================================================================
 export async function generateMetadata({ params }: CategoryPageProps) {
   const { slug } = await params;
-  const currentSlug = slug[slug.length - 1];
+  
+  const currentSlug = slug && slug.length > 0 ? slug[slug.length - 1] : "";
+
+  if (!currentSlug) {
+    return generateBaseMetadata({
+      title: "All Categories - PocketValue",
+      description: "Explore all product categories online at PocketValue.",
+      path: "/category",
+      author: "PocketValue Team",
+      section: "Category",
+    });
+  }
 
   const metaData = await getCachedCategoryMetadata(currentSlug);
   if (!metaData) return {};
@@ -521,13 +579,10 @@ export async function generateMetadata({ params }: CategoryPageProps) {
       `Shop for ${name} online at PocketValue.`,
     image: seo.ogImage || image,
     path: `/category/${currentSlug}`,
-    // ✅ Point #23: Content Freshness
     publishedTime: createdAt || now,
     modifiedTime: updatedAt || createdAt || now,
-    // ✅ Point #80: Publisher/Author signals
     author: "PocketValue Team",
     section: "Category",
-    // ✅ Point #39: Entity linking
   });
 }
 
@@ -541,18 +596,18 @@ export default async function CategoryPage({
   const { slug } = await params;
   const resolvedSearchParams = await searchParams;
 
-  const currentSlug = slug[slug.length - 1];
+  const currentSlug = slug && slug.length > 0 ? slug[slug.length - 1] : "";
   const currentPage = Number(resolvedSearchParams?.page) || 1;
   const sort = resolvedSearchParams?.sort as string | undefined;
 
-  // ✅ Centralized cached settings
+  // Centralized cached settings
   const settings = await getCachedSettings();
   const lowStockThreshold = settings.inventorySettings?.lowStockThreshold || 5;
 
-  // ✅ Parallel Fetch: Category Data + Breadcrumbs
+  // Parallel Fetch: Category Data + Breadcrumbs
   const [plpData, breadcrumbs] = await Promise.all([
     getCachedCategoryData(currentSlug, currentPage, sort),
-    getPayloadBreadcrumbs("category", currentSlug),
+    currentSlug ? getPayloadBreadcrumbs("category", currentSlug) : Promise.resolve([]),
   ]);
 
   if (!plpData) {
@@ -566,9 +621,6 @@ export default async function CategoryPage({
     process.env.NEXT_PUBLIC_BASE_URL || "https://www.pocketvalue.pk";
   const categoryUrl = `${siteUrl}/category/${currentSlug}`;
 
-  // ================================================================
-  // 🔥 STRUCTURED DATA — Using generateCollectionStructuredData (#67, #77)
-  // ================================================================
   const collectionSchema = generateCollectionStructuredData({
     name: currentCategory.name,
     description: (currentCategory.description as string) ||
@@ -578,19 +630,14 @@ export default async function CategoryPage({
     breadcrumbs: breadcrumbs,
   });
 
-  // ✅ Add @id for entity linking (#39)
-  // Already present in the utility, but we ensure it's there
   const enhancedSchema = {
     ...collectionSchema,
     "@graph": collectionSchema["@graph"].map((item: any) => {
       if (item["@type"] === "CollectionPage") {
         return {
           ...item,
-          // ✅ Ensure @id is present (#39)
           "@id": `${categoryUrl}/#webpage`,
-          // ✅ Add inLanguage (#98)
           inLanguage: "en-US",
-          // ✅ Add publisher (#80)
           publisher: {
             "@type": "Organization",
             "@id": `${siteUrl}/#organization`,
@@ -622,7 +669,7 @@ export default async function CategoryPage({
                 {currentCategory.name}
               </h1>
             </div>
-            {slug.length > 1 && (
+            {slug && slug.length > 1 && (
               <Link
                 href={`/category/${slug.slice(0, -1).join("/")}`}
                 aria-label="Go back to parent category"
@@ -667,7 +714,7 @@ export default async function CategoryPage({
           {/* PRODUCT LISTING */}
           {initialProducts && initialProducts.length > 0 ? (
             <ProductListingClient
-              key={`${currentSlug}-${currentPage}`}
+              key={`${currentSlug || "all"}-${currentPage}`}
               initialProducts={initialProducts}
               filterData={filterData}
               categoryTree={selfTree}

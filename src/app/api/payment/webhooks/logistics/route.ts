@@ -1,3 +1,5 @@
+// 📂 src/app/api/payment/webhooks/logistics/route.ts (FULLY RECONCILED & REDIS IDEMPOTENT)
+
 import { NextRequest, NextResponse } from "next/server";
 import connectMongoose from "@/app/shared/lib/checkout/mongoose";
 import Order from "@/models/Order";
@@ -5,10 +7,12 @@ import { logUserEvent } from "@/app/features/admin/analytics-telemetry/action/tr
 import { updateShipmentStatus } from "@/app/features/admin/order-fulfillment/actions/shipmentActions";
 import { mapCourierStatus, type CourierKey } from "@/lib/adapters/courier/CourierFactory";
 
+// ✅ CENTRALIZED REDIS FOR SERVERLESS IDEMPOTENCY
+import { redis } from "@/app/shared/lib/telemetry/rate-limiter";
+
 // ================================================================
 // 📦 ENTERPRISE WEBHOOK PAYLOAD TYPES
 // ================================================================
-
 interface LogisticsWebhookPayload {
   orderId?: string;
   trackingId?: string;
@@ -16,7 +20,7 @@ interface LogisticsWebhookPayload {
   courierPartner?: string;
   courierKey?: string;
   trackingStatus: string;
-  status?: string; // Alternative field name
+  status?: string; 
   delayReason?: string;
   estimatedDaysDelay?: number;
   timestamp?: string;
@@ -26,30 +30,8 @@ interface LogisticsWebhookPayload {
 }
 
 // ================================================================
-// 🛡️ IDEMPOTENCY CACHE (Prevents duplicate processing)
+// 🚀 ENTERPRISE WEBHOOK HANDLER (REDIS SECURED)
 // ================================================================
-
-const processedWebhooks = new Map<string, number>();
-const IDEMPOTENCY_TTL_MS = 5 * 60 * 1000; // 5 minutes
-
-function isWebhookProcessed(webhookId: string): boolean {
-  const timestamp = processedWebhooks.get(webhookId);
-  if (!timestamp) return false;
-  if (Date.now() - timestamp > IDEMPOTENCY_TTL_MS) {
-    processedWebhooks.delete(webhookId);
-    return false;
-  }
-  return true;
-}
-
-function markWebhookProcessed(webhookId: string): void {
-  processedWebhooks.set(webhookId, Date.now());
-}
-
-// ================================================================
-// 🚀 ENTERPRISE WEBHOOK HANDLER
-// ================================================================
-
 export async function POST(req: NextRequest) {
   try {
     // ================================================================
@@ -73,28 +55,13 @@ export async function POST(req: NextRequest) {
     // ================================================================
     const body = (await req.json()) as LogisticsWebhookPayload;
 
-    // Extract tracking ID (supports multiple field names)
     const trackingId = body.trackingId || body.awbNumber || body.orderId;
     const courierKey = (body.courierKey || body.courierPartner || "unknown").toLowerCase() as CourierKey;
     const rawStatus = body.trackingStatus || body.status || "";
     const status = rawStatus.toLowerCase().trim();
 
-    // Generate webhook ID for idempotency
-    const webhookId = `${trackingId}-${status}-${Date.now().toString().slice(0, -3)}`;
-
     // ================================================================
-    // 🛡️ 3. IDEMPOTENCY CHECK (Prevent duplicate processing)
-    // ================================================================
-    if (isWebhookProcessed(webhookId)) {
-      console.log(`🔄 [Webhook] Duplicate webhook ignored: ${webhookId}`);
-      return NextResponse.json(
-        { success: true, message: "Duplicate webhook ignored." },
-        { status: 200 }
-      );
-    }
-
-    // ================================================================
-    // ✅ 4. VALIDATE REQUIRED FIELDS
+    // ✅ 3. VALIDATE REQUIRED FIELDS
     // ================================================================
     if (!trackingId) {
       console.error("❌ [Webhook] Missing tracking ID in payload:", body);
@@ -109,6 +76,23 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         { error: "Missing trackingStatus in payload." },
         { status: 400 }
+      );
+    }
+
+    // ================================================================
+    // 🛡️ 4. CENTRALIZED REDIS IDEMPOTENCY CHECK
+    // (Prevents duplicate processing across scaling serverless Lambdas)
+    // ================================================================
+    const redisIdempotencyKey = `webhook:logistics:${trackingId}:${status}`;
+    
+    // Set lock for 5 minutes (300s) using SETNX atomic lock
+    const isUnique = await redis.set(redisIdempotencyKey, "1", { nx: true, ex: 300 });
+
+    if (!isUnique) {
+      console.log(`🔄 [Webhook] Duplicate webhook ignored globally: ${redisIdempotencyKey}`);
+      return NextResponse.json(
+        { success: true, message: "Duplicate webhook ignored globally." },
+        { status: 200 }
       );
     }
 
@@ -179,13 +163,11 @@ export async function POST(req: NextRequest) {
         delay_reason: body.delayReason || "Unknown delay reason",
         estimated_delay_days: body.estimatedDaysDelay || 3,
         shipping_city: order.shippingAddress?.city || "N/A",
-        webhook_id: webhookId,
       });
 
       console.warn(
         `🚛 [Logistics Alert] Delay recorded for order ${order.orderId} (${trackingId}) via ${courierKey}`
       );
-      markWebhookProcessed(webhookId);
       return NextResponse.json({
         success: true,
         message: "Logistics delay logged.",
@@ -202,10 +184,9 @@ export async function POST(req: NextRequest) {
       );
 
       try {
-        // Extract shipment ID
         const shipmentId = shipment.id;
 
-        // Call the existing updateShipmentStatus action
+        // Call the existing updateShipmentStatus action directly
         const result = await updateShipmentStatus({
           shipmentId: shipmentId,
           status: mappedStatus as any,
@@ -216,10 +197,10 @@ export async function POST(req: NextRequest) {
           console.log(`✅ [Webhook] Shipment ${trackingId} updated to ${mappedStatus}`);
 
           // =================================================================
-          // 🚀 ENTERPRISE FIX: LOYALTY PORTAL CONVERSION FOR DELIVERED ORDERS
+          // 🚀 LOYALTY PORTAL CONVERSION FOR DELIVERED ORDERS
           // =================================================================
           if (mappedStatus === "Delivered") {
-            // ✅ CRITICAL FIX: Mark COD orders as paid so referral conversion triggers
+            // Mark COD orders as Paid
             if (order.paymentMethod === "COD") {
               await Order.updateOne(
                 { _id: order._id },
@@ -229,7 +210,7 @@ export async function POST(req: NextRequest) {
             }
 
             try {
-              // Dynamic import to strictly prevent circular dependency compile errors
+              // Dynamic import prevents circular dependency compile errors
               const { trackOrderReferralConversion } = await import(
                 "@/app/features/admin/loyalty-intelligence/actions/conversionTracker"
               );
@@ -256,10 +237,8 @@ export async function POST(req: NextRequest) {
             new_status: mappedStatus,
             source: "courier_webhook",
             courier: courierKey,
-            webhook_id: webhookId,
           });
 
-          markWebhookProcessed(webhookId);
           return NextResponse.json({
             success: true,
             message: `Shipment status updated to ${mappedStatus}`,
@@ -282,7 +261,6 @@ export async function POST(req: NextRequest) {
           orderNumber: order.orderId,
           trackingId,
           error: updateError.message,
-          webhook_id: webhookId,
         });
         return NextResponse.json(
           { error: updateError.message || "Failed to update shipment" },
@@ -290,7 +268,6 @@ export async function POST(req: NextRequest) {
         );
       }
     } else {
-      // Status hasn't changed, but still log the webhook
       console.log(`🔄 [Webhook] Shipment ${trackingId} status unchanged: ${mappedStatus}`);
 
       await logUserEvent("webhook_processing_error", "/api/webhooks/logistics", {
@@ -300,11 +277,9 @@ export async function POST(req: NextRequest) {
         action: "webhook_received",
         current_status: mappedStatus,
         courier: courierKey,
-        webhook_id: webhookId,
         message: "Status unchanged",
       });
 
-      markWebhookProcessed(webhookId);
       return NextResponse.json({
         success: true,
         message: "Status unchanged",

@@ -1,4 +1,5 @@
-// src/features/admin/order-fulfillment/actions/shipment/getShipments.service.ts
+// 📂 src/features/admin/order-fulfillment/actions/shipment/getShipments.service.ts (FULLY HARDENED & DUAL RESOLVED)
+
 "use server";
 
 import connectMongoose from "@/app/shared/lib/checkout/mongoose";
@@ -16,11 +17,12 @@ import type { GetShipmentsResult } from "./types";
  * 
  * Enterprise Features:
  * - RBAC protected (admin, manager, logistics, editor can view)
- * - Lean query for performance
+ * - Dual order ID resolution (_id or orderId)
+ * - Lean query for high performance
  * - Enhanced courier display names for UI
  * - Graceful error handling
  * 
- * @param orderId - The order ID to fetch shipments for
+ * @param orderId - The order ID or order number to fetch shipments for
  * @returns GetShipmentsResult with success status and shipments array
  */
 export async function getOrderShipments(
@@ -30,10 +32,13 @@ export async function getOrderShipments(
     // 🛡️ 1. RBAC Check
     await verifyStaff(["admin", "manager", "logistics", "editor"]);
 
-    // 🛡️ 2. Fetch Order
+    // 🛡️ 2. Fetch Order (Dual ID Resolution)
     await connectMongoose();
 
-    const order = await Order.findById(orderId).lean<{
+    // ✅ FIX 1: Dual resolution prevents lookup failures if passed either _id or orderId string
+    const order = await Order.findOne({
+      $or: [{ _id: orderId }, { orderId: orderId }],
+    }).lean<{
       shipments?: any[];
       _id: string;
       orderId: string;

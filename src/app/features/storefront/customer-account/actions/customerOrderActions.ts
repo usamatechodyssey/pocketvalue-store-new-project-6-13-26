@@ -1,4 +1,4 @@
-// 📂 src/app/features/storefront/customer-account/actions/customerOrderActions.ts (TS ERROR FIXED)
+// 📂 src/app/features/storefront/customer-account/actions/customerOrderActions.ts (FULLY HARDENED FOR PRODUCTION)
 
 "use server";
 
@@ -21,7 +21,7 @@ interface GetCustomerOrdersParams {
 }
 
 // ================================================================
-// ACTION #1: GET CUSTOMER ORDERS
+// ACTION #1: GET CUSTOMER ORDERS (ReDoS & Regex Escaped)
 // ================================================================
 export async function getCustomerOrders({ 
     page = 1, limit = 10, status = 'all', searchTerm = ''
@@ -35,7 +35,9 @@ export async function getCustomerOrders({
     const userId = session.user.id;
 
     await connectMongoose();
-    const skip = (page - 1) * limit;
+    const safeLimit = Math.max(1, limit);
+    const safePage = Math.max(1, page);
+    const skip = (safePage - 1) * safeLimit;
 
     const query: any = { userId: userId };
 
@@ -51,7 +53,10 @@ export async function getCustomerOrders({
     if (searchTerm) {
       const safeSearch = searchTerm.trim().slice(0, 50);
       if (safeSearch.length > 0) {
-        const searchRegex = new RegExp(safeSearch, 'i');
+        // ✅ FIX 1: Escape special regex characters to prevent SyntaxError ReDoS crashes
+        const escapedSearch = safeSearch.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        const searchRegex = new RegExp(escapedSearch, 'i');
+        
         query.$or = [
             { orderId: searchRegex },
             { "shippingAddress.fullName": searchRegex },
@@ -64,12 +69,11 @@ export async function getCustomerOrders({
         Order.find(query)
           .sort({ createdAt: -1 })
           .skip(skip)
-          .limit(limit)
+          .limit(safeLimit)
           .lean<IOrder[]>(),
         Order.countDocuments(query)
     ]);
 
-    // ✅ FIX: Added missing 'productId' mapping property
     const clientOrders: ClientOrder[] = ordersData.map((order: IOrder) => ({
         _id: order._id.toString(),
         orderId: order.orderId,
@@ -79,7 +83,7 @@ export async function getCustomerOrders({
         createdAt: new Date(order.createdAt).toISOString(),
         products: order.products.map((p: IOrder['products'][0]) => ({
             _id: p._id,
-            productId: p.productId || p._id, // ✅ CRITICAL TS FIX: Populated productId
+            productId: p.productId || p._id,
             cartItemId: p.cartItemId,
             name: p.name,
             price: p.price,
@@ -100,7 +104,7 @@ export async function getCustomerOrders({
         },
     }));
 
-    return { orders: clientOrders, totalPages: Math.ceil(totalOrders / limit) };
+    return { orders: clientOrders, totalPages: Math.ceil(totalOrders / safeLimit) || 1 };
   } catch (error) {
     console.error("Failed to fetch customer orders:", error);
     return { orders: [], totalPages: 0 };
@@ -108,7 +112,7 @@ export async function getCustomerOrders({
 }
 
 // ================================================================
-// ACTION #2: CANCEL ORDER
+// ACTION #2: CANCEL ORDER (EVENT-DRIVEN EXECUTIVE CACHE PURGED)
 // ================================================================
 export async function cancelCustomerOrderAction(orderId: string) {
   try {
@@ -186,6 +190,18 @@ export async function cancelCustomerOrderAction(orderId: string) {
     order.status = "Cancelled";
     await order.save();
     
+    // ⚡ FIX 2: Real-time Executive Cache Purge on Storefront Cancellation
+    try {
+      const { redis } = await import("@/app/shared/lib/telemetry/rate-limiter");
+      const execCacheKeys = await redis.keys("analytics_executive:*");
+      if (execCacheKeys.length > 0) {
+        await redis.del(...execCacheKeys);
+        console.log(`⚡ Event-Driven Customer Cancel Sync: Cleared ${execCacheKeys.length} executive cache keys.`);
+      }
+    } catch (purgeError: any) {
+      console.warn("⚠️ Executive cache purge warning:", purgeError.message);
+    }
+
     await logUserEvent('auth_attempt', '/account/orders/cancel', {
       method: 'order_cancellation',
       status: 'success',

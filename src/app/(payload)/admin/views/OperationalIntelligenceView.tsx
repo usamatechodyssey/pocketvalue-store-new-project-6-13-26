@@ -395,51 +395,98 @@ import OperationalComparisonChart from '@/app/features/admin/operational-intelli
 import ReportButton from '@/app/features/admin/operational-intelligence/components/ReportButton';
 import AnalyticsDateRangePicker from '@/app/features/admin/executive-kpi/components/DateRangePicker';
 import PaginationControls from '@/app/shared/components/ui/PaginationControls';
-import { startOfDay, endOfDay, parseISO, format } from 'date-fns';
+import { startOfDay, endOfDay, parseISO, format, subDays } from 'date-fns';
 import {
   ArrowLeft,
   Activity,
-  TrendingUp,
   TrendingDown,
-  AlertCircle,
-  PackageX,
+  Package,
   CheckCircle2,
   Clock,
   Banknote,
   Radio,
+  PackageX,
 } from 'lucide-react';
 import Link from 'next/link';
 
+// Helper for safe date parsing
+const safeParseDate = (dateStr: string | undefined, fallback: Date): Date => {
+  if (!dateStr) return fallback;
+  const parsed = parseISO(dateStr);
+  return isNaN(parsed.getTime()) ? fallback : parsed;
+};
+
 // ================================================================
-// ✅ TYPE DEFINITIONS
+// ✅ PROMINENT HIGH-CONTRAST KPI CARD
 // ================================================================
-interface OperationalSummaryCard {
+const KPICard = ({
+  title,
+  value,
+  subtext,
+  icon: Icon,
+  color = "brand",
+}: {
   title: string;
-  value: string | number;
-  icon: React.ReactElement;
-  trend?: number;
-  color: 'green' | 'red' | 'yellow' | 'blue' | 'purple';
+  value: string;
   subtext?: string;
-}
+  icon: React.ElementType;
+  color?: "brand" | "yellow" | "red" | "blue" | "emerald";
+}) => {
+  const colorClasses = {
+    brand: "bg-brand-primary/10 text-brand-primary border-brand-primary/20",
+    emerald: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
+    yellow: "bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 border-yellow-500/20",
+    red: "bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20",
+    blue: "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20",
+  };
+
+  return (
+    <div className="p-5 bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800/80 rounded-4xl shadow-xl hover:shadow-2xl hover:border-zinc-300 dark:hover:border-zinc-700 transition-all duration-300 flex flex-col justify-between min-w-0 relative overflow-hidden group">
+      <div className="flex items-center justify-between gap-2 relative z-10">
+        <p className="text-[10px] uppercase font-mono font-bold text-zinc-500 dark:text-zinc-400 tracking-wider leading-tight">
+          {title}
+        </p>
+        <div className={`p-2.5 rounded-2xl border ${colorClasses[color]} shrink-0 shadow-xs group-hover:scale-110 transition-transform duration-200`}>
+          <Icon size={18} className="stroke-[2.5px]" />
+        </div>
+      </div>
+      <div className="mt-4 min-w-0 relative z-10">
+        <p className="text-xl sm:text-2xl font-black text-zinc-900 dark:text-zinc-50 font-mono tracking-tight leading-none">
+          {value}
+        </p>
+        {subtext && (
+          <p className="text-[10px] text-zinc-500 dark:text-zinc-400 font-mono font-medium mt-2 leading-tight">
+            {subtext}
+          </p>
+        )}
+      </div>
+    </div>
+  );
+};
 
 export default async function OperationalIntelligenceView(props: any) {
   const { initPageResult, params: paramsPromise, searchParams: searchParamsPromise } = props;
   const params = await paramsPromise;
   const searchParams = await searchParamsPromise;
   
-  // ✅ FIX: Single unified payload declaration (resolves ts6133)
   const payload = props.payload || initPageResult?.req?.payload;
 
-  // Parse date range
+  // ✅ CRITICAL FIX: Reads startDate/from AND endDate/to from AnalyticsDateRangePicker URL params!
+  const today = new Date();
+  const defaultFrom = subDays(today, 30);
+
+  const fromStr = (searchParams?.startDate || searchParams?.from) as string | undefined;
+  const toStr = (searchParams?.endDate || searchParams?.to) as string | undefined;
+
   const range = {
-    from: searchParams?.from ? startOfDay(parseISO(searchParams.from)) : startOfDay(new Date()),
-    to: searchParams?.to ? endOfDay(parseISO(searchParams.to)) : endOfDay(new Date()),
+    from: startOfDay(safeParseDate(fromStr, defaultFrom)),
+    to: endOfDay(safeParseDate(toStr, today)),
   };
 
   const page = Number(searchParams?.page) || 1;
   const limit = 15;
 
-  // ✅ Parallel Pre-fetching
+  // Parallel Pre-fetching
   const [operationalData, trendsData, comparisonData] = await Promise.all([
     getOperationalIntelligencePayload(range, page, limit),
     getOperationalTrends({ days: 30 }),
@@ -471,48 +518,6 @@ export default async function OperationalIntelligenceView(props: any) {
     thresholdAlert: null,
   };
 
-  // Summary Cards Data
-  const summaryCards: OperationalSummaryCard[] = [
-    {
-      title: 'Total Orders',
-      value: safeData.totalOrders ?? 0,
-      icon: <PackageX size={20} />,
-      color: 'blue',
-    },
-    {
-      title: 'Delivered',
-      value: safeData.deliveredCount ?? 0,
-      icon: <CheckCircle2 size={20} />,
-      trend: safeData.fulfillmentRate ?? 0,
-      color: 'green',
-      subtext: `${safeData.fulfillmentRate ?? 0}% fulfillment rate`,
-    },
-    {
-      title: 'Cancelled / Leakage',
-      value: safeData.cancelledCount ?? 0,
-      icon: <TrendingDown size={20} />,
-      trend: safeData.leakageRate ?? 0,
-      color: 'red',
-      subtext: `${safeData.leakageRate ?? 0}% leakage rate`,
-    },
-    {
-      title: 'Limbo Revenue (Stuck)',
-      value: `Rs. ${(safeData.limboRevenue || 0).toLocaleString('en-PK')}`,
-      icon: <Banknote size={20} />,
-      color: 'yellow',
-      subtext: `${(safeData.pendingCount || 0).toLocaleString('en-PK')} stuck orders`,
-    },
-  ];
-
-  // Color mapping for cards
-  const colorMap = {
-    green: 'text-green-500 bg-green-500/10 border-green-500/20',
-    red: 'text-red-500 bg-red-500/10 border-red-500/20',
-    yellow: 'text-yellow-500 bg-yellow-500/10 border-yellow-500/20',
-    blue: 'text-blue-500 bg-blue-500/10 border-blue-500/20',
-    purple: 'text-purple-500 bg-purple-500/10 border-purple-500/20',
-  };
-
   const safeComparison = comparisonData || undefined;
 
   return (
@@ -520,16 +525,25 @@ export default async function OperationalIntelligenceView(props: any) {
       i18n={i18n}
       locale={locale}
       params={params}
-      payload={payload} // ✅ Correctly reads the unified payload variable
+      payload={payload}
       permissions={permissions}
       searchParams={searchParams}
       user={user}
       visibleEntities={visibleEntities}
     >
-      <div className="tw-admin-wrapper p-4 sm:p-6 lg:p-10 space-y-10 max-w-[1800px] mx-auto bg-zinc-50/50 dark:bg-zinc-950/40 min-h-screen pb-20">
+      <div className="tw-admin-wrapper p-4 sm:p-6 lg:p-10 space-y-8 max-w-[1800px] mx-auto bg-zinc-50/50 dark:bg-zinc-950/40 min-h-screen pb-20 font-sans">
         
         {/* ================================================================ */}
-        {/* 👑 HERO HEADER */}
+        {/* 📅 TOP-RIGHT TOOLBAR: Date Range Picker OUTSIDE Hero Header */}
+        {/* ================================================================ */}
+        <div className="flex items-center justify-end w-full print:hidden">
+          <div className="shadow-2xs">
+            <AnalyticsDateRangePicker />
+          </div>
+        </div>
+
+        {/* ================================================================ */}
+        {/* 👑 HERO HEADER CARD */}
         {/* ================================================================ */}
         <div className="bg-white dark:bg-zinc-950 p-6 sm:p-8 rounded-[2.5rem] border border-zinc-200 dark:border-zinc-800/80 shadow-2xl relative overflow-hidden flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
           <div className="absolute top-0 right-0 w-96 h-96 bg-brand-primary/10 rounded-full blur-3xl pointer-events-none hidden dark:block" />
@@ -542,7 +556,7 @@ export default async function OperationalIntelligenceView(props: any) {
               <ArrowLeft size={14} /> Back to Hub
             </Link>
             <div className="flex items-center gap-3 flex-wrap">
-              <h1 className="text-2xl sm:text-3xl font-black italic tracking-tighter uppercase text-zinc-900 dark:text-white flex items-center gap-3">
+              <h1 className="text-2xl sm:text-3xl font-black italic tracking-tighter uppercase text-zinc-900 dark:text-white flex items-center gap-3 font-mono">
                 <Activity size={32} className="text-brand-primary shrink-0" />
                 Operational Intelligence
               </h1>
@@ -567,46 +581,43 @@ export default async function OperationalIntelligenceView(props: any) {
             </p>
           </div>
 
-          <div className="relative z-10 flex items-center gap-3 flex-wrap">
+          <div className="relative z-10 self-start md:self-center">
             <ReportButton from={range.from} to={range.to} />
-            <AnalyticsDateRangePicker />
           </div>
         </div>
 
         {/* ================================================================ */}
-        {/* 📊 SUMMARY CARDS ROW */}
+        {/* 📊 PROMINENT HIGH-CONTRAST KPI CARDS ROW */}
         {/* ================================================================ */}
-        <div
-          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 w-full min-w-0"
-          role="region"
-          aria-label="Operational summary statistics"
-        >
-          {summaryCards.map((card, idx) => (
-            <div
-              key={idx}
-              className={`p-3.5 bg-zinc-50/80 dark:bg-zinc-900/60 border border-zinc-200/80 dark:border-zinc-800/80 rounded-2xl shadow-2xs hover:border-zinc-300 dark:hover:border-zinc-700 transition-all duration-200 flex flex-col justify-between h-full min-w-0 ${colorMap[card.color]}`}
-              role="article"
-            >
-              <div className="flex justify-between items-start gap-2">
-                <p className="text-[9px] uppercase font-mono font-bold text-zinc-500 dark:text-zinc-400 tracking-wider">
-                  {card.title}
-                </p>
-                <div className={`p-2 rounded-xl border ${colorMap[card.color]} shrink-0 shadow-2xs`}>
-                  {card.icon}
-                </div>
-              </div>
-              <div className="mt-3 min-w-0">
-                <h3 className="text-base sm:text-lg font-black dark:text-white font-mono tracking-tight leading-none truncate">
-                  {typeof card.value === 'number' ? card.value.toLocaleString('en-PK') : card.value}
-                </h3>
-                {card.subtext && (
-                  <p className="text-[9px] font-mono text-zinc-400 dark:text-zinc-500 font-bold mt-1 truncate">
-                    {card.subtext}
-                  </p>
-                )}
-              </div>
-            </div>
-          ))}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 w-full min-w-0">
+          <KPICard
+            title="Total Orders"
+            value={(safeData.totalOrders ?? 0).toLocaleString('en-PK')}
+            subtext="Audit Period Orders"
+            icon={Package}
+            color="blue"
+          />
+          <KPICard
+            title="Delivered Orders"
+            value={(safeData.deliveredCount ?? 0).toLocaleString('en-PK')}
+            subtext={`${safeData.fulfillmentRate ?? 0}% fulfillment rate`}
+            icon={CheckCircle2}
+            color="emerald"
+          />
+          <KPICard
+            title="Cancelled / Leakage"
+            value={(safeData.cancelledCount ?? 0).toLocaleString('en-PK')}
+            subtext={`${safeData.leakageRate ?? 0}% leakage rate`}
+            icon={TrendingDown}
+            color="red"
+          />
+          <KPICard
+            title="Limbo Revenue (Stuck)"
+            value={`Rs. ${(safeData.limboRevenue || 0).toLocaleString('en-PK')}`}
+            subtext={`${(safeData.pendingCount || 0).toLocaleString('en-PK')} stuck orders`}
+            icon={Banknote}
+            color="yellow"
+          />
         </div>
 
         {/* ================================================================ */}
@@ -645,7 +656,7 @@ export default async function OperationalIntelligenceView(props: any) {
                 </span>
               )}
             </div>
-            <div className="min-w-0 bg-zinc-50/50 dark:bg-zinc-900/40 border border-zinc-200/80 dark:border-zinc-800/80 rounded-2xl p-4 sm:p-6 shadow-2xs">
+            <div className="min-w-0 min-h-105 bg-zinc-50/50 dark:bg-zinc-900/40 border border-zinc-200/80 dark:border-zinc-800/80 rounded-2xl p-4 sm:p-6 shadow-2xs flex flex-col justify-center">
               <OperationalComparisonChart data={safeComparison} />
             </div>
           </div>
@@ -657,7 +668,7 @@ export default async function OperationalIntelligenceView(props: any) {
                 30-DAY OPERATIONAL HISTORICAL TRENDS
               </span>
             </div>
-            <div className="min-w-0 bg-zinc-50/50 dark:bg-zinc-900/40 border border-zinc-200/80 dark:border-zinc-800/80 rounded-2xl p-4 sm:p-6 shadow-2xs">
+            <div className="min-w-0 min-h-105 bg-zinc-50/50 dark:bg-zinc-900/40 border border-zinc-200/80 dark:border-zinc-800/80 rounded-2xl p-4 sm:p-6 shadow-2xs flex flex-col justify-center">
               <OperationalTrendChart data={trendsData} />
             </div>
           </div>
@@ -679,7 +690,7 @@ export default async function OperationalIntelligenceView(props: any) {
             </span>
           </div>
 
-          {/* Table Container (With Scroll Guard) */}
+          {/* Table Container */}
           <div className="bg-zinc-50/60 dark:bg-zinc-900/40 border border-zinc-200/80 dark:border-zinc-800/80 rounded-2xl overflow-hidden shadow-2xs flex flex-col">
             <div className="overflow-x-auto max-h-112.5 custom-scrollbar" role="table">
               <table className="w-full min-w-175 border-collapse text-left text-xs relative">
@@ -709,8 +720,8 @@ export default async function OperationalIntelligenceView(props: any) {
                         <td className="py-3 px-4 text-center whitespace-nowrap">
                           <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[9px] font-mono font-bold uppercase bg-yellow-500/10 text-yellow-500 border border-yellow-500/20">
                             <span className="relative flex h-1.5 w-1.5">
-                              <span className="animate-ping absolute h-full w-full rounded-full bg-yellow-400 opacity-75"></span>
-                              <span className="relative rounded-full h-1.5 w-1.5 bg-yellow-500"></span>
+                              <span className="animate-ping absolute h-full w-full rounded-full bg-yellow-400 opacity-75" />
+                              <span className="relative rounded-full h-1.5 w-1.5 bg-yellow-500" />
                             </span>
                             {order.status}
                           </span>

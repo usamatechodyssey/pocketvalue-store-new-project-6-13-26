@@ -1,4 +1,5 @@
-// admin return action 
+// 📂 src/app/features/admin/order-fulfillment/actions/payloadReturnAdminActions.ts (HARDENED & BSON-SAFE)
+
 "use server";
 
 import { revalidatePath } from "next/cache";
@@ -8,7 +9,8 @@ import ReturnRequest, { IReturnRequest } from "@/models/ReturnRequest";
 import { IUser } from "@/models/User";
 import { IOrder } from "@/models/Order";
 import { Types } from "mongoose";
-// ✅ FIX: IMPORT FROM FACTORY INSTEAD OF NODEMAILER
+
+// ✅ COMMUNICATION FACTORY & VALIDATION SCHEMAS
 import { sendReturnStatusUpdateEmail } from "@/lib/adapters/communication";
 import { UpdateReturnStatusSchema } from "@/app/shared/lib/zodSchemas";
 
@@ -47,31 +49,60 @@ export type FullAdminReturnRequest = {
   originalOrder: { shippingAddress: IOrder["shippingAddress"]; } | null;
 };
 
-// 1. GET ALL RETURNS (Aggregated from MongoDB)
+// ================================================================
+// 1. GET ALL RETURNS (Aggregated & ReDoS Protected)
+// ================================================================
 export async function getPaginatedReturnRequestsPayload({ 
   page = 1, limit = 15, status = "All", searchTerm = ""
 }) {
   try {
     await verifyStaff(["admin", "manager", "editor"]);
     await connectMongoose();
-    const skip = (page - 1) * limit;
+    
+    const safeLimit = Math.max(1, limit);
+    const safePage = Math.max(1, page);
+    const skip = (safePage - 1) * safeLimit;
+    
     const matchStage: any = {};
     if (status && status !== "All") matchStage.status = status;
 
     const pipeline: any[] = [
-      { $addFields: { convertedUserId: { $toObjectId: "$userId" } } },
+      // ✅ FIX 1: Safe BSON $convert prevents type-collision crashes if userId is already ObjectId or string
+      {
+        $addFields: {
+          convertedUserId: {
+            $convert: {
+              input: "$userId",
+              to: "objectId",
+              onError: null,
+              onNull: null,
+            },
+          },
+        },
+      },
       { $lookup: { from: "users", localField: "convertedUserId", foreignField: "_id", as: "userDetails" } },
       { $unwind: { path: "$userDetails", preserveNullAndEmptyArrays: true } },
       { $match: matchStage }
     ];
         
-    if (searchTerm) {
-      const searchRegex = new RegExp(searchTerm.trim(), "i");
-      pipeline.push({ $match: { $or: [{ orderNumber: searchRegex }, { "userDetails.name": searchRegex }, { "userDetails.email": searchRegex }] } });
+    if (searchTerm && searchTerm.trim().length > 0) {
+      // ✅ FIX 2: ReDoS search string escaping
+      const escapedSearch = searchTerm.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const searchRegex = new RegExp(escapedSearch, "i");
+
+      pipeline.push({ 
+        $match: { 
+          $or: [
+            { orderNumber: searchRegex }, 
+            { "userDetails.name": searchRegex }, 
+            { "userDetails.email": searchRegex }
+          ] 
+        } 
+      });
     }
 
     const [requestsData, totalCountResult] = await Promise.all([
-      ReturnRequest.aggregate(pipeline).sort({ createdAt: -1 }).skip(skip).limit(limit),
+      ReturnRequest.aggregate(pipeline).sort({ createdAt: -1 }).skip(skip).limit(safeLimit),
       ReturnRequest.aggregate([...pipeline, { $count: "total" }])
     ]);
 
@@ -81,26 +112,49 @@ export async function getPaginatedReturnRequestsPayload({
       status: req.status,
       createdAt: req.createdAt.toISOString(),
       customerName: req.userDetails?.name || "N/A",
-      itemCount: req.items.length
+      itemCount: req.items?.length || 0
     }));
 
-    return { requests: formattedRequests, totalPages: Math.ceil((totalCountResult[0]?.total || 0) / limit) };
+    return { 
+      requests: formattedRequests, 
+      totalPages: Math.ceil((totalCountResult[0]?.total || 0) / safeLimit) || 1 
+    };
   } catch (error) {
     console.error("Payload Return List Fetch Error:", error);
     return { requests: [], totalPages: 0 };
   }
 }
 
-// 2. GET SINGLE RETURN DETAIL
+// ================================================================
+// 2. GET SINGLE RETURN DETAIL (BSON GUARDED)
+// ================================================================
 export async function getSingleReturnRequestPayload(returnId: string): Promise<FullAdminReturnRequest | null> {
   try {
     await verifyStaff(["admin", "manager", "editor"]);
+
+    // ✅ FIX 3: BSON ObjectId Guard prevents BSONTypeError crashes on malformed URL parameters
+    if (!returnId || !Types.ObjectId.isValid(returnId)) {
+      console.warn(`⚠️ Invalid BSON ObjectId passed to return detail: ${returnId}`);
+      return null;
+    }
+
     const payload = await getSafePayload();
     await connectMongoose();
 
     const pipeline: any[] = [
       { $match: { _id: new Types.ObjectId(returnId) } },
-      { $addFields: { convertedUserId: { $toObjectId: "$userId" } } },
+      {
+        $addFields: {
+          convertedUserId: {
+            $convert: {
+              input: "$userId",
+              to: "objectId",
+              onError: null,
+              onNull: null,
+            },
+          },
+        },
+      },
       { $lookup: { from: "users", localField: "convertedUserId", foreignField: "_id", as: "userDetails" } },
       { $unwind: { path: "$userDetails", preserveNullAndEmptyArrays: true } },
       { $lookup: { from: "orders", localField: "orderId", foreignField: "_id", as: "originalOrder" } },
@@ -111,12 +165,9 @@ export async function getSingleReturnRequestPayload(returnId: string): Promise<F
     if (!results.length) return null;
     const returnDoc = results[0];
 
-    const rawProductIds = returnDoc.items.map((item: any) => item.productId);
+    const rawProductIds = returnDoc.items?.map((item: any) => item.productId) || [];
     const isValidObjectId = (id: string) => /^[0-9a-fA-F]{24}$/.test(id);
     const validProductIds = rawProductIds.filter((id: string) => isValidObjectId(id));
-    
-    console.log(`🔍 Total Product IDs in Request: ${rawProductIds.length}`);
-    console.log(`✅ Valid MongoDB IDs found: ${validProductIds.length}`);
 
     let productsMap = new Map<string, SanityProduct>();
 
@@ -125,7 +176,7 @@ export async function getSingleReturnRequestPayload(returnId: string): Promise<F
         collection: "products",
         where: { id: { in: validProductIds } },
         depth: 2,
-        limit: 100
+        limit: Math.max(1, validProductIds.length)
       });
 
       payloadProducts.docs.forEach((doc: any) => {
@@ -142,7 +193,7 @@ export async function getSingleReturnRequestPayload(returnId: string): Promise<F
       adminComments: returnDoc.adminComments,
       customerComments: returnDoc.customerComments,
       createdAt: returnDoc.createdAt.toISOString(),
-      items: returnDoc.items.map((item: any) => ({
+      items: (returnDoc.items || []).map((item: any) => ({
         productId: item.productId,
         variantKey: item.variantKey,
         quantity: item.quantity,
@@ -164,16 +215,24 @@ export async function getSingleReturnRequestPayload(returnId: string): Promise<F
   }
 }
 
-// 3. UPDATE STATUS
+// ================================================================
+// 3. UPDATE RETURN STATUS (STATUS EMAIL NOTIFIED)
+// ================================================================
 export async function updateReturnRequestStatusPayload(returnId: string, formData: FormData) {
   try {
     await verifyStaff(["admin", "manager"]);
+
+    if (!returnId || !Types.ObjectId.isValid(returnId)) {
+      return { success: false, message: "Invalid Return Request ID." };
+    }
+
     const formObject = {
       returnId,
       status: formData.get("status"),
       resolution: formData.get("resolution") || undefined,
       adminComments: formData.get("adminComments") || undefined,
     };
+
     const validation = UpdateReturnStatusSchema.safeParse(formObject);
     if (!validation.success) return { success: false, message: validation.error.issues[0].message };
     
@@ -192,7 +251,6 @@ export async function updateReturnRequestStatusPayload(returnId: string, formDat
     const user = request.userId as any;
     if (statusChanged && user?.email) {
       try {
-        // ✅ FIX: Send email using factory (instead of nodemailer)
         await sendReturnStatusUpdateEmail({
           to: user.email,
           customerName: user.name,

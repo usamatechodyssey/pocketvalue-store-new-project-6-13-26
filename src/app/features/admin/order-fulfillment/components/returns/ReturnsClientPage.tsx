@@ -1,86 +1,53 @@
-// "use client";
+// 📂 src/app/features/admin/order-fulfillment/components/returns/ReturnsClientPage.tsx (CYBER-HUD HARDENED)
 
-// import { useTransition } from "react";
-// import { useSearchParams, useRouter, usePathname } from "next/navigation";
-// import { Loader2, Inbox } from "lucide-react";
-// import Pagination from "@/app/shared/components/helpers/Pagination";
-// import { AdminReturnRequest } from "@/app/features/admin/order-fulfillment/actions/payloadReturnAdminActions";
-// import ReturnFilters from "./ReturnFilters";
-// import ReturnList from "./ReturnList";
-
-// export default function ReturnsClientPage({ initialRequests, initialTotalPages }: { initialRequests: AdminReturnRequest[], initialTotalPages: number }) {
-//   const router = useRouter();
-//   const pathname = usePathname();
-//   const searchParams = useSearchParams();
-//   const [isPending, startTransition] = useTransition();
-
-//   const currentPage = Number(searchParams.get("page")) || 1;
-
-//   const handlePageChange = (page: number) => {
-//     const params = new URLSearchParams(searchParams.toString());
-//     params.set("page", page.toString());
-//     startTransition(() => router.push(`${pathname}?${params.toString()}`));
-//   };
-
-//   return (
-//     <div className="relative">
-//       {isPending && (
-//         <div className="absolute inset-0 bg-white/60 dark:bg-gray-900/60 flex justify-center items-center z-50 rounded-xl">
-//           <Loader2 className="animate-spin text-brand-primary" size={48} />
-//         </div>
-//       )}
-//       <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-xl shadow-md border dark:border-gray-700 space-y-6">
-//         <ReturnFilters />
-//         {initialRequests.length > 0 ? (
-//           <ReturnList requests={initialRequests} />
-//         ) : (
-//           <div className="text-center py-20 text-gray-400">
-//             <Inbox size={48} className="mx-auto mb-4 opacity-10" />
-//             <p className="font-bold tracking-tight">No return requests found.</p>
-//           </div>
-//         )}
-//       </div>
-//       {initialTotalPages > 1 && (
-//         <Pagination totalPages={initialTotalPages} currentPage={currentPage} onPageChange={handlePageChange} isPending={isPending} />
-//       )}
-//     </div>
-//   );
-// }
 "use client";
 
 import { useTransition } from "react";
 import { Loader2, Inbox } from "lucide-react";
-// ✅ UPDATED IMPORT
 import PaginationControls from "@/app/shared/components/ui/PaginationControls";
 import { AdminReturnRequest } from "@/app/features/admin/order-fulfillment/actions/payloadReturnAdminActions";
 import ReturnFilters from "./ReturnFilters";
 import ReturnList from "./ReturnList";
 
 export default function ReturnsClientPage({ initialRequests, initialTotalPages }: { initialRequests: AdminReturnRequest[], initialTotalPages: number }) {
-  const [isPending] = useTransition(); // Cleaned up router & params
+  const [isPending] = useTransition();
 
   return (
     <div className="relative">
+      {/* GLASSMORPHISM LOADING OVERLAY */}
       {isPending && (
-        <div className="absolute inset-0 bg-white/60 dark:bg-gray-900/60 flex justify-center items-center z-50 rounded-xl">
-          <Loader2 className="animate-spin text-brand-primary" size={48} />
+        <div className="absolute inset-0 bg-white/60 dark:bg-zinc-950/60 flex justify-center items-center z-50 rounded-2xl backdrop-blur-xs animate-in fade-in duration-200">
+          <Loader2 className="animate-spin text-brand-primary" size={40} />
         </div>
       )}
-      <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-xl shadow-md border dark:border-gray-700 space-y-6">
-        <ReturnFilters />
-        {initialRequests.length > 0 ? (
-          <ReturnList requests={initialRequests} />
-        ) : (
-          <div className="text-center py-20 text-gray-400">
-            <Inbox size={48} className="mx-auto mb-4 opacity-10" />
-            <p className="font-bold tracking-tight">No return requests found.</p>
+
+      <div className={`transition-opacity duration-200 ${isPending ? "opacity-40" : "opacity-100"}`}>
+        {/* MAIN HUD CONTAINER */}
+        <div className="bg-white dark:bg-zinc-950 p-4 sm:p-6 rounded-2xl shadow-xs border border-zinc-200 dark:border-zinc-800 space-y-6">
+          <ReturnFilters />
+          {initialRequests.length > 0 ? (
+            <ReturnList requests={initialRequests} />
+          ) : (
+            /* Dashed Empty State */
+            <div className="text-center py-20 border border-dashed border-zinc-200 dark:border-zinc-800 rounded-2xl bg-zinc-50/50 dark:bg-zinc-900/10">
+              <Inbox size={44} className="mx-auto mb-4 text-zinc-400 dark:text-zinc-600 stroke-[1.8px]" />
+              <p className="font-bold tracking-tight text-xs uppercase text-zinc-600 dark:text-zinc-400 font-mono">
+                No return requests found.
+              </p>
+              <p className="text-[11px] text-zinc-400 dark:text-zinc-500 mt-1">
+                Try adjusting your search criteria or return status filters.
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* CONSOLIDATED PAGINATION */}
+        {initialTotalPages > 1 && (
+          <div className="mt-4">
+            <PaginationControls totalPages={initialTotalPages} />
           </div>
         )}
       </div>
-      {initialTotalPages > 1 && (
-        // ✅ RESOLVED: Clean URL-driven pagination controls
-        <PaginationControls totalPages={initialTotalPages} />
-      )}
     </div>
   );
 }

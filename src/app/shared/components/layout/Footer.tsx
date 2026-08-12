@@ -1,3 +1,5 @@
+// 📂 src/app/shared/components/layout/MainFooter.tsx
+
 "use client";
 
 import Link from 'next/link';
@@ -19,7 +21,6 @@ export default function MainFooter({
 }) {
   const { storeContactEmail, storePhoneNumber, storeAddress, socialLinks } = settings;
 
-  // ✅ isMobile=null on SSR means treat as desktop
   const isMobileView = isMobile === null ? false : isMobile;
 
   const commonLinks = {
@@ -45,46 +46,49 @@ export default function MainFooter({
 
   return (
     <footer
-      className="bg-gray-900 dark:bg-black text-gray-300 border-t border-brand-primary/30"
+      className="bg-white dark:bg-gray-900 text-zinc-700 dark:text-gray-300 border-t border-zinc-200 dark:border-gray-800 transition-colors duration-300"
       role="contentinfo"
       aria-label="Site footer"
     >
-      <div className="max-w-480 mx-auto px-6 py-10 md:py-16">
-        {/* Main Grid: Mobile Accordion or Desktop Columns */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-10">
+      <div className="max-w-480 mx-auto px-6 py-12 md:py-16">
+        {/* Main Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 md:gap-10">
+          
           {/* --- Column 1: Brand Info & Socials (Always Open) --- */}
-          <div className="pb-6 border-b border-gray-700 dark:border-gray-800 md:pb-0 md:border-b-0">
-            <div className="flex items-center gap-2 mb-4">
-              <FiAward size={24} className="text-brand-primary" aria-hidden="true" />
-              <h3 className="font-extrabold text-white text-xl tracking-tight">PocketValue</h3>
+          <div className="pb-6 border-b border-zinc-200 dark:border-gray-800 md:pb-0 md:border-b-0 flex flex-col justify-between h-full min-w-0">
+            <div>
+              <div className="flex items-center gap-2.5 mb-4 select-none">
+                <FiAward size={22} className="text-brand-primary" aria-hidden="true" />
+                <h3 className="font-extrabold text-zinc-950 dark:text-white text-xl tracking-tight leading-none font-clash">PocketValue</h3>
+              </div>
+
+              <p className="text-sm leading-relaxed mb-6 font-sans font-semibold text-zinc-700 dark:text-gray-300">
+                Quality products, unbeatable prices, delivered to your doorstep.
+              </p>
+
+              {/* Contact Info */}
+              <ul className="space-y-3.5 mb-6">
+                {storeAddress && <ContactItem icon={FiMapPin} text={storeAddress} />}
+                {storePhoneNumber && (
+                  <ContactItem icon={FiPhone} href={`tel:${storePhoneNumber}`} text={storePhoneNumber} />
+                )}
+                {storeContactEmail && (
+                  <ContactItem icon={FiMail} href={`mailto:${storeContactEmail}`} text={storeContactEmail} />
+                )}
+              </ul>
             </div>
 
-            <p className="text-sm leading-relaxed mb-6">
-              Quality products, unbeatable prices, delivered to your doorstep.
-            </p>
-
-            {/* Contact Info */}
-            <ul className="space-y-3 mb-6">
-              {storeAddress && <ContactItem icon={FiMapPin} text={storeAddress} />}
-              {storePhoneNumber && (
-                <ContactItem icon={FiPhone} href={`tel:${storePhoneNumber}`} text={storePhoneNumber} />
-              )}
-              {storeContactEmail && (
-                <ContactItem icon={FiMail} href={`mailto:${storeContactEmail}`} text={storeContactEmail} />
-              )}
-            </ul>
-
-            {/* Social Icons with aria-label and aria-hidden */}
-            <div className="flex space-x-5 mt-4">
+            {/* Social Icons */}
+            <div className="flex space-x-3.5 mt-2">
               {socialLinks?.facebook && (
                 <a
                   href={socialLinks.facebook}
                   target="_blank"
                   rel="noopener noreferrer"
                   aria-label="Visit our Facebook page"
-                  className="text-gray-400 hover:text-brand-primary transition-colors"
+                  className="p-2.5 bg-zinc-200 dark:bg-gray-950 border border-zinc-300 dark:border-gray-800 text-zinc-700 dark:text-gray-300 hover:bg-brand-primary hover:text-white dark:hover:bg-brand-primary dark:hover:text-white rounded-xl shadow-2xs hover:shadow-md transition-all duration-300"
                 >
-                  <FiFacebook size={20} aria-hidden="true" />
+                  <FiFacebook size={18} aria-hidden="true" />
                 </a>
               )}
               {socialLinks?.twitter && (
@@ -93,9 +97,9 @@ export default function MainFooter({
                   target="_blank"
                   rel="noopener noreferrer"
                   aria-label="Visit our Twitter page"
-                  className="text-gray-400 hover:text-brand-primary transition-colors"
+                  className="p-2.5 bg-zinc-200 dark:bg-gray-950 border border-zinc-300 dark:border-gray-800 text-zinc-700 dark:text-gray-300 hover:bg-brand-primary hover:text-white dark:hover:bg-brand-primary dark:hover:text-white rounded-xl shadow-2xs hover:shadow-md transition-all duration-300"
                 >
-                  <FiTwitter size={20} aria-hidden="true" />
+                  <FiTwitter size={18} aria-hidden="true" />
                 </a>
               )}
               {socialLinks?.instagram && (
@@ -104,9 +108,9 @@ export default function MainFooter({
                   target="_blank"
                   rel="noopener noreferrer"
                   aria-label="Visit our Instagram page"
-                  className="text-gray-400 hover:text-brand-primary transition-colors"
+                  className="p-2.5 bg-zinc-200 dark:bg-gray-950 border border-zinc-300 dark:border-gray-800 text-zinc-700 dark:text-gray-300 hover:bg-brand-primary hover:text-white dark:hover:bg-brand-primary dark:hover:text-white rounded-xl shadow-2xs hover:shadow-md transition-all duration-300"
                 >
-                  <FiInstagram size={20} aria-hidden="true" />
+                  <FiInstagram size={18} aria-hidden="true" />
                 </a>
               )}
             </div>
@@ -118,7 +122,7 @@ export default function MainFooter({
               <li key={item.label}>
                 <Link
                   href={item.href}
-                  className="text-gray-300 hover:text-brand-primary transition-colors text-sm"
+                  className="text-zinc-700 dark:text-gray-300 hover:text-brand-primary dark:hover:text-brand-primary transition-colors text-sm font-semibold"
                 >
                   {item.label}
                 </Link>
@@ -132,9 +136,9 @@ export default function MainFooter({
               <li key={item.label}>
                 <Link
                   href={item.href}
-                  className="text-gray-300 hover:text-brand-primary transition-colors text-sm"
+                  className="text-zinc-700 dark:text-gray-300 hover:text-brand-primary dark:hover:text-brand-primary transition-colors text-sm font-semibold"
                 >
-                  {item.icon && <item.icon size={16} className="inline mr-2" aria-hidden="true" />}
+                  {item.icon && <item.icon size={14} className="inline mr-2 text-brand-primary" aria-hidden="true" />}
                   {item.label}
                 </Link>
               </li>
@@ -142,12 +146,13 @@ export default function MainFooter({
           </FooterColumn>
 
           {/* --- Column 4: Shop & More --- */}
+          {/* ✅ REACT KEY WARNING FIX: Wrapped items in <li> with unique key */}
           <FooterColumn title="Shop & More" isMobile={isMobileView}>
             {commonLinks['Shop & More'].map((item) => (
               <li key={item.label}>
                 <Link
                   href={item.href}
-                  className="text-gray-300 hover:text-brand-primary transition-colors text-sm"
+                  className="text-zinc-700 dark:text-gray-300 hover:text-brand-primary dark:hover:text-brand-primary transition-colors text-sm font-semibold"
                 >
                   {item.label}
                 </Link>
@@ -157,11 +162,10 @@ export default function MainFooter({
         </div>
 
         {/* Bottom Bar (Copyright & Payments) */}
-        <div className="mt-10 md:mt-16 border-t border-gray-700 pt-6 text-center text-sm">
-          <p>&copy; {new Date().getFullYear()} PocketValue. All Rights Reserved.</p>
-          <div className="flex justify-center space-x-2 mt-2" aria-label="Accepted payment methods">
-            {/* ✅ contrast fix: text-gray-500 to text-gray-400 */}
-            <span className="text-xs text-gray-400">Secured by VISA | MASTER | COD</span>
+        <div className="mt-12 md:mt-16 border-t border-zinc-200 dark:border-gray-800 pt-6 text-center text-[10px] font-mono font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-500">
+          <p className="select-none">&copy; {new Date().getFullYear()} PocketValue. All Rights Reserved.</p>
+          <div className="flex justify-center space-x-2 mt-2 select-none" aria-label="Accepted payment methods">
+            <span className="text-[9px] text-zinc-500 dark:text-zinc-500">Secured by VISA | MASTER | CASH ON DELIVERY</span>
           </div>
         </div>
       </div>

@@ -1,5 +1,4 @@
-
-// /src/email_templates/returnRequestReceivedEmail.ts
+// 📂 src/email_templates/returnRequestReceivedEmail.ts
 
 import { createMasterEmailLayout } from "./masterLayout";
 
@@ -26,20 +25,22 @@ export function createReturnRequestReceivedEmail({
 
   const bodyHtml = `
     <div style="margin-bottom: 25px;">
-        <p style="font-size: 16px; color: #4B5563;">Hi <strong>${customerName}</strong>,</p>
-        <p style="font-size: 15px; color: #4B5563; line-height: 1.6;">
+        <p style="font-size: 16px; color: #4B5563;" class="dark-text">Hi <strong>${customerName}</strong>,</p>
+        <p style="font-size: 15px; color: #4B5563; line-height: 1.6;" class="dark-text">
             We have successfully received your return request for items from order <strong>#${orderNumber}</strong>. 
             Our quality assurance team will review the details and get back to you shortly.
         </p>
     </div>
     
-    <div style="background-color: #F0F9FF; padding: 20px; border-radius: 12px; border: 1px solid #BAE6FD; margin-bottom: 30px; text-align: center;">
-        <p style="font-size: 12px; color: #0369A1; margin: 0; text-transform: uppercase; letter-spacing: 1px; font-bold">Your Return Ticket ID</p>
-        <p style="font-size: 24px; color: #0C4A6E; font-weight: 900; margin: 5px 0 0; font-family: monospace;">#${ticketId}</p>
+    <!-- ✅ DARK MODE SUPPORTED TICKET ID BOX -->
+    <div style="background-color: #F0F9FF; padding: 20px; border-radius: 12px; border: 1px solid #BAE6FD; margin-bottom: 30px; text-align: center;" class="dark-card dark-border">
+        <p style="font-size: 11px; color: #0369A1; margin: 0; text-transform: uppercase; letter-spacing: 1px; font-weight: bold;" class="dark-subtext">Your Return Ticket ID</p>
+        <p style="font-size: 24px; color: #0C4A6E; font-weight: 900; margin: 5px 0 0; font-family: monospace;" class="dark-text">#${ticketId}</p>
     </div>
 
-    <div style="margin-bottom: 30px; border-left: 4px solid #F97316; padding-left: 15px;">
-        <p style="font-size: 14px; color: #4B5563; line-height: 1.5;">
+    <!-- ✅ ACCENT SYNC: Updated left border accent line to exact brand warm orange (#FF8F32) -->
+    <div style="margin-bottom: 30px; border-left: 4px solid #FF8F32; padding-left: 15px;">
+        <p style="font-size: 14px; color: #4B5563; line-height: 1.55;" class="dark-text">
             <strong>What's Next?</strong><br>
             1. Our team will verify the reason for return.<br>
             2. You will receive an email once the request is Approved or Rejected.<br>
@@ -48,12 +49,12 @@ export function createReturnRequestReceivedEmail({
     </div>
 
     <div style="text-align: center;">
-        <a href="${process.env.NEXT_PUBLIC_BASE_URL}/account/returns" style="display: inline-block; background-color: #1F2937; color: #ffffff; padding: 14px 25px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 14px; text-transform: uppercase; letter-spacing: 1px;">
+        <a href="${process.env.NEXT_PUBLIC_BASE_URL}/account/returns" style="display: inline-block; background-color: #1F2937; color: #ffffff; padding: 14px 25px; text-decoration: none; border-radius: 10px; font-weight: bold; font-size: 13px; text-transform: uppercase; letter-spacing: 1px;" class="dark-bg dark-text">
             View Returns History
         </a>
     </div>
 
-    <p style="font-size: 13px; color: #9CA3AF; margin-top: 30px; text-align: center;">
+    <p style="font-size: 13px; color: #9CA3AF; margin-top: 30px; text-align: center;" class="dark-subtext">
         Thank you for choosing PocketValue. We appreciate your patience.
     </p>
   `;

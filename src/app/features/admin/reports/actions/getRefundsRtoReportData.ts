@@ -1,4 +1,4 @@
-// 📂 src/app/features/admin/reports/actions/getRefundsRtoReportData.ts (FULLY SNAPSHOT-ALIGNED & NULL-SAFE)
+// 📂 src/app/features/admin/reports/actions/getRefundsRtoReportData.ts (FULLY RECONCILED & 31-DAY DAILY HARDENED)
 
 "use server";
 
@@ -39,7 +39,7 @@ export interface RefundsRtoReportResponse {
 }
 
 // ================================================================
-// 🔧 HELPERS
+// 🔧 HELPERS (PKT Timezone Aware Grouping — 31 Days Daily Threshold)
 // ================================================================
 function getDateGrouping(startDate: Date, endDate: Date): {
   format: string;
@@ -57,7 +57,7 @@ function getDateGrouping(startDate: Date, endDate: Date): {
         hour: { $hour: "$createdAt" },
       },
     };
-  } else if (diffDays <= 7) {
+  } else if (diffDays <= 31) { // ✅ FIX 1: Up to 31 days renders daily rows (e.g. 1 Aug, 2 Aug, 3 Aug)
     return {
       format: "yyyy-MM-dd",
       groupBy: {
@@ -78,14 +78,14 @@ function getDateGrouping(startDate: Date, endDate: Date): {
 }
 
 // ================================================================
-// 🚀 MAIN REPORT SERVER ACTION (100% Snapshot Driven)
+// 🚀 MAIN REPORT SERVER ACTION (100% Direct Database Reads)
 // ================================================================
 export async function getRefundsRtoReportData(
   range: { startDate: Date; endDate: Date }
 ): Promise<{ success: boolean; data?: RefundsRtoReportResponse; error?: string }> {
   const fromStr = format(new Date(range.startDate), "yyyy-MM-dd");
   const toStr = format(new Date(range.endDate), "yyyy-MM-dd");
-  const cacheKey = `analytics_refunds_rto_v5_${fromStr}_${toStr}`;
+  const cacheKey = `analytics_refunds_rto_v6_${fromStr}_${toStr}`;
 
   try {
     await verifyStaff(["admin", "manager", "finance"]);
@@ -125,7 +125,7 @@ export async function getRefundsRtoReportData(
       { $unwind: { path: "$orderData", preserveNullAndEmptyArrays: true } },
       { $unwind: "$items" },
       { $unwind: { path: "$orderData.products", preserveNullAndEmptyArrays: true } },
-      // ✅ CRITICAL FIX: Safe properties checking prevents evaluation exceptions on orphaned docs
+      // Safe properties checking prevents evaluation exceptions on orphaned docs
       {
         $match: {
           $expr: {
@@ -175,7 +175,7 @@ export async function getRefundsRtoReportData(
     ]);
 
     // ================================================================
-    // B. FETCH RTO ORDERS (100% Snapshot Driven)
+    // B. FETCH RTO ORDERS (100% Pure Direct DB Reads)
     // ================================================================
     const rtoAggregation = await Order.aggregate([
       {
@@ -189,13 +189,10 @@ export async function getRefundsRtoReportData(
           _id: grouping.groupBy,
           rtoOrders: { $sum: 1 },
           rtoLoss: { $sum: { $multiply: ["$shippingCost", 2] } }, // RTO Shipping Penalty
+          // ✅ FIX 2: Direct order-level first elem array read prevents multi-product duplicate average rate error!
           avgRtoRate: {
             $avg: {
-              $reduce: {
-                input: "$products",
-                initialValue: 0,
-                in: { $add: ["$$value", { $ifNull: ["$$this.appliedRtoRate", 0] }] }
-              }
+              $ifNull: [{ $arrayElemAt: ["$products.appliedRtoRate", 0] }, 0]
             }
           }
         },

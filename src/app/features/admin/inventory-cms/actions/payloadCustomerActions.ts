@@ -1,4 +1,4 @@
-// 📂 src/app/features/admin/loyalty-intelligence/actions/usersActions.ts
+// 📂 src/app/features/admin/loyalty-intelligence/actions/usersActions.tsOR  payloadCustomerActions.ts(FULLY HARDENED & REDOS SECURED)
 
 "use server";
 
@@ -11,8 +11,9 @@ import { redis } from "@/app/shared/lib/telemetry/rate-limiter";
 import { verifyStaff } from "@/lib/payloadAuth";
 import { getSafePayload } from "@/app/shared/lib/payloadInstance";
 
-// ✅ SAFE SERIALIZE UTILITIES
-import { safeStringify, safeParse } from "@/app/shared/lib/utils/safeSerialize";
+// ✅ SINGLE SOURCE OF TRUTH & SAFE SERIALIZE
+import { REVENUE_STATUSES } from "@/app/shared/constants/analytics";
+import { safeParse, safeStringify } from "@/app/shared/lib/utils/safeSerialize";
 
 // --- TYPES (DTOs for Frontend Compatibility) ---
 export interface AdminUser {
@@ -52,7 +53,7 @@ async function invalidateUserCache(userId: string): Promise<void> {
 }
 
 // ================================================================
-// 📋 1. GET PAGINATED CUSTOMERS
+// 📋 1. GET PAGINATED CUSTOMERS (ReDoS Protected)
 // ================================================================
 export async function getPaginatedUsersPayload({
   page = 1,
@@ -64,7 +65,7 @@ export async function getPaginatedUsersPayload({
   try {
     await verifyStaff(["admin", "manager", "editor"]);
 
-    // 1. CACHE CHECK (using safeParse)
+    // 1. Cache Check
     const cachedData = await redis.get(cacheKey);
     const parsed = safeParse<any>(cachedData as string | null);
     if (parsed) {
@@ -77,7 +78,10 @@ export async function getPaginatedUsersPayload({
 
     const matchQuery: any = {};
     if (searchTerm) {
-      const searchRegex = new RegExp(searchTerm, "i");
+      // ✅ FIX: Escape special regex characters to prevent SyntaxError ReDoS crashes/hangs
+      const escapedSearch = searchTerm.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const searchRegex = new RegExp(escapedSearch, "i");
+      
       matchQuery.$or = [
         { name: searchRegex },
         { email: searchRegex },
@@ -96,9 +100,14 @@ export async function getPaginatedUsersPayload({
 
     const userIds = usersFromDb.map((u: any) => u._id.toString());
 
-    // Aggregate order counts in one go
+    // Match only valid sales orders in REVENUE_STATUSES (Excludes Cancelled/Rejected)
     const orderCounts = await Order.aggregate([
-      { $match: { userId: { $in: userIds } } },
+      {
+        $match: {
+          userId: { $in: userIds },
+          status: { $in: REVENUE_STATUSES }
+        }
+      },
       { $group: { _id: "$userId", count: { $sum: 1 } } },
     ]);
 
@@ -117,11 +126,11 @@ export async function getPaginatedUsersPayload({
 
     const finalPayload = {
       users,
-      totalPages: Math.ceil(totalUsers / limit),
+      totalPages: Math.ceil(totalUsers / limit) || 1,
       totalDocs: totalUsers,
     };
 
-    // 2. WRITE CACHE: 5 Minutes TTL (using safeStringify)
+    // Cache write (5 min TTL)
     await redis.set(cacheKey, safeStringify(finalPayload), { ex: 300 });
 
     return finalPayload;
@@ -132,7 +141,7 @@ export async function getPaginatedUsersPayload({
 }
 
 // ================================================================
-// 👤 2. GET SINGLE CUSTOMER DETAILS (WITH LOYALTY METRICS)
+// 👤 2. GET SINGLE CUSTOMER DETAILS (Whitelisted CRM Stats)
 // ================================================================
 export async function getSingleUserPayload(userId: string) {
   const cacheKey = `user_profile:${userId}`;
@@ -142,7 +151,7 @@ export async function getSingleUserPayload(userId: string) {
 
     if (!Types.ObjectId.isValid(userId)) return null;
 
-    // 1. CACHE CHECK (using safeParse)
+    // 1. Cache Check
     const cachedData = await redis.get(cacheKey);
     const parsed = safeParse<any>(cachedData as string | null);
     if (parsed) {
@@ -152,16 +161,20 @@ export async function getSingleUserPayload(userId: string) {
 
     await connectMongoose();
 
-    // 2. FETCH USER (with Referrer population)
     const user = await User.findById(userId)
       .populate("referredBy", "name email")
       .lean<PlainUser>();
 
     if (!user) return null;
 
-    // 3. FETCH ORDER STATS (Total Spend & Count)
+    // Calculate Lifetime Spend & Order Count strictly from REVENUE_STATUSES orders
     const orderStats = await Order.aggregate([
-      { $match: { userId: userId } },
+      {
+        $match: {
+          userId: userId,
+          status: { $in: REVENUE_STATUSES }
+        }
+      },
       {
         $group: {
           _id: "$userId",
@@ -173,7 +186,7 @@ export async function getSingleUserPayload(userId: string) {
 
     const statsResult = orderStats[0] || {};
 
-    // 4. FETCH RECENT ORDERS (Last 5)
+    // Fetch recent orders 
     const recentOrders = await Order.find({ userId: userId })
       .sort({ createdAt: -1 })
       .limit(5)
@@ -183,7 +196,7 @@ export async function getSingleUserPayload(userId: string) {
     // 🚀 LOYALTY PORTAL METRICS (DYNAMIC CALCULATION)
     // ================================================================
 
-    // 4a. Referral Stats (MongoDB Cluster A)
+    // 4a. Referral Stats
     const [totalSignups, conversions] = await Promise.all([
       Referral.countDocuments({ referrerId: userId }),
       Referral.countDocuments({
@@ -192,7 +205,7 @@ export async function getSingleUserPayload(userId: string) {
       }),
     ]);
 
-    // 4b. Assigned Coupons Count (Payload Cluster B) with Graceful Fallback
+    // 4b. Assigned Coupons Count 
     let assignedCouponsCount = 0;
     try {
       const payload = await getSafePayload();
@@ -202,7 +215,7 @@ export async function getSingleUserPayload(userId: string) {
           boundUserId: { equals: userId },
           isActive: { equals: true },
         },
-        limit: 1, // We only need the count
+        limit: 1,
       });
       assignedCouponsCount = couponResult.totalDocs || 0;
     } catch (payloadError) {
@@ -212,7 +225,7 @@ export async function getSingleUserPayload(userId: string) {
       );
     }
 
-    // ✅ 4c. FETCH REAL-TIME CLICKS FROM REDIS (Admin-Profile Sync Fix)
+    // 4c. Fetch Real-time clicks from Redis
     let referralClicks = 0;
     if (user.referralCode) {
       try {
@@ -229,7 +242,7 @@ export async function getSingleUserPayload(userId: string) {
       referralClicks = user.referralClicks || 0;
     }
 
-    // 5. BUILD RESULT
+    // 5. Build Result
     const userDetailResult = {
       user: {
         _id: user._id.toString(),
@@ -252,7 +265,7 @@ export async function getSingleUserPayload(userId: string) {
           : null,
       },
       stats: {
-        totalSpend: statsResult.totalSpend || 0,
+        totalSpend: Math.round(statsResult.totalSpend || 0), 
         totalOrders: statsResult.totalOrders || 0,
         referralClicks,
         totalSignups,
@@ -267,7 +280,7 @@ export async function getSingleUserPayload(userId: string) {
       })),
     };
 
-    // 6. WRITE CACHE: 5 Minutes TTL (using safeStringify)
+    // Cache write (5 min TTL)
     await redis.set(cacheKey, safeStringify(userDetailResult), { ex: 300 });
 
     return userDetailResult;

@@ -1,78 +1,13 @@
-// "use client";
+// 📂 src/app/features/admin/inventory-cms/components/payload-products/ProductsClientPage.tsx (CYBER-HUD HARDENED)
 
-// import { useTransition } from "react";
-// import { useRouter, usePathname, useSearchParams } from "next/navigation";
-// import { Loader2, PackageSearch } from "lucide-react";
-// import Pagination from "@/app/shared/components/helpers/Pagination";
-// import ProductSearchFilter from "./ProductSearchFilter";
-// import ProductsTable, { AdminProductListItem } from "./ProductsTable";
-// import ProductsMobileList from "./ProductsMobileList";
-
-// export default function ProductsClientPage({
-//   initialProducts,
-//   initialTotalPages,
-// }: {
-//   initialProducts: AdminProductListItem[];
-//   initialTotalPages: number;
-// }) {
-//   const router = useRouter();
-//   const pathname = usePathname();
-//   const searchParams = useSearchParams();
-//   const [isPending, startTransition] = useTransition();
-
-//   const currentPage = Number(searchParams.get("page")) || 1;
-
-//   const handlePageChange = (page: number) => {
-//     const params = new URLSearchParams(searchParams.toString());
-//     params.set("page", page.toString());
-//     startTransition(() => {
-//       // ✅ FIX: Stays in Explorer
-//       router.push(`${pathname}?${params.toString()}`);
-//     });
-//   };
-
-//   return (
-//     <div className="relative">
-//       {isPending && (
-//         <div className="absolute inset-0 bg-white/60 dark:bg-gray-900/60 flex justify-center items-center z-50 rounded-xl">
-//           <Loader2 className="animate-spin text-brand-primary" size={48} />
-//         </div>
-//       )}
-//       <div className="space-y-6">
-//         <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-xl shadow-md border dark:border-gray-700 space-y-6">
-//           <ProductSearchFilter />
-//           {initialProducts.length > 0 ? (
-//             <>
-//               <ProductsTable products={initialProducts} />
-//               <ProductsMobileList products={initialProducts} />
-//             </>
-//           ) : (
-//             <div className="text-center py-20 text-gray-500">
-//               <PackageSearch size={48} className="mx-auto opacity-20 mb-4" />
-//               <p className="font-bold">No products or variants found.</p>
-//             </div>
-//           )}
-//         </div>
-//         {initialTotalPages > 1 && (
-//           <Pagination
-//             totalPages={initialTotalPages}
-//             currentPage={currentPage}
-//             onPageChange={handlePageChange}
-//             isPending={isPending}
-//           />
-//         )}
-//       </div>
-//     </div>
-//   );
-// }
 "use client";
 
 import { useTransition } from "react";
 import { Loader2, PackageSearch } from "lucide-react";
-// ✅ UPDATED IMPORT
+import { AdminProductListItem } from "./ProductsTable";
 import PaginationControls from "@/app/shared/components/ui/PaginationControls";
 import ProductSearchFilter from "./ProductSearchFilter";
-import ProductsTable, { AdminProductListItem } from "./ProductsTable";
+import ProductsTable from "./ProductsTable";
 import ProductsMobileList from "./ProductsMobileList";
 
 export default function ProductsClientPage({
@@ -82,33 +17,52 @@ export default function ProductsClientPage({
   initialProducts: AdminProductListItem[];
   initialTotalPages: number;
 }) {
-  const [isPending] = useTransition(); // Cleaned up router boilerplate
+  const [isPending] = useTransition();
 
   return (
     <div className="relative">
+      {/* GLASSMORPHISM LOADING OVERLAY */}
       {isPending && (
-        <div className="absolute inset-0 bg-white/60 dark:bg-gray-900/60 flex justify-center items-center z-50 rounded-xl">
-          <Loader2 className="animate-spin text-brand-primary" size={48} />
+        <div className="absolute inset-0 bg-white/60 dark:bg-zinc-950/60 flex justify-center items-center z-20 rounded-2xl backdrop-blur-xs animate-in fade-in duration-200">
+          <Loader2 className="animate-spin text-brand-primary" size={40} />
         </div>
       )}
-      <div className="space-y-6">
-        <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-xl shadow-md border dark:border-gray-700 space-y-6">
+
+      <div className={`transition-opacity duration-200 ${isPending ? "opacity-40" : "opacity-100"}`}>
+        {/* MAIN HUD CONTAINER */}
+        <div className="bg-white dark:bg-zinc-950 p-4 sm:p-6 rounded-2xl shadow-xs border border-zinc-200 dark:border-zinc-800 space-y-6">
           <ProductSearchFilter />
           {initialProducts.length > 0 ? (
             <>
-              <ProductsTable products={initialProducts} />
-              <ProductsMobileList products={initialProducts} />
+              {/* Desktop Table View */}
+              <div className="hidden md:block">
+                <ProductsTable products={initialProducts} />
+              </div>
+
+              {/* Mobile Card List View */}
+              <div className="block md:hidden">
+                <ProductsMobileList products={initialProducts} />
+              </div>
             </>
           ) : (
-            <div className="text-center py-20 text-gray-500">
-              <PackageSearch size={48} className="mx-auto opacity-20 mb-4" />
-              <p className="font-bold">No products or variants found.</p>
+            /* Dashed Empty State */
+            <div className="text-center py-20 border border-dashed border-zinc-200 dark:border-zinc-800 rounded-2xl bg-zinc-50/50 dark:bg-zinc-900/10">
+              <PackageSearch size={44} className="mx-auto mb-4 text-zinc-400 dark:text-zinc-600 stroke-[1.8px]" />
+              <p className="font-bold text-xs uppercase tracking-wider text-zinc-600 dark:text-zinc-400 font-mono">
+                No products or variants found.
+              </p>
+              <p className="text-[11px] text-zinc-400 dark:text-zinc-500 mt-1">
+                Try adjusting your search criteria or filter parameters.
+              </p>
             </div>
           )}
         </div>
+
+        {/* CONSOLIDATED PAGINATION */}
         {initialTotalPages > 1 && (
-          // ✅ RESOLVED: Replaced with PaginationControls
-          <PaginationControls totalPages={initialTotalPages} />
+          <div className="mt-4">
+            <PaginationControls totalPages={initialTotalPages} />
+          </div>
         )}
       </div>
     </div>

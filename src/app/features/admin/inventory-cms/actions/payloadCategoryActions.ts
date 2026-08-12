@@ -1,16 +1,36 @@
-// src/app/features/admin/inventory-cms/actions/payloadCategoryActions.ts
+// 📂 src/app/features/admin/inventory-cms/actions/payloadCategoryActions.ts (FULLY HARDENED & SSRF-SAFE)
 
 "use server";
 
 import { revalidatePath } from "next/cache";
 import { getSafePayload } from "@/app/shared/lib/payloadInstance";
 import { getCachedSettings } from "@/app/shared/lib/cache/settings";
-import { CategoryCsvRowSchema } from "@/app/shared/lib/zodSchemas"; // Category CSV schema
+import { CategoryCsvRowSchema } from "@/app/shared/lib/zodSchemas"; 
 import { ZodError } from "zod"; 
 import { verifyStaff } from "@/lib/payloadAuth";
 
 // ============================================================================
-// SELF-CONTAINED HELPER: DOWNLOADS AND UPLOADS BUFFER TO PAYLOAD
+// 🛡️ SSRF SHIELD: Image URL Validator
+// ============================================================================
+function isValidImageUrl(urlStr: string): boolean {
+  try {
+    const parsed = new URL(urlStr);
+    // Block loopback and local network hostnames
+    if (parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1' || parsed.hostname === '0.0.0.0') {
+      return false;
+    }
+    // Enforce secure HTTPS protocol only
+    if (parsed.protocol !== 'https:') {
+      return false; 
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// ============================================================================
+// HELPER: DOWNLOADS AND UPLOADS BUFFER TO PAYLOAD (SSRF SHIELDED)
 // ============================================================================
 export async function uploadImageToPayload(
   url: string,
@@ -18,6 +38,12 @@ export async function uploadImageToPayload(
   payload: any,
 ): Promise<string | null> {
   if (!url || !url.startsWith("http")) return null;
+
+  // 🛡️ SSRF Security Guardrail Check
+  if (!isValidImageUrl(url)) {
+    console.warn(`🚨 [SSRF Security Block] Blocked loopback or insecure URL fetch: ${url}`);
+    return null;
+  }
 
   try {
     const controller = new AbortController();
@@ -66,8 +92,13 @@ export async function batchCreateCategoriesPayload(categoriesData: any[]) {
   // 🛡️ SECURITY LOCK: Only Admin and Manager can perform bulk category imports
   await verifyStaff(["admin", "manager"]);
     
-  // ✅ 1. Fetch settings to determine CDN Mode
-  const settings = await getCachedSettings();
+  // 1. Fetch settings to determine CDN Mode
+  let settings: any = {};
+  try {
+    settings = await getCachedSettings();
+  } catch (e) {
+    settings = {};
+  }
   const cdnMode = settings?.cdnMode ?? true; // Default: ON
 
   const payload = await getSafePayload();
@@ -77,7 +108,7 @@ export async function batchCreateCategoriesPayload(categoriesData: any[]) {
 
   // Fetch all existing categories once to optimize relationship linking
   const existingCategoriesResult = await payload.find({ collection: "categories", limit: 1000, depth: 0 });
-  const cachedCategories = existingCategoriesResult.docs; // Array of Payload category documents
+  const cachedCategories = existingCategoriesResult.docs; 
 
   // Step 1: Validate and process category data from CSV
   const processedCategoryData: {
@@ -85,14 +116,12 @@ export async function batchCreateCategoriesPayload(categoriesData: any[]) {
     slug: string;
     parent_slug?: string;
     image_url?: string;
-    tempId: string; // Temporary ID for internal linking before Payload IDs are assigned
+    tempId: string; 
   }[] = [];
 
-  // Typecasted 'row' and 'index' parameters explicitly to prevent TS-7006 errors
   categoriesData.forEach((row: any, index: number) => {
     try {
       const validated = CategoryCsvRowSchema.parse(row);
-      // Generate a temporary unique ID for internal mapping during the process
       processedCategoryData.push({ ...validated, tempId: `temp-${index}-${validated.slug}` });
     } catch (error: any) {
       failedCount++;
@@ -108,17 +137,16 @@ export async function batchCreateCategoriesPayload(categoriesData: any[]) {
     return { success: false, successful: 0, failed: failedCount, errors: errors.length > 0 ? errors : ["No valid categories to import."] };
   }
 
-  // --- Phase 1: Create Categories (without parents initially) and handle images ---
+  // --- Phase 1: Create Categories (without parents initially) ---
   const categoriesProcessedInThisBatch: {
     id: string; // Payload's actual ID
     name: string;
     slug: string;
     parent_slug?: string;
-    tempId: string; // Original temporary ID from processedCategoryData
+    tempId: string; 
   }[] = [];
 
   for (const catData of processedCategoryData) {
-    // Check if category already exists by slug to prevent duplicates (Typecasted iterator 'c')
     const existingCategory = cachedCategories.find((c: any) => c.slug === catData.slug);
         
     if (existingCategory) {
@@ -131,9 +159,8 @@ export async function batchCreateCategoriesPayload(categoriesData: any[]) {
       let mediaId: string | undefined = undefined;
 
       if (catData.image_url) {
-        // ✅ ENTERPRISE UPGRADE: CDN Mode aware image saving for categories import
         if (cdnMode) {
-          // 🚀 CDN Mode ON — Create Media document directly with raw URL, bypassing heavy binary fetch calls
+          // 🚀 CDN Mode ON — Create Media document directly with raw URL
           const mediaDoc = await payload.create({
             collection: "media",
             data: {
@@ -143,7 +170,7 @@ export async function batchCreateCategoriesPayload(categoriesData: any[]) {
           });
           mediaId = mediaDoc.id;
         } else {
-          // 📸 CDN Mode OFF — Fetch and upload file physically to Media collection
+          // 📸 CDN Mode OFF — Fetch and upload file physically (SSRF Guarded)
           const uploadedMediaId = await uploadImageToPayload(catData.image_url, catData.slug, payload);
           if (uploadedMediaId) {
             mediaId = uploadedMediaId;
@@ -163,7 +190,6 @@ export async function batchCreateCategoriesPayload(categoriesData: any[]) {
         }
       });
             
-      // Add to temporary list and cache for subsequent relationships
       categoriesProcessedInThisBatch.push({ ...newCategory, tempId: catData.tempId, parent_slug: catData.parent_slug });
       cachedCategories.push(newCategory); 
       successfulCount++;
@@ -179,7 +205,6 @@ export async function batchCreateCategoriesPayload(categoriesData: any[]) {
   let parentsLinkedCount = 0;
   for (const cat of categoriesProcessedInThisBatch) {
     if (cat.parent_slug) {
-      // Find parent from combined list (Typecasted iterator 'c')
       const parentCat = cachedCategories.find((c: any) => c.slug === cat.parent_slug);
       if (parentCat) {
         try {

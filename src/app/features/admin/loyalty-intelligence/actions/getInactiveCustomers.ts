@@ -1,4 +1,4 @@
-// 📂 src/app/features/admin/loyalty-intelligence/actions/getInactiveCustomers.ts (STATUS WHITELIST HARDENED)
+// 📂 src/app/features/admin/loyalty-intelligence/actions/getInactiveCustomers.ts
 
 "use server";
 
@@ -7,14 +7,18 @@ import User from "@/models/User";
 import { redis } from "@/app/shared/lib/telemetry/rate-limiter";
 import { verifyStaff } from "@/lib/payloadAuth";
 import { getCachedSettings } from "@/app/shared/lib/cache/settings";
-import { subDays } from "date-fns";
 
-// ✅ SINGLE SOURCE OF TRUTH & SAFE SERIALIZE
-import { REVENUE_STATUSES } from "@/app/shared/constants/analytics";
+// ✅ SAFE SERIALIZE UTILITIES
 import { safeStringify, safeParse } from "@/app/shared/lib/utils/safeSerialize";
 
+// ✅ CENTRAL SHARED ENGINE
+import {
+  buildInactiveCustomersMatrix,
+  UnifiedInactiveCustomer,
+} from "@/app/features/admin/shared/engines/customerLtvEngine";
+
 // ================================================================
-// ✅ TYPES
+// ✅ TYPES (100% Preserved for Loyalty UI)
 // ================================================================
 export interface InactiveCustomer {
   _id: string;
@@ -44,19 +48,7 @@ export interface PaginatedInactiveCustomersResult {
 }
 
 // ================================================================
-// 🔧 HELPERS
-// ================================================================
-function getSegment(
-  totalSpend: number,
-  highValueThreshold: number
-): "high-value" | "medium-value" | "low-value" {
-  if (totalSpend >= highValueThreshold) return "high-value";
-  if (totalSpend >= Math.ceil(highValueThreshold / 4)) return "medium-value";
-  return "low-value";
-}
-
-// ================================================================
-// 🚀 MAIN ACTION — Status Whitelisted
+// 🚀 MAIN ACTION — Delegated to Central Engine
 // ================================================================
 export async function getInactiveCustomers({
   page = 1,
@@ -82,7 +74,7 @@ export async function getInactiveCustomers({
     const inactiveDays = settings?.inactiveDaysThreshold || 60;
     const highValueThreshold = settings?.highValueInactiveThreshold || 5000;
 
-    const cacheKey = `analytics_inactive_customers_v3:page_${page}:limit_${limit}:segment_${segment}:search_${searchTerm || "none"}`;
+    const cacheKey = `analytics_inactive_customers_v4:page_${page}:limit_${limit}:segment_${segment}:search_${searchTerm || "none"}`;
 
     // 1. CACHE CHECK
     try {
@@ -96,200 +88,39 @@ export async function getInactiveCustomers({
       console.warn("⚠️ Inactive Customers cache read failed:", cacheError);
     }
 
-    await connectMongoose();
+    // 2. Delegate Calculation to Central Shared Engine
+    const engineResult = await buildInactiveCustomersMatrix({
+      page,
+      limit,
+      segment,
+      searchTerm,
+      inactiveDays,
+      highValueThreshold,
+    });
 
-    const cutoffDate = subDays(new Date(), inactiveDays);
-    const skip = (page - 1) * limit;
-
-    // 2. Build Aggregation Pipeline
-    const pipeline: any[] = [
-      // Match only customer roles
-      { $match: { role: "customer" } },
-
-      // Convert _id to string BEFORE $lookup so Order.userId matches 100%
-      {
-        $addFields: {
-          userIdStr: { $toString: "$_id" },
-        },
-      },
-
-      // ✅ CRITICAL FIX: Lookup ONLY orders in REVENUE_STATUSES (Excludes Cancelled/Rejected)
-      {
-        $lookup: {
-          from: "orders",
-          let: { uId: "$userIdStr" },
-          pipeline: [
-            {
-              $match: {
-                $expr: { $eq: ["$userId", "$$uId"] },
-                status: { $in: REVENUE_STATUSES },
-              },
-            },
-          ],
-          as: "orders",
-        },
-      },
-
-      // Calculate order stats purely from valid sales orders
-      {
-        $addFields: {
-          totalSpend: { $sum: "$orders.totalPrice" },
-          orderCount: { $size: "$orders" },
-          lastOrderDate: { $max: "$orders.createdAt" },
-        },
-      },
-
-      // Filter: has at least one valid sales order AND last valid purchase < cutoff
-      {
-        $match: {
-          orderCount: { $gt: 0 },
-          lastOrderDate: { $lt: cutoffDate },
-        },
-      },
-
-      // Calculate days since last valid order
-      {
-        $addFields: {
-          daysSinceLastOrder: {
-            $ceil: {
-              $divide: [
-                { $subtract: [new Date(), "$lastOrderDate"] },
-                1000 * 60 * 60 * 24,
-              ],
-            },
-          },
-        },
-      },
-    ];
-
-    // Apply segment filter
-    if (segment !== "all") {
-      const minSpend =
-        segment === "high-value"
-          ? highValueThreshold
-          : segment === "medium-value"
-          ? Math.ceil(highValueThreshold / 4)
-          : 0;
-      const maxSpend =
-        segment === "high-value"
-          ? Infinity
-          : segment === "medium-value"
-          ? highValueThreshold - 1
-          : Math.ceil(highValueThreshold / 4) - 1;
-
-      pipeline.push({
-        $match: {
-          totalSpend: { $gte: minSpend, $lte: maxSpend },
-        },
-      });
-    }
-
-    // Apply search term
-    if (searchTerm) {
-      const searchRegex = new RegExp(searchTerm.trim(), "i");
-      pipeline.push({
-        $match: {
-          $or: [
-            { name: searchRegex },
-            { email: searchRegex },
-            { phone: searchRegex },
-          ],
-        },
-      });
-    }
-
-    // 3. Pagination & Aggregations
-    const [totalResult, customersData, summaryStats] = await Promise.all([
-      User.aggregate([...pipeline, { $count: "total" }]),
-      User.aggregate([
-        ...pipeline,
-        { $sort: { totalSpend: -1, daysSinceLastOrder: -1 } },
-        { $skip: skip },
-        { $limit: limit },
-        {
-          $project: {
-            _id: 1,
-            name: 1,
-            email: 1,
-            phone: 1,
-            image: 1,
-            totalSpend: 1,
-            orderCount: 1,
-            lastOrderDate: 1,
-            createdAt: 1,
-            daysSinceLastOrder: 1,
-            reactivationEmailCount: 1,
-          },
-        },
-      ]),
-      User.aggregate([
-        ...pipeline,
-        {
-          $group: {
-            _id: null,
-            highValue: {
-              $sum: { $cond: [{ $gte: ["$totalSpend", highValueThreshold] }, 1, 0] },
-            },
-            mediumValue: {
-              $sum: {
-                $cond: [
-                  {
-                    $and: [
-                      { $lt: ["$totalSpend", highValueThreshold] },
-                      { $gte: ["$totalSpend", Math.ceil(highValueThreshold / 4)] },
-                    ],
-                  },
-                  1,
-                  0,
-                ],
-              },
-            },
-            lowValue: {
-              $sum: {
-                $cond: [{ $lt: ["$totalSpend", Math.ceil(highValueThreshold / 4)] }, 1, 0],
-              },
-            },
-          },
-        },
-      ]),
-    ]);
-
-    const totalDocs = totalResult[0]?.total || 0;
-    const totalPages = Math.ceil(totalDocs / limit) || 1;
-
-    // 4. Map to DTO
-    const customers: InactiveCustomer[] = customersData.map((c: any) => ({
-      _id: c._id.toString(),
+    const customers: InactiveCustomer[] = engineResult.customers.map((c: UnifiedInactiveCustomer) => ({
+      _id: c._id,
       name: c.name,
       email: c.email,
       phone: c.phone,
       image: c.image,
-      totalSpend: c.totalSpend || 0,
-      orderCount: c.orderCount || 0,
-      lastOrderDate: new Date(c.lastOrderDate).toISOString(),
-      createdAt: new Date(c.createdAt).toISOString(),
-      daysSinceLastOrder: c.daysSinceLastOrder || 0,
-      segment: getSegment(c.totalSpend || 0, highValueThreshold),
-      reactivationEmailsSent: c.reactivationEmailCount || 0,
+      totalSpend: c.totalSpend,
+      orderCount: c.orderCount,
+      lastOrderDate: c.lastOrderDate,
+      createdAt: c.createdAt,
+      daysSinceLastOrder: c.daysSinceLastOrder,
+      segment: c.segment,
+      reactivationEmailsSent: c.reactivationEmailsSent,
     }));
-
-    // 5. Store-wide Summary
-    const storeSummary = summaryStats[0] || { highValue: 0, mediumValue: 0, lowValue: 0 };
-    const summary = {
-      totalInactive: totalDocs,
-      highValue: storeSummary.highValue || 0,
-      mediumValue: storeSummary.mediumValue || 0,
-      lowValue: storeSummary.lowValue || 0,
-    };
 
     const result: PaginatedInactiveCustomersResult = {
       customers,
-      totalDocs,
-      totalPages,
-      summary,
+      totalDocs: engineResult.totalDocs,
+      totalPages: engineResult.totalPages,
+      summary: engineResult.summary,
     };
 
-    // 6. Cache for 5 minutes
+    // 3. Cache for 5 minutes
     try {
       await redis.set(cacheKey, safeStringify(result), { ex: 300 });
     } catch (cacheError) {
@@ -309,7 +140,7 @@ export async function getInactiveCustomers({
 }
 
 // ================================================================
-// 🔄 ACTION: Send Reactivation Email (Bulk)
+// 🔄 ACTION: Send Reactivation Email (Bulk) — Preserved 100%
 // ================================================================
 export async function sendReactivationEmail(
   userIds: string[],
@@ -347,7 +178,7 @@ export async function sendReactivationEmail(
       }
     );
 
-    console.log(`📧 Reactivation emails dispatched to ${result.modifiedCount} customers. Template: ${emailTemplate.slice(0, 30)}...`);
+    console.log(`📧 Reactivation emails dispatched to ${result.modifiedCount} customers.`);
 
     return {
       success: true,
