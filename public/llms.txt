@@ -1,0 +1,38 @@
+# PocketValue - Complete Store Directory & Guide
+
+Welcome to PocketValue, Pakistan's trusted online marketplace. This file serves as a complete directory for customers, search engines, and AI assistants to navigate our online store easily.
+
+## Main Shopping Sections
+- [Store Homepage](https://www.pocketvalue.pk/): The starting point of our online store, featuring trending products and collections.
+- [Product Search Index](https://www.pocketvalue.pk/search): Search, filter by price or brand, and browse our entire product catalog.
+- [Today's Hot Deals](https://www.pocketvalue.pk/deals): Active discount campaigns, special sales, and limited-time offers.
+- [Shopping Guides & Blogs](https://www.pocketvalue.pk/blog): Helpful shopping guides, masterclasses, and blogs to help you buy smart.
+
+## Shop by Category
+Explore our focused product categories:
+- [Health & Accessories](https://www.pocketvalue.pk/category/health-accessories): Medical monitors, pain relief items, and wellness accessories.
+- [Home & Living](https://www.pocketvalue.pk/category/home): Practical items, organizers, and accessories for your home.
+- [Men's Fashion](https://www.pocketvalue.pk/category/men): Stylish clothing, shoes, and lifestyle items for men.
+- [Women's Fashion](https://www.pocketvalue.pk/category/women): Apparel, jewelry, and lifestyle products for women.
+- [Kids & Baby Care](https://www.pocketvalue.pk/category/kids): Toys, clothing, and essential care products for children.
+- [Food & Grocery](https://www.pocketvalue.pk/category/food-grocery): Everyday household essentials, snacks, and pet products.
+- [Consumer Electronics](https://www.pocketvalue.pk/category/electronics): Modern gadgets, smart devices, and electronic accessories.
+
+## Customer Account & Loyalty Portals
+Manage your profile, track purchases, and check rewards:
+- [Customer Login](https://www.pocketvalue.pk/login): Access your existing customer account.
+- [Customer Registration](https://www.pocketvalue.pk/register): Create a new account to start shopping and saving.
+- [Track My Orders](https://www.pocketvalue.pk/account/orders): Check the live status and shipping updates of your active orders.
+- [My Wishlist](https://www.pocketvalue.pk/account/wishlist): View and manage the products you saved to buy later.
+- [Referral & Rewards program](https://www.pocketvalue.pk/account/referrals): Invite your friends to shop and earn savings coupons.
+
+## Vendor & Procurement Portals
+- [Request a Product](https://www.pocketvalue.pk/request-product): Can't find an item? Submit a request, and our team will try to source it for you.
+
+## Customer Support & Policies
+- [Help & FAQ Center](https://www.pocketvalue.pk/faq): Answers to frequently asked questions about shopping and delivery.
+- [Contact Support](https://www.pocketvalue.pk/contact-us): Get in touch with our customer assistance team.
+- [Shipping Policy](https://www.pocketvalue.pk/shipping-policy): Details about cash on delivery (COD), shipping charges, and delivery times.
+- [Returns & Refunds Policy](https://www.pocketvalue.pk/returns-and-refunds): How to return items easily and claim your refund or store credit.
+- [Terms of Service](https://www.pocketvalue.pk/terms-of-service): Terms, conditions, and general rules of our online store.
+- [Privacy Policy](https://www.pocketvalue.pk/privacy-policy): How we protect your personal and payment data securely.
